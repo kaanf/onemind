@@ -12,7 +12,7 @@ Follows [ADR 0002](adr/0002_POSTGRES_FLYWAY_JOOQ.md) (PostgreSQL + Flyway + jOOQ
 - PostgreSQL 18. One schema per module, plus `platform` for infrastructure tables.
 - snake_case names. Primary keys `id uuid primary key default uuidv7()`.
 - Every table has `created_at timestamptz not null default now()`; mutable tables also
-  `updated_at timestamptz not null`. Editable-by-user tables have `version int not null default 0`
+  `updated_at timestamptz not null default now()` (the application sets it on update). Editable-by-user tables have `version int not null default 0`
   (optimistic locking, ADR 0010).
 - Money: `*_minor bigint` + `currency char(3)` (or the venue's currency where obvious).
   Decimal quantities: `numeric(12,3)`. Rates: `numeric(6,4)`.
@@ -26,10 +26,18 @@ Follows [ADR 0002](adr/0002_POSTGRES_FLYWAY_JOOQ.md) (PostgreSQL + Flyway + jOOQ
   `account.app_user`.
 - External (POS) IDs are kept as `external_id text` with a unique key per venue/connection.
 - No soft deletes by default. Use a status or `archived_at` where the domain needs it.
-- Flyway: one history table in `platform`; migrations named `V001__account_init.sql`, …; each
-  migration schema-qualifies every object.
+- Flyway: one history table in `platform` (`spring.flyway.default-schema`); migrations in
+  `backend/src/main/resources/db/migration`, named `V<NNN>__<module>_<what>.sql` (`V001__init.sql` is an
+  empty baseline, then `V002__account_init.sql`, `V003__pos_init.sql`, `V004__reporting_init.sql`).
+  Each migration creates its module schema and schema-qualifies every object.
+- Extensions are installed in `public` (`create extension … with schema public`) and referenced
+  qualified (`public.citext`), so they work whatever the connection's `search_path`.
 
 ## `platform` (infrastructure, owned by `common`)
+
+Each table is created by the migration of the feature that needs it (event registry, db-scheduler,
+idempotency filter; see `docs/ROADMAP.md`), because the first two take their DDL from the library
+version in use.
 
 | Table | Purpose / key columns |
 |-------|------------------------|
@@ -66,7 +74,7 @@ Account deletion (`DELETE /me`, App Store 5.1.1(v), GDPR art. 17):
 | `pos_connection` | `id`, `organization_id`, `provider (STORYOUS)`, `external_merchant_id`, `status (PENDING\|ACTIVE\|ERROR\|REVOKED)`, `last_error`, `last_synced_at` | Storyous uses **our app's** client credentials (server config), so no per-merchant secret is stored. Unique `(provider, external_merchant_id)`. |
 | `venue_link` | `venue_id` (PK), `connection_id`, `external_place_id` | Unique `(connection_id, external_place_id)`. |
 | `sync_cursor` | `venue_id`, `resource (BILLS\|MENU\|DESKS)`, `cursor text`, `last_success_at`, `last_error` | PK `(venue_id, resource)`. Bills cursor = last `_lastModifiedAt`. |
-| `sync_job` | `id`, `connection_id`, `kind (INITIAL\|INCREMENTAL\|BACKFILL)`, `status`, `started_at`, `finished_at`, `steps jsonb` | Steps = `[{name, state, progress, countLabel}]` for A4. |
+| `sync_job` | `id`, `connection_id`, `kind (INITIAL\|INCREMENTAL\|BACKFILL)`, `status (QUEUED\|RUNNING\|SUCCEEDED\|FAILED)`, `started_at`, `finished_at`, `steps jsonb` | Steps = `[{name, state, progress, countLabel}]` for A4. |
 | `category` | `id`, `venue_id`, `external_id`, `name`, `parent_id` | Unique `(venue_id, external_id)`. Storyous menus are merchant-level; we keep a copy per venue for simple queries. |
 | `product` | `id`, `venue_id`, `external_id`, `category_id`, `name`, `measure`, `ean`, `vat_rate`, `price_minor`, `active` | Unique `(venue_id, external_id)`. |
 | `section` | `id`, `venue_id`, `external_id`, `name`, `color`, `removed` | Storyous desk sections = zones. |
@@ -88,7 +96,8 @@ prices with a decimal-string bill total) and the meaning of `sessionCreated` vs 
 
 Own rollup tables, not materialized views: PostgreSQL materialized views recompute everything on
 refresh, while these tables are refreshed per `(venue_id, business_day)` after each `BillsSynced`
-event. A rebuild job recomputes any range from `pos`. Hours are local clock hours; on the DST
+event. A rebuild job recomputes any range from `pos`. `product_id`, `staff_id` and `desk_id` point to
+`pos` rows without foreign keys (cross-module rule); amounts are in the venue's currency. Hours are local clock hours; on the DST
 fall-back night the repeated hour is merged into one row.
 
 | Table | Grain (PK) | Columns | Basis |
