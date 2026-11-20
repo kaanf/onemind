@@ -31,7 +31,7 @@ Last updated: 2026-11-20.
       (`interfaceOnly`, Boot 4 / Jackson 3) + spec lint
 - [x] Flyway migrations from `DB_SCHEMA.md`: `account`, `pos`, `reporting` (`platform` tables come with
       their own items below)
-- [ ] jOOQ codegen from the migrated schema (Testcontainers → Flyway → jOOQ), converters for
+- [x] jOOQ codegen from the migrated schema (Testcontainers → Flyway → jOOQ), converters for
       `Money`/`Instant` in `common`
 - [ ] Module packages `account`, `pos`, `reporting`, `stock`, `common` + Spring Modulith boundary
       test (incl. jOOQ package rules)
