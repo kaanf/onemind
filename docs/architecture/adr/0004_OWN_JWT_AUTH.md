@@ -1,0 +1,63 @@
+# 0004 · Own JWT auth with Apple, Google and email codes
+
+- **Status:** Accepted
+- **Date:** 2026-11-20
+- **Deciders:** Kaan
+
+## Context
+
+The design has passwordless sign-in only: **Continue with Apple**, **Continue with Google**, or a
+**6-digit email code** that expires in 10 minutes (A1, A2). There are no passwords, no social
+graph, no enterprise SSO. A managed auth service would add cost, a vendor dependency, and one more
+place for user data, for a small and well-understood flow.
+
+## Decision
+
+The backend issues and verifies **its own tokens** with Spring Security.
+
+### Tokens
+
+- **Access token:** JWT, lifetime **15 minutes**, signed with an asymmetric key (ES256 or RS256).
+  The private key comes from a secret store. The token carries `sub` (user ID) and a
+  `kid` for key rotation. Roles and venue access are **not** trusted from the token; they are
+  loaded per request (memberships change).
+- **Refresh token:** opaque random value, lifetime **30 days**, stored **hashed** in the database,
+  **rotated on every use**. If an already-used refresh token is presented, revoke the whole token
+  family (theft detection).
+- Backend validates access tokens as an OAuth2 resource server (`spring-boot-starter-oauth2-resource-server`)
+  with our own public key.
+- Mobile stores tokens in Keychain (iOS) / Keystore-backed storage (Android), and refreshes
+  automatically on `401`.
+
+### Sign-in methods
+
+- **Email code:** `POST /auth/email/start` creates a 6-digit code, stored hashed, valid
+  **10 minutes**, max **5** wrong attempts, resend allowed after **30 s** (the design shows a
+  countdown). Rate-limit per email and per IP. Always answer `202` (no account enumeration).
+- **Apple:** the app sends the Apple identity token. The backend checks the signature (Apple JWKS),
+  `iss`, `aud` (our bundle ID), expiry and nonce. Handle Apple's private relay emails.
+- **Google:** the app sends the Google ID token. The backend checks it against Google JWKS and our
+  client IDs (Android + iOS).
+- Accounts are linked by **verified email**: signing in with Google using the same verified email
+  as an existing account signs into that account.
+
+### Other requirements
+
+- In-app **account deletion** (App Store requirement): deletes the user, revokes tokens and
+  removes Apple/Google links.
+- Logout revokes the refresh token family.
+- Emails are sent through a transactional email provider (chosen with hosting).
+- All auth events are logged (no codes or tokens in logs).
+
+## Alternatives considered
+
+- **Managed (Firebase Auth, Auth0, Supabase Auth, Clerk):** less code, but cost per user, vendor
+  lock-in, and user data in a third place. The flow is small enough to own.
+- **Self-hosted Keycloak:** powerful, but heavy to run for passwordless mobile sign-in.
+
+## Consequences
+
+- We own security-sensitive code: it needs focused tests (code expiry, attempts, rotation, reuse
+  detection, token validation) and a security review before launch.
+- No external auth dependency; all user data stays in our database.
+- Key rotation procedure must be documented with hosting.
