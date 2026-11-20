@@ -10,6 +10,9 @@ spring:
     password: ${DATABASE_PASSWORD:onemind}
   flyway:
     locations: classpath:db/migration
+    # History table lives in platform; module schemas are created by their migrations.
+    default-schema: platform
+    schemas: platform
   jooq:
     sql-dialect: postgres
 

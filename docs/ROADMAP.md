@@ -29,7 +29,8 @@ Last updated: 2026-11-20.
 - [x] Version catalog (`gradle/libs.versions.toml`), ktlint (detekt deferred until 2.0 is stable)
 - [x] OpenAPI spec skeleton (`docs/api/openapi.yaml`, split files, 3.0.3) + `kotlin-spring` codegen
       (`interfaceOnly`, Boot 4 / Jackson 3) + spec lint
-- [ ] Flyway migrations from `DB_SCHEMA.md`: `platform`, `account`, `pos`, `reporting`
+- [x] Flyway migrations from `DB_SCHEMA.md`: `account`, `pos`, `reporting` (`platform` tables come with
+      their own items below)
 - [ ] jOOQ codegen from the migrated schema (Testcontainers → Flyway → jOOQ), converters for
       `Money`/`Instant` in `common`
 - [ ] Module packages `account`, `pos`, `reporting`, `stock`, `common` + Spring Modulith boundary
