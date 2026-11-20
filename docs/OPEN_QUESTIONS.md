@@ -74,3 +74,4 @@ See [architecture/README.md#decisions-to-discuss](architecture/README.md#decisio
 | R20 | Repository host and CI | GitHub + GitHub Actions (ADR 0008) | 2026-11-20 |
 | R21 | Product name | OneMind (deep-link scheme `onemind://`) | 2026-11-20 |
 | R22 | Backend architecture | Modular monolith with Spring Modulith; modules account, pos, reporting, stock; schema per module; pragmatic hexagonal; DDD-lite in stock; outbox events with idempotent listeners; db-scheduler; sealed outcomes + DomainException (ADR 0009) | 2026-11-20 |
+| R23 | API design | OpenAPI 3.0.3; BFF dashboards + REST stock + command endpoints; UUIDv7 (not secrets); minor-unit money, decimal-string quantities/rates; codes + English fallback; RFC 9457; PUT + version; Idempotency-Key (ADR 0010) | 2026-11-20 |

@@ -73,6 +73,10 @@ Rules:
 - Background jobs use **db-scheduler**. Jobs must be idempotent and safe to retry.
 - `domain/` is plain Kotlin: no Spring, no jOOQ. Unit-test it without Spring.
 - Controllers are thin: validate, call one use case, map to DTO.
+- **Follow the API rules in `docs/api/README.md`** ([ADR 0010](../docs/architecture/adr/0010_API_DESIGN.md)):
+  UUIDv7 IDs (never treated as secrets), minor-unit money, decimal-string quantities and rates,
+  RFC 9457 errors with a stable `code` and English `detail`, no PATCH, `version` → `409`,
+  `Idempotency-Key` on creating POSTs, `404` for other venues' resources.
 - **API changes start in `docs/api/openapi.yaml`.** Never hand-write a request/response DTO
   that the spec should generate. Never edit generated code (`build/generated`).
 - Inside `/api/v1` changes are additive only (see ADR 0001). CI fails on breaking spec changes.

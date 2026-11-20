@@ -1,6 +1,6 @@
 # 0001 · OpenAPI contract-first, no shared Kotlin module
 
-- **Status:** Accepted
+- **Status:** Accepted (amended by [ADR 0010](0010_API_DESIGN.md): OpenAPI **3.0.3** instead of 3.1)
 - **Date:** 2026-11-20
 - **Deciders:** Kaan
 
@@ -15,12 +15,12 @@ backend.
 
 ## Decision
 
-The API is defined **contract-first** in an OpenAPI 3.1 document at `docs/api/openapi.yaml`. That
+The API is defined **contract-first** in an OpenAPI document (3.0.3, see ADR 0010) at `docs/api/openapi.yaml`. That
 file is the single source of truth. Both sides generate code from it. There is **no shared Kotlin
 module** between `backend/` and `mobile/`.
 
 - **Backend:** OpenAPI Generator (Gradle plugin), generator `kotlin-spring`, options
-  `interfaceOnly=true`, `useSpringBoot3=true`, `useTags=true`. It generates controller
+  `interfaceOnly=true`, `useTags=true`, plus the Spring Boot 4 / Jackson 3 option (openapi-generator 7.21+). It generates controller
   interfaces and DTOs with Jackson. Our `@RestController` classes implement the generated
   interfaces. Generated sources go to `build/generated`, never committed.
 - **Mobile:** OpenAPI Generator, generator `kotlin`, `library=multiplatform` (Ktor +

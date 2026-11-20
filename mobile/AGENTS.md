@@ -108,6 +108,11 @@ feature/<name>/
 - Repositories return domain models or `Result`-like types, not DTOs.
 - Generated DTOs stay in `data/`; never edit generated code. A missing field means a spec change in
   `docs/api/openapi.yaml` first (backend and mobile in the same PR).
+- Follow `docs/api/README.md` ([ADR 0010](../docs/architecture/adr/0010_API_DESIGN.md)). Errors:
+  switch on `code` and show a localised string; if the code is unknown, show the server's English
+  `detail`. Hint cards with an unknown `code` are hidden. Money arrives as minor units, quantities and
+  rates as decimal strings: never parse them into `Double`.
+- Send an `Idempotency-Key` (UUID) on creating POSTs and reuse it on retries of the same action.
 - Be tolerant of API evolution: JSON uses `ignoreUnknownKeys = true`; unknown enum values map to an
   `UNKNOWN` fallback; the client sends `X-App-Version` and `X-Platform` and handles
   `426 Upgrade Required` with a "please update" screen.

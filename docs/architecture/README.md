@@ -63,7 +63,8 @@ flowchart LR
 | Local DB | SQLDelight | Proposed (ADR 0006) |
 | Real-time | Foreground polling + ETag for live data; SSE for assistant answers | **Decided** · [ADR 0005](adr/0005_POLLING_AND_SSE.md) |
 | Navigation | Compose Navigation (multiplatform) or Voyager/Decompose | Open |
-| API contract | OpenAPI 3.1, contract-first, code generated on both sides, no shared Kotlin module | **Decided** · [ADR 0001](adr/0001_OPENAPI_CONTRACT_FIRST.md) |
+| API design | Hybrid (BFF dashboards + REST stock), UUIDv7, minor-unit money, RFC 9457 + codes, PUT + version, Idempotency-Key | **Decided** · [ADR 0010](adr/0010_API_DESIGN.md) |
+| API contract | OpenAPI 3.0.3, contract-first, code generated on both sides, no shared Kotlin module | **Decided** · [ADR 0001](adr/0001_OPENAPI_CONTRACT_FIRST.md) |
 | Auth | Own JWT (access + refresh), Apple/Google ID-token verification, email OTP | **Decided** · [ADR 0004](adr/0004_OWN_JWT_AUTH.md) |
 | AI (first release) | Receipt extraction only: Claude Haiku 5.5 vision + structured output, Sonnet 5.5 fallback | **Decided** · [ADR 0007](adr/0007_RECEIPT_EXTRACTION_WITH_CLAUDE.md) |
 | AI (assistant, later) | Chat, briefing, RAG; provider and privacy approach decided when built | Open |
@@ -102,3 +103,4 @@ Write one file per decision: `adr/NNNN_SHORT_TITLE.md`, using [`adr/0000_TEMPLAT
 | [0007](adr/0007_RECEIPT_EXTRACTION_WITH_CLAUDE.md) | Receipt extraction with Claude Haiku 5.5 | Accepted |
 | [0008](adr/0008_HETZNER_HOSTING_ZERO_COST_START.md) | Hosting on Hetzner, starting at near-zero cost | Accepted |
 | [0009](adr/0009_BACKEND_MODULAR_MONOLITH.md) | Backend architecture: modular monolith with Spring Modulith | Accepted |
+| [0010](adr/0010_API_DESIGN.md) | API design rules | Accepted |
