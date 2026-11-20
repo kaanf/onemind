@@ -41,6 +41,10 @@ One deployable, split into modules by business capability:
   `api` package (interfaces, DTOs, events). A test runs `ApplicationModules.of(...).verify()`
   plus our jOOQ-package rules, and is **mandatory in CI**: a failing boundary test blocks merge.
 - Moving modules to separate Gradle modules later stays possible.
+- Implementation: Spring Modulith 2.2.0 (BOM in `build.gradle.kts`). `api` packages are named
+  interfaces via `package-info.java`; `common` is an open module. jOOQ rules are ArchUnit rules
+  (ArchUnit comes with Spring Modulith) in `architecture/DatabaseAccessRules`, with fixture tests
+  that prove they catch violations.
 
 ### 3. Layers inside a module (pragmatic hexagonal)
 

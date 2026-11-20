@@ -33,7 +33,7 @@ Last updated: 2026-11-20.
       their own items below)
 - [x] jOOQ codegen from the migrated schema (Testcontainers → Flyway → jOOQ), converters for
       `Money`/`Instant` in `common`
-- [ ] Module packages `account`, `pos`, `reporting`, `stock`, `common` + Spring Modulith boundary
+- [x] Module packages `account`, `pos`, `reporting`, `stock`, `common` + Spring Modulith boundary
       test (incl. jOOQ package rules)
 - [ ] Spring Modulith event publication registry (JDBC, `platform` schema, purge job) + db-scheduler
 - [ ] Error handling: `DomainException` hierarchy + RFC 9457 `@ControllerAdvice` (`code`, `detail`,
