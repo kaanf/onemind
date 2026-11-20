@@ -80,7 +80,9 @@ owner's other KMP project (crew-kmp).
 - `main` = released state; `dev` = integration branch.
 - Work happens on short-lived branches from `dev` named with a Conventional Commit type
   (`feat/…`, `fix/…`, `chore/…`, `docs/…`); PRs target `dev`.
-- Releases: merge `dev` → `main` and tag. Backend deploys from `main`; mobile store builds come
+- Task PRs into `dev` are **squash-merged** (one commit per task). Don't reuse a branch after its
+  PR is merged; start the next task from current `origin/dev`.
+- Releases: one PR `dev` → `main`, merged with a **merge commit**, then tagged. Backend deploys from `main`; mobile store builds come
   from tags on `main`. Hotfix: branch from `main`, merge to `main` and back into `dev`.
 - Never commit directly to `dev` or `main`. The owner approves merges and releases.
 

@@ -108,8 +108,9 @@ Cross-platform page does not show (for example the Insights suggestion cards).
   If you are already on a change branch, say which one and whether the task belongs there.
 - Commits: Conventional Commits, `<type>(<scope>): <description>`; scope is `backend`, `mobile`,
   `api`, `docs` or `repo`.
-- PRs target `dev`. Releases go `dev` → `main` and are tagged. The owner approves merges and
-  releases.
+- PRs target `dev` and are squash-merged; don't reuse a merged branch. Releases are one PR
+  `dev` → `main` (merge commit), then tagged. Hotfix: `hotfix/…` from `main` → `main`, then
+  merge `main` back into `dev`. Agents don't merge PRs or tag; the owner does.
 - PR description: what changed, why, screenshots for UI, which docs were updated, which checks ran
   (passed / failed / not run).
 
