@@ -31,7 +31,6 @@ reference the question ID in a code comment / PR. When a question is answered, m
 | M3 | Week/month comparisons: full previous period or same elapsed span? |
 | M4 | Payment methods other than card/cash (vouchers, meal cards, Benefit): how to show? |
 | M5 | Guest count when the POS has none: count 1 per bill, or exclude? |
-| M6 | Staff sales attribution: bill's waiter, or the person who added each item? |
 | M7 | Happy Hour "extra sales" baseline method. |
 | M8 | Threshold for "above usual" deleted items. |
 | M9 | Stock corrections in losses at sale price or cost? |
@@ -77,4 +76,6 @@ See [architecture/README.md#decisions-to-discuss](architecture/README.md#decisio
 | R20 | Repository host and CI | GitHub + GitHub Actions (ADR 0008) | 2026-11-20 |
 | R21 | Product name | OneMind (deep-link scheme `onemind://`) | 2026-11-20 |
 | R22 | Backend architecture | Modular monolith with Spring Modulith; modules account, pos, reporting, stock; schema per module; pragmatic hexagonal; DDD-lite in stock; outbox events with idempotent listeners; db-scheduler; sealed outcomes + DomainException (ADR 0009) | 2026-11-20 |
+| R24 | DB schema (platform, account, pos, reporting) | Accepted in `architecture/DB_SCHEMA.md`; user data deleted immediately, organization data after 30 days | 2026-11-20 |
+| R25 | Staff attribution (M6) | Sales/guests/bills to who opened the bill, tips to who closed it | 2026-11-20 |
 | R23 | API design | OpenAPI 3.0.3; BFF dashboards + REST stock + command endpoints; UUIDv7 (not secrets); minor-unit money, decimal-string quantities/rates; codes + English fallback; RFC 9457; PUT + version; Idempotency-Key (ADR 0010) | 2026-11-20 |

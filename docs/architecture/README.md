@@ -88,6 +88,10 @@ flowchart LR
 9. ~~Hosting, environments, CI/CD~~ → decided in [ADR 0008](adr/0008_HETZNER_HOSTING_ZERO_COST_START.md).
 10. ~~Auth~~ → decided in [ADR 0004](adr/0004_OWN_JWT_AUTH.md).
 
+## Database
+
+Schema: [DB_SCHEMA.md](DB_SCHEMA.md) (`platform`, `account`, `pos`, `reporting` accepted; `stock` pending).
+
 ## ADRs
 
 Write one file per decision: `adr/NNNN_SHORT_TITLE.md`, using [`adr/0000_TEMPLATE.md`](adr/0000_TEMPLATE.md).

@@ -89,8 +89,8 @@ Items marked **(?)** need confirmation; see `../OPEN_QUESTIONS.md`.
 | Metric | Definition |
 |--------|------------|
 | Hours | Sum of shift durations from POS sign-ins in the business day (ongoing shifts up to now). Team *HOURS* shown as `h:mm`. |
-| Staff *sales* | `paidRevenue` of bills attributed to the staff member (the bill's waiter) **(?)**. |
-| Staff *tips* | Tips on those bills. |
+| Staff *sales* | `paidRevenue` of bills **opened** by the staff member (POS `createdBy`). |
+| Staff *tips* | Tips on bills **closed** by the staff member (POS `paidBy`). |
 | Staff *guests* | Guests on those bills. |
 | *Bills paid*, *Open tabs* | Counts for that staff member. |
 | *Deleted* | Count of deleted items by that staff member today. |
