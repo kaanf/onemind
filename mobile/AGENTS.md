@@ -112,6 +112,16 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
 - Auth: refresh once on `401` (single-flight), retry, else log out. Sign in with Apple required on
   iOS when Google is offered.
 
+## Environments, text and diagnostics ([ADR 0012](../docs/architecture/adr/0012_CROSS_CUTTING_CONCERNS.md))
+
+- Variants `dev` (`com.onemind.app.dev`) and `prod`; base URL and Sentry DSN via BuildKonfig.
+- Strings in Compose resources (English; Czech before release). Plurals use CLDR categories
+  (Czech: one/few/many/other) — test them.
+- Money via platform formatters (`expect/actual` in `core:presentation`), by the venue's currency,
+  independent of UI language. Times in the venue's time zone from the API.
+- Send `X-Request-Id` per request; add it to Sentry breadcrumbs. No analytics SDK in the first
+  release.
+
 ## Testing
 
 - ViewModel tests in `commonTest` with fake repositories and Turbine.

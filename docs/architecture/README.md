@@ -109,3 +109,4 @@ Write one file per decision: `adr/NNNN_SHORT_TITLE.md`, using [`adr/0000_TEMPLAT
 | [0009](adr/0009_BACKEND_MODULAR_MONOLITH.md) | Backend architecture: modular monolith with Spring Modulith | Accepted |
 | [0010](adr/0010_API_DESIGN.md) | API design rules | Accepted |
 | [0011](adr/0011_MOBILE_ARCHITECTURE.md) | Mobile architecture: crew-kmp structure with generated API models | Accepted |
+| [0012](adr/0012_CROSS_CUTTING_CONCERNS.md) | Cross-cutting: logging, environments, i18n, analytics, flags, testing, branches | Accepted |

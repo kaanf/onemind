@@ -10,7 +10,6 @@ reference the question ID in a code comment / PR. When a question is answered, m
 |----|----------|
 | P2 | Exact permissions for `STAFF` users: which tabs can they see (Sales? Staff earnings?) and which actions can they take? |
 | P3 | How do staff users get access: owner invites by email? Linked to a POS staff member? |
-| P4 | Localisation: English + Czech at launch? Others? |
 | P5 | Where do suggestions live in the Cross-platform design (inside Assistant feed, cards on Today, notifications)? |
 | P6 | Entry points to S4 Locations, S6 Scan invoice, S7 Recipes inside the Stock tab (not designed). |
 | P7 | Receipt screen, venue switcher sheet, settings, account, notifications, empty/error/loading states, dark mode: need designs. |
@@ -79,4 +78,5 @@ See [architecture/README.md#decisions-to-discuss](architecture/README.md#decisio
 | R24 | DB schema (platform, account, pos, reporting) | Accepted in `architecture/DB_SCHEMA.md`; user data deleted immediately, organization data after 30 days | 2026-11-20 |
 | R25 | Staff attribution (M6) | Sales/guests/bills to who opened the bill, tips to who closed it | 2026-11-20 |
 | R26 | Mobile architecture | crew-kmp structure, generated models in `core:api`, DataStore (Room later) (ADR 0011) | 2026-11-20 |
+| R27 | Cross-cutting (ADR 0012) | Structured logs + traceId, local/prod + dev/prod variants, Czech before release, no analytics or flags in first release, CI gates, `dev` → `main` branches | 2026-11-20 |
 | R23 | API design | OpenAPI 3.0.3; BFF dashboards + REST stock + command endpoints; UUIDv7 (not secrets); minor-unit money, decimal-string quantities/rates; codes + English fallback; RFC 9457; PUT + version; Idempotency-Key (ADR 0010) | 2026-11-20 |

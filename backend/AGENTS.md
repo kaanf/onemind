@@ -103,8 +103,11 @@ Rules:
   transaction.
 - **Concurrency:** Spring MVC on virtual threads with blocking jOOQ/JDBC. No coroutines, no
   WebFlux. Keep the HikariCP pool small (10–20) and bound concurrent calls to external APIs.
-- Logging: structured (JSON) logs, no PII or secrets, include `venueId` and request ID.
-- Configuration via `application.yml` + environment variables. Secrets never in the repo.
+- Logging: Spring Boot structured logging (ECS JSON to stdout), Micrometer Tracing (`traceparent`),
+  `traceId` in logs and error responses, log the client's `X-Request-Id`. No personal data or
+  secrets in logs or Sentry events; log IDs (ADR 0012).
+- Configuration via `application.yml` + environment variables; profiles `local` and `prod`.
+  Secrets never in the repo.
 
 ## Auth rules ([ADR 0004](../docs/architecture/adr/0004_OWN_JWT_AUTH.md))
 
