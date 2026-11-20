@@ -66,7 +66,7 @@ owner's other KMP project (crew-kmp).
 
 | Check | Runs | Required to merge |
 |-------|------|-------------------|
-| Backend: build, unit + integration tests (Testcontainers), Spring Modulith boundary test, ktlint/detekt | every PR | yes |
+| Backend: build, unit + integration tests (Testcontainers), Spring Modulith boundary test, ktlint (detekt once 2.0 is stable) | every PR | yes |
 | API: spec lint + `oasdiff breaking` | PRs touching `docs/api/` | yes |
 | Mobile: common tests, Koin graph test, Android build | every PR | yes |
 | iOS build (macOS runner) | merges to `dev` and `main`, nightly | no (quota: macOS minutes count many times against private-repo minutes; verify current GitHub pricing) |

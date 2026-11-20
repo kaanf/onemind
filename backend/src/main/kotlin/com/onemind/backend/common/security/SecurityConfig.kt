@@ -8,7 +8,6 @@ import org.springframework.security.web.SecurityFilterChain
 
 @Configuration(proxyBeanMethods = false)
 class SecurityConfig {
-
     // Only the health endpoint is public until auth (ADR 0004) is implemented.
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain =
@@ -18,6 +17,5 @@ class SecurityConfig {
             .authorizeHttpRequests {
                 it.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                 it.anyRequest().denyAll()
-            }
-            .build()
+            }.build()
 }

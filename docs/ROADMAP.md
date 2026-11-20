@@ -26,7 +26,7 @@ Last updated: 2026-11-20.
 
 ## Phase 1 — Backend infrastructure ⏭️
 
-- [ ] Version catalog (`gradle/libs.versions.toml`), ktlint or detekt
+- [x] Version catalog (`gradle/libs.versions.toml`), ktlint (detekt deferred until 2.0 is stable)
 - [ ] OpenAPI spec skeleton (`docs/api/openapi.yaml`, split files, 3.0.3) + `kotlin-spring` codegen
       (`interfaceOnly`, Boot 4 / Jackson 3) + spec lint
 - [ ] Flyway migrations from `DB_SCHEMA.md`: `platform`, `account`, `pos`, `reporting`
@@ -92,6 +92,10 @@ Last updated: 2026-11-20.
 - [ ] App Store / Play listings, first release `dev` → `main` + tag
 
 ## Later
+
+- detekt (`dev.detekt`) once 2.0 is stable; drop the ktlint Kotlin-compiler pin in
+  `backend/build.gradle.kts` once ktlint supports the project's Kotlin version.
+
 
 Assistant (chat, briefing, suggestions, knowledge), order plan, idle stock, corrections, staff
 shifts via a staff app, multi-POS (Dotykačka first), product analytics (PostHog EU).
