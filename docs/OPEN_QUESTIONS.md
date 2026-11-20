@@ -17,6 +17,9 @@ reference the question ID in a code comment / PR. When a question is answered, m
 | P8 | Pricing / subscription and paywall? (affects onboarding) |
 | P9 | "Review and send to suppliers": how is the order sent (email, PDF share, supplier portal)? |
 | P10 | Supplier data (deadlines, delivery days, case sizes, prices): who enters it and where? |
+| P13 | Narrow the first release to read-only dashboards (stock, receipts and counts later) to make the Storyous pitch cleaner? See `product/STORYOUS_PARTNERSHIP.md`. |
+| P14 | Stock: our own system with Storyous read-only (current plan), and how to position it against Storyous Inventory. |
+| P15 | Storyous partnership outcome (owner is handling it): access model, extra data (open bills, voids, attendance), terms. |
 | P12 | Can the table layout be edited in the app, or only taken from the POS? |
 
 ## Metrics

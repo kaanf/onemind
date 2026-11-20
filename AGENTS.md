@@ -50,6 +50,7 @@ When you create them, follow the sub-project AGENTS.md files.
 | Entities, DB schema, DTOs                | [docs/domain/MODEL.md](docs/domain/MODEL.md)                         |
 | Stock, orders, counts, recipes           | [docs/domain/STOCK.md](docs/domain/STOCK.md)                         |
 | POS sync                                 | [docs/integrations/STORYOUS.md](docs/integrations/STORYOUS.md)       |
+| Storyous partnership, competitors        | [docs/product/STORYOUS_PARTNERSHIP.md](docs/product/STORYOUS_PARTNERSHIP.md) |
 | Assistant, suggestions, documents, OCR   | [docs/ai/ASSISTANT.md](docs/ai/ASSISTANT.md)                         |
 | UI, colors, type, components             | [docs/design/DESIGN_SYSTEM.md](docs/design/DESIGN_SYSTEM.md)         |
 | Navigation between screens               | [docs/product/NAVIGATION.md](docs/product/NAVIGATION.md)             |
