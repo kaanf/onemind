@@ -24,7 +24,10 @@ Kotlin + Spring Boot API for OneMind. Read the root [`../AGENTS.md`](../AGENTS.m
   *Proposed:* pgvector for embeddings.
 - API: contract-first from `docs/api/openapi.yaml`
   ([ADR 0001](../docs/architecture/adr/0001_OPENAPI_CONTRACT_FIRST.md)). Controller interfaces
-  and DTOs are generated with OpenAPI Generator (`kotlin-spring`, `interfaceOnly`); Jackson for JSON.
+  and DTOs are generated with OpenAPI Generator (`kotlin-spring`, `interfaceOnly`, Spring Boot 4 /
+  Jackson 3) on every build into `build/generated/openapi`: interfaces in `com.onemind.api.v1.web`,
+  DTOs in `com.onemind.api.v1.model` (outside `com.onemind.backend`, so Spring Modulith does not
+  see them as a module). Jackson for JSON.
 - Testing: JUnit 5, Kotest assertions or AssertJ, MockK, Testcontainers (PostgreSQL),
   Spring Boot test slices.
 - **Docker is required to build** (jOOQ codegen and integration tests use Testcontainers).
@@ -207,7 +210,10 @@ docker compose -f ../infra/docker-compose.yml up -d   # local PostgreSQL 18 on l
 Colima: if Testcontainers' Ryuk container fails with "error while creating mount source path
 …docker.sock", export `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock` in your shell.
 
-Not set up yet (next steps): OpenAPI code generation, jOOQ code generation, detekt.
+Spec (run from the repo root): `npx @redocly/cli@2.82.0 lint --config docs/api/redocly.yaml docs/api/openapi.yaml`.
+`./gradlew openApiGenerate` regenerates the API code alone (`build` does it automatically).
+
+Not set up yet (next steps): jOOQ code generation, detekt.
 
 ## Hosting ([ADR 0008](../docs/architecture/adr/0008_HETZNER_HOSTING_ZERO_COST_START.md))
 

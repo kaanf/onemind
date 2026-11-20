@@ -7,18 +7,24 @@ is a plan; the source of truth for shapes is the OpenAPI spec once written.
 
 ## Contract
 
-- **OpenAPI 3.0.3** spec in `docs/api/` (to be created) is the single source of truth.
+- **OpenAPI 3.0.3** spec `docs/api/openapi.yaml` is the single source of truth.
   (3.1 support in openapi-generator is still beta; revisit when stable.)
 - Layout, split by area and joined with relative `$ref`s (no bundling step):
 
   ```
   docs/api/
   ├── openapi.yaml                      ← entry: info, servers, security, path list
-  ├── paths/{account,dashboard,stock}/*.yaml
+  ├── redocly.yaml                      ← lint config
+  ├── paths/{account,dashboard,stock}/*.yaml   ← added with the first endpoints
   └── components/{schemas,responses,parameters}/*.yaml
   ```
+- Shared components so far: `Problem`, `FieldError`, `Money`; parameters `IdempotencyKey`,
+  `AppVersion`, `Platform`, `VenueId`, `VenueIds`; problem responses `BadRequest`, `Unauthorized`,
+  `Forbidden`, `NotFound`, `Conflict`, `UnprocessableEntity`, `UpgradeRequired`, `TooManyRequests`.
+  Reuse them with `$ref` instead of redefining.
+- Lint: `npx @redocly/cli@2.82.0 lint --config docs/api/redocly.yaml docs/api/openapi.yaml` (repo root).
 - Backend generates controller interfaces + DTOs (`kotlin-spring`, `interfaceOnly`); mobile generates
-  client + DTOs (`kotlin`, `library=multiplatform`, fallback: models only). No shared Kotlin module.
+  models only (`kotlin`, kotlinx.serialization; ADR 0011). No shared Kotlin module.
 - Workflow: change the spec first, then backend and mobile in the same PR.
 - Inside `/api/v1` changes are **additive only**. CI runs a spec linter and `oasdiff breaking`.
 - Clients send `X-App-Version` and `X-Platform`; the backend may answer `426 Upgrade Required`.

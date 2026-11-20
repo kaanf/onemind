@@ -1,0 +1,37 @@
+type: object
+description: RFC 9457 Problem Details with OneMind extension members (docs/api/README.md#errors).
+required:
+  - title
+  - status
+  - code
+properties:
+  type:
+    type: string
+    format: uri
+    description: Problem type URI.
+  title:
+    type: string
+    description: Short English summary. Clients never switch on it.
+  status:
+    type: integer
+    format: int32
+    description: HTTP status code.
+  code:
+    type: string
+    description: Stable machine-readable error code (`SCREAMING_SNAKE`). Clients switch on this.
+    example: VERSION_CONFLICT
+  detail:
+    type: string
+    description: English fallback text for codes the app does not know yet.
+  params:
+    type: object
+    additionalProperties: true
+    description: Values the app needs to build its own message for `code`.
+  traceId:
+    type: string
+    description: Trace ID of the request, also present in server logs.
+  errors:
+    type: array
+    description: Field validation problems.
+    items:
+      $ref: ./FieldError.yaml

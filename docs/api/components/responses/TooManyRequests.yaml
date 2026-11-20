@@ -1,0 +1,5 @@
+description: Rate limited.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/Problem.yaml

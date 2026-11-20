@@ -41,7 +41,7 @@ module** between `backend/` and `mobile/`.
   breaking changes.
 - The app sends `X-App-Version` and `X-Platform`. The backend can answer `426 Upgrade Required`
   below a minimum supported version.
-- Spec is linted in CI (e.g. Redocly or Spectral).
+- Spec is linted in CI with Redocly CLI (`recommended` rules, config `docs/api/redocly.yaml`).
 
 ## Alternatives considered
 

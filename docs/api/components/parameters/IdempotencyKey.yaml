@@ -1,0 +1,9 @@
+name: Idempotency-Key
+in: header
+required: true
+description: |
+  Client-generated UUID, required on creating POSTs and commands with side effects; stored 24 h
+  (docs/api/README.md#updates-concurrency-idempotency).
+schema:
+  type: string
+  format: uuid

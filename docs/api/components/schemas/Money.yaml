@@ -1,0 +1,15 @@
+type: object
+description: Exact money amount in integer minor units (haléř for CZK). Never a float.
+required:
+  - amountMinor
+  - currency
+properties:
+  amountMinor:
+    type: integer
+    format: int64
+    example: 4832000
+  currency:
+    type: string
+    description: ISO 4217 currency code.
+    pattern: '^[A-Z]{3}$'
+    example: CZK
