@@ -22,6 +22,16 @@ repositories {
     mavenCentral()
 }
 
+dependencyManagement {
+    imports {
+        mavenBom(
+            libs.spring.modulith.bom
+                .get()
+                .toString(),
+        )
+    }
+}
+
 dependencies {
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.spring.boot.starter.flyway)
@@ -34,6 +44,7 @@ dependencies {
     implementation(libs.jooq.postgres.extensions)
     implementation(libs.kotlin.reflect)
     implementation(libs.jackson.module.kotlin)
+    implementation(libs.spring.modulith.api)
     runtimeOnly(libs.postgresql)
     // Versions come from the Spring Boot BOM, so codegen matches the runtime jOOQ and Flyway.
     jooqCodegen(libs.postgresql)
@@ -48,6 +59,7 @@ dependencies {
     testImplementation(libs.spring.boot.starter.validation.test)
     testImplementation(libs.spring.boot.starter.webmvc.test)
     testImplementation(libs.spring.boot.testcontainers)
+    testImplementation(libs.spring.modulith.starter.test)
     testImplementation(libs.kotlin.test.junit5)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.postgresql)

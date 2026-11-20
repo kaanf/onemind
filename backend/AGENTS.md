@@ -61,7 +61,14 @@ Inside each module:
 Rules:
 
 - A module may use another module **only through its `api` package**: never its `application`,
-  `domain`, `infra` or `web` classes. The Modulith boundary test enforces this and must pass in CI.
+  `domain`, `infra` or `web` classes. The boundary test (`architecture/ModuleBoundaryTests`) enforces
+  this with Spring Modulith plus jOOQ package rules (`architecture/DatabaseAccessRules`) and must pass
+  in CI.
+- `<module>/api` is exposed by `@NamedInterface("api")` in a `package-info.java` under
+  `src/main/java` (Kotlin can't annotate packages). `common` is an open module
+  (`@ApplicationModule(type = OPEN)`): all its packages are usable everywhere. A new module needs
+  its own `api/package-info.java` and an entry in `DatabaseAccessRules` and `ModuleBoundaryTests`.
+- jOOQ classes (`com.onemind.db..`) are used only from `infra` packages.
 - **Each module owns one PostgreSQL schema** and uses only its own jOOQ package. Exception:
   `reporting` may read (never write) `pos` tables. Cross-module foreign keys only to
   `account.venue` and `account.app_user`.
@@ -211,7 +218,9 @@ docker compose -f ../infra/docker-compose.yml up -d   # local PostgreSQL 18 on l
 ```
 
 Colima: if Testcontainers' Ryuk container fails with "error while creating mount source path
-…docker.sock", export `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock` in your shell.
+…docker.sock", export `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock` in your shell
+profile. The Gradle daemon keeps the environment it started with: run `./gradlew --stop` after
+setting it.
 
 Spec (run from the repo root): `npx @redocly/cli@2.82.0 lint --config docs/api/redocly.yaml docs/api/openapi.yaml`.
 `./gradlew openApiGenerate` / `./gradlew generateJooqClasses` regenerate the API / jOOQ code alone
