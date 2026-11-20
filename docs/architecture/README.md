@@ -56,13 +56,13 @@ flowchart LR
 | Jobs | db-scheduler (PostgreSQL-backed) | **Decided** · [ADR 0009](adr/0009_BACKEND_MODULAR_MONOLITH.md) |
 | Mobile | Kotlin Multiplatform | **Decided** |
 | Mobile UI | Compose Multiplatform (shared UI for Android and iOS) | **Decided** · [ADR 0003](adr/0003_COMPOSE_MULTIPLATFORM_UI.md) |
-| Mobile arch | MVVM/UDF: ViewModel + immutable `UiState` + `StateFlow` | Proposed |
-| Networking | Ktor client + kotlinx.serialization | Proposed |
-| DI | Koin | Proposed |
+| Mobile arch | crew-kmp structure: feature × layer modules, ViewModel + State/Action/Event, Koin, typed Navigation Compose, generated API models in `core:api` | **Decided** · [ADR 0011](adr/0011_MOBILE_ARCHITECTURE.md) |
+| Networking | Ktor client + kotlinx.serialization, handwritten requests on generated models | **Decided** · [ADR 0011](adr/0011_MOBILE_ARCHITECTURE.md) |
+| DI | Koin (+ graph verification test) | **Decided** · [ADR 0011](adr/0011_MOBILE_ARCHITECTURE.md) |
 | Offline | Read-only cache everywhere; offline stock counts with outbox sync | **Decided** · [ADR 0006](adr/0006_OFFLINE_STRATEGY.md) |
-| Local DB | SQLDelight | Proposed (ADR 0006) |
+| Local storage | DataStore; Room only for offline counting | **Decided** · [ADR 0011](adr/0011_MOBILE_ARCHITECTURE.md) |
 | Real-time | Foreground polling + ETag for live data; SSE for assistant answers | **Decided** · [ADR 0005](adr/0005_POLLING_AND_SSE.md) |
-| Navigation | Compose Navigation (multiplatform) or Voyager/Decompose | Open |
+| Navigation | Navigation Compose with typed routes | **Decided** · [ADR 0011](adr/0011_MOBILE_ARCHITECTURE.md) |
 | API design | Hybrid (BFF dashboards + REST stock), UUIDv7, minor-unit money, RFC 9457 + codes, PUT + version, Idempotency-Key | **Decided** · [ADR 0010](adr/0010_API_DESIGN.md) |
 | API contract | OpenAPI 3.0.3, contract-first, code generated on both sides, no shared Kotlin module | **Decided** · [ADR 0001](adr/0001_OPENAPI_CONTRACT_FIRST.md) |
 | Auth | Own JWT (access + refresh), Apple/Google ID-token verification, email OTP | **Decided** · [ADR 0004](adr/0004_OWN_JWT_AUTH.md) |
@@ -108,3 +108,4 @@ Write one file per decision: `adr/NNNN_SHORT_TITLE.md`, using [`adr/0000_TEMPLAT
 | [0008](adr/0008_HETZNER_HOSTING_ZERO_COST_START.md) | Hosting on Hetzner, starting at near-zero cost | Accepted |
 | [0009](adr/0009_BACKEND_MODULAR_MONOLITH.md) | Backend architecture: modular monolith with Spring Modulith | Accepted |
 | [0010](adr/0010_API_DESIGN.md) | API design rules | Accepted |
+| [0011](adr/0011_MOBILE_ARCHITECTURE.md) | Mobile architecture: crew-kmp structure with generated API models | Accepted |

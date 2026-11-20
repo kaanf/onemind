@@ -1,6 +1,6 @@
 # 0001 · OpenAPI contract-first, no shared Kotlin module
 
-- **Status:** Accepted (amended by [ADR 0010](0010_API_DESIGN.md): OpenAPI **3.0.3** instead of 3.1)
+- **Status:** Accepted (amended by [ADR 0010](0010_API_DESIGN.md): OpenAPI **3.0.3** instead of 3.1; and by [ADR 0011](0011_MOBILE_ARCHITECTURE.md): mobile generates models only)
 - **Date:** 2026-11-20
 - **Deciders:** Kaan
 
@@ -23,10 +23,10 @@ module** between `backend/` and `mobile/`.
   `interfaceOnly=true`, `useTags=true`, plus the Spring Boot 4 / Jackson 3 option (openapi-generator 7.21+). It generates controller
   interfaces and DTOs with Jackson. Our `@RestController` classes implement the generated
   interfaces. Generated sources go to `build/generated`, never committed.
-- **Mobile:** OpenAPI Generator, generator `kotlin`, `library=multiplatform` (Ktor +
-  kotlinx.serialization), into `build/generated` of the shared module. If the generated client is
-  not good enough, generate **models only** and write the Ktor calls by hand in
-  `feature/*/data`. Generated DTOs stay in the data layer and are mapped to app models.
+- **Mobile:** OpenAPI Generator, generator `kotlin` with kotlinx.serialization, **models only**,
+  into the `core:api` module (`build/generated`). Requests are written by hand in feature data
+  repositories on top of the shared Ktor client (amended by
+  [ADR 0011](0011_MOBILE_ARCHITECTURE.md); a full generated client is not used).
 - Change workflow: edit `openapi.yaml` first, then backend and mobile in the same PR.
 
 ### Compatibility rules (API v1)

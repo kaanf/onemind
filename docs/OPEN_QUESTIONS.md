@@ -78,4 +78,5 @@ See [architecture/README.md#decisions-to-discuss](architecture/README.md#decisio
 | R22 | Backend architecture | Modular monolith with Spring Modulith; modules account, pos, reporting, stock; schema per module; pragmatic hexagonal; DDD-lite in stock; outbox events with idempotent listeners; db-scheduler; sealed outcomes + DomainException (ADR 0009) | 2026-11-20 |
 | R24 | DB schema (platform, account, pos, reporting) | Accepted in `architecture/DB_SCHEMA.md`; user data deleted immediately, organization data after 30 days | 2026-11-20 |
 | R25 | Staff attribution (M6) | Sales/guests/bills to who opened the bill, tips to who closed it | 2026-11-20 |
+| R26 | Mobile architecture | crew-kmp structure, generated models in `core:api`, DataStore (Room later) (ADR 0011) | 2026-11-20 |
 | R23 | API design | OpenAPI 3.0.3; BFF dashboards + REST stock + command endpoints; UUIDv7 (not secrets); minor-unit money, decimal-string quantities/rates; codes + English fallback; RFC 9457; PUT + version; Idempotency-Key (ADR 0010) | 2026-11-20 |
