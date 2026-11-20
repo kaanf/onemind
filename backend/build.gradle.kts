@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.spring.boot)
     alias(libs.plugins.spring.dependency.management)
     alias(libs.plugins.openapi.generator)
+    alias(libs.plugins.jooq.docker)
     alias(libs.plugins.ktlint)
 }
 
@@ -30,9 +31,15 @@ dependencies {
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.spring.boot.starter.webmvc)
     implementation(libs.flyway.database.postgresql)
+    implementation(libs.jooq.postgres.extensions)
     implementation(libs.kotlin.reflect)
     implementation(libs.jackson.module.kotlin)
     runtimeOnly(libs.postgresql)
+    // Versions come from the Spring Boot BOM, so codegen matches the runtime jOOQ and Flyway.
+    jooqCodegen(libs.postgresql)
+    jooqCodegen(libs.jooq.codegen)
+    jooqCodegen(libs.flyway.core)
+    jooqCodegen(libs.flyway.database.postgresql)
     testImplementation(libs.spring.boot.starter.actuator.test)
     testImplementation(libs.spring.boot.starter.flyway.test)
     testImplementation(libs.spring.boot.starter.jooq.test)
@@ -86,6 +93,52 @@ openApiGenerate {
         )
 }
 
+// jOOQ classes from the migrated schema (ADR 0002): PostgreSQL container → Flyway → codegen.
+// Packages com.onemind.db.<schema> sit outside com.onemind.backend; which module may use which
+// package is checked by the module boundary test.
+jooq {
+    withContainer {
+        image {
+            name = "postgres:18"
+        }
+    }
+}
+
+tasks.generateJooqClasses {
+    schemas = listOf("account", "pos", "reporting")
+    basePackageName = "com.onemind.db"
+    outputDirectory = layout.buildDirectory.dir("generated-src/jooq")
+    migrationLocations.setFromFilesystem("src/main/resources/db/migration")
+    // Same Flyway settings as application.yml: module schemas are created by the migrations.
+    flywayProperties.putAll(mapOf("flyway.defaultSchema" to "platform", "flyway.schemas" to "platform"))
+    usingJavaConfig {
+        withName("org.jooq.codegen.KotlinGenerator")
+        database.withForcedTypes(
+            // citext keeps its own binding so comparisons stay case-insensitive (not text = text).
+            org.jooq.meta.jaxb
+                .ForcedType()
+                .withUserType("java.lang.String")
+                .withBinding("org.jooq.postgres.extensions.bindings.CitextBinding")
+                .withIncludeTypes(".*citext"),
+            org.jooq.meta.jaxb
+                .ForcedType()
+                .withUserType("org.jooq.postgres.extensions.types.Inet")
+                .withBinding("org.jooq.postgres.extensions.bindings.InetBinding")
+                .withIncludeTypes(".*inet"),
+            org.jooq.meta.jaxb
+                .ForcedType()
+                .withName("INSTANT")
+                .withIncludeTypes("timestamptz|timestamp with time zone"),
+            org.jooq.meta.jaxb
+                .ForcedType()
+                .withUserType("java.util.Currency")
+                .withConverter("com.onemind.backend.common.money.CurrencyConverter")
+                .withIncludeExpression(".*\\.currency")
+                .withIncludeTypes("bpchar|char|character"),
+        )
+    }
+}
+
 // Wiring the source dir to the task output makes every consumer (compile, ktlint) run after it.
 sourceSets {
     main {
@@ -96,7 +149,7 @@ sourceSets {
 ktlint {
     version = libs.versions.ktlint.cli
     filter {
-        exclude { it.file.path.contains("/build/generated/") }
+        exclude { it.file.path.contains("/build/generated") }
     }
 }
 

@@ -174,7 +174,9 @@ Rules:
 
 - Flyway migrations are append-only. Never edit an applied migration.
 - jOOQ classes are generated from the migrated schema (Testcontainers → Flyway → codegen) into
-  `build/generated-src/jooq`. After adding a migration, regenerate; never edit generated code.
+  `build/generated-src/jooq`, package `com.onemind.db.<schema>` (e.g. `com.onemind.db.pos`). `build`
+  regenerates them when a migration changes; never edit generated code. A new schema must be added
+  to `generateJooqClasses.schemas` in `build.gradle.kts`.
 - jOOQ `Record` types never leave `infra/`. Repositories return domain objects.
 - Use jOOQ's DSL for all SQL, including reports (window functions, CTEs). No raw SQL strings except
   in migrations.
@@ -182,8 +184,9 @@ Rules:
 - Reports read from hourly rollup tables refreshed after each sync batch; "now" values come from
   base tables. Rollups must be rebuildable from base tables.
 - Snake_case table and column names. Every venue-scoped table has `venue_id` with an index.
-- Money columns: `bigint` minor units + `char(3)` currency (or a fixed venue currency). Converters
-  to `Money` / `Instant` are defined once in `common/`.
+- Money columns: `bigint` minor units + `char(3)` currency (or a fixed venue currency). Generated
+  types: `timestamptz` → `Instant`, `currency` → `java.util.Currency`; build `Money` (`common/money`)
+  from the two columns in the repository.
 - Stock movements table is insert-only (no UPDATE/DELETE in application code).
 
 ## Testing
@@ -195,7 +198,7 @@ Rules:
 
 ## Commands
 
-Run from `backend/`. Docker is required for tests (Testcontainers) and, once added, jOOQ codegen.
+Run from `backend/`. Docker is required for tests and jOOQ codegen (both use Testcontainers).
 
 ```bash
 docker compose -f ../infra/docker-compose.yml up -d   # local PostgreSQL 18 on localhost:5433
@@ -211,9 +214,10 @@ Colima: if Testcontainers' Ryuk container fails with "error while creating mount
 …docker.sock", export `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock` in your shell.
 
 Spec (run from the repo root): `npx @redocly/cli@2.82.0 lint --config docs/api/redocly.yaml docs/api/openapi.yaml`.
-`./gradlew openApiGenerate` regenerates the API code alone (`build` does it automatically).
+`./gradlew openApiGenerate` / `./gradlew generateJooqClasses` regenerate the API / jOOQ code alone
+(`build` does both automatically).
 
-Not set up yet (next steps): jOOQ code generation, detekt.
+Not set up yet (next steps): detekt.
 
 ## Hosting ([ADR 0008](../docs/architecture/adr/0008_HETZNER_HOSTING_ZERO_COST_START.md))
 

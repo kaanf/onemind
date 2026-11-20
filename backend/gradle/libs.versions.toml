@@ -6,6 +6,7 @@ kotlin = "2.4.21"
 spring-boot = "4.2.0"
 spring-dependency-management = "1.1.7"
 openapi-generator = "7.27.0"
+jooq-docker = "9.0.12"
 ktlint-cli = "1.8.0"
 ktlint-gradle = "14.2.0"
 # Kotlin compiler that ktlint-cli was built with. The Spring Boot BOM would otherwise raise it to
@@ -25,6 +26,9 @@ flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
 jackson-module-kotlin = { module = "tools.jackson.module:jackson-module-kotlin" }
 postgresql = { module = "org.postgresql:postgresql" }
+jooq-codegen = { module = "org.jooq:jooq-codegen" }
+jooq-postgres-extensions = { module = "org.jooq:jooq-postgres-extensions" }
+flyway-core = { module = "org.flywaydb:flyway-core" }
 
 spring-boot-starter-actuator-test = { module = "org.springframework.boot:spring-boot-starter-actuator-test" }
 spring-boot-starter-flyway-test = { module = "org.springframework.boot:spring-boot-starter-flyway-test" }
@@ -45,4 +49,5 @@ kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotl
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
 openapi-generator = { id = "org.openapi.generator", version.ref = "openapi-generator" }
+jooq-docker = { id = "dev.monosoul.jooq-docker", version.ref = "jooq-docker" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint-gradle" }

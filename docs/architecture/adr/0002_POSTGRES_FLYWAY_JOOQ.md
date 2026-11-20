@@ -31,9 +31,9 @@ The backend is mainly a **reporting** system over POS data:
 ### Code generation
 
 - jOOQ classes are generated from the **real schema**: the build starts PostgreSQL with
-  Testcontainers, runs the Flyway migrations, then runs jOOQ codegen (for example with the
-  `testcontainers-jooq-codegen` Gradle plugin, or the jOOQ Gradle plugin plus a Testcontainers
-  task).
+  Testcontainers, runs the Flyway migrations, then runs jOOQ codegen. Implemented with the
+  `dev.monosoul.jooq-docker` Gradle plugin (task `generateJooqClasses`, `KotlinGenerator`); jOOQ and
+  Flyway versions on its classpath come from the Spring Boot BOM.
 - Generated code goes to `build/generated-src/jooq`, not committed.
 - Building the backend therefore needs **Docker**, locally and in CI.
 
@@ -44,8 +44,12 @@ The backend is mainly a **reporting** system over POS data:
 - Each context queries only its own tables. A cross-context read goes through that context's
   application service, or a dedicated read-model query owned by the reporting context.
 - Bulk sync writes use `insertInto(...).onConflict(...).doUpdate()` with batching.
-- Money columns are `bigint` minor units. Timestamps are `timestamptz`. Map them to `Money` and
-  `Instant` with jOOQ converters, defined once in `common/`.
+- Money columns are `bigint` minor units. Timestamps are `timestamptz`, generated as `Instant`.
+  `currency char(3)` columns are generated as `java.util.Currency` (`common/money/CurrencyConverter`);
+  repositories build `common/money/Money` from the amount and currency columns (an amount and its
+  currency are two columns, so a single-column converter can't produce `Money`).
+- `citext` and `inet` use the bindings from `jooq-postgres-extensions`, so citext comparisons stay
+  case-insensitive.
 
 ### Report aggregation
 
