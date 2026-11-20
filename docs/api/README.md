@@ -1,146 +1,188 @@
 # API
 
-> **Status:** contract tooling decided in
-> [ADR 0001](../architecture/adr/0001_OPENAPI_CONTRACT_FIRST.md). The endpoint inventory below is a
-> draft until it is written into `openapi.yaml`.
+Rules for the OneMind HTTP API. Decided in
+[ADR 0001](../architecture/adr/0001_OPENAPI_CONTRACT_FIRST.md) (contract-first) and
+[ADR 0010](../architecture/adr/0010_API_DESIGN.md) (design rules). The endpoint inventory at the end
+is a plan; the source of truth for shapes is the OpenAPI spec once written.
 
 ## Contract
 
-- **OpenAPI 3.1** spec at `docs/api/openapi.yaml` (to be created) is the single source of truth.
-- Backend generates controller interfaces + DTOs (`kotlin-spring`, `interfaceOnly`); mobile
-  generates its Ktor client + DTOs (`kotlin`, `library=multiplatform`). No shared Kotlin module.
+- **OpenAPI 3.0.3** spec in `docs/api/` (to be created) is the single source of truth.
+  (3.1 support in openapi-generator is still beta; revisit when stable.)
+- Layout, split by area and joined with relative `$ref`s (no bundling step):
+
+  ```
+  docs/api/
+  ├── openapi.yaml                      ← entry: info, servers, security, path list
+  ├── paths/{account,dashboard,stock}/*.yaml
+  └── components/{schemas,responses,parameters}/*.yaml
+  ```
+- Backend generates controller interfaces + DTOs (`kotlin-spring`, `interfaceOnly`); mobile generates
+  client + DTOs (`kotlin`, `library=multiplatform`, fallback: models only). No shared Kotlin module.
 - Workflow: change the spec first, then backend and mobile in the same PR.
-- Inside `/api/v1` changes are **additive only**. CI runs `oasdiff breaking` and a spec linter.
+- Inside `/api/v1` changes are **additive only**. CI runs a spec linter and `oasdiff breaking`.
 - Clients send `X-App-Version` and `X-Platform`; the backend may answer `426 Upgrade Required`.
 
-## Cross-cutting rules from ADRs
+## Endpoint style
 
-- **Auth** ([ADR 0004](../architecture/adr/0004_OWN_JWT_AUTH.md)): access JWT 15 min, rotating
-  refresh token 30 days. Email code 6 digits, 10 min, 5 attempts, resend after 30 s.
-  `POST /auth/email/start` always returns `202`. `DELETE /me` deletes the account.
-- **Live data** ([ADR 0005](../architecture/adr/0005_POLLING_AND_SSE.md)): live read endpoints
-  return `ETag` + `dataAsOf` and support `If-None-Match` → `304`.
-- **Streaming**: `POST …/assistant/messages` with `Accept: text/event-stream` streams SSE events
-  `delta | block | citation | suggestedReplies | done | error`.
-- **Offline counts** ([ADR 0006](../architecture/adr/0006_OFFLINE_STRATEGY.md)): count write
-  endpoints require `Idempotency-Key` and accept a client `countedAt` timestamp.
+| Area | Style | Example |
+|------|-------|---------|
+| Dashboard (Today, Sales, Staff, Tables, …) | **Screen-shaped** (BFF): one call per screen, computed by the backend | `GET /dashboard/today?venueIds=…` |
+| Stock, account | **Resource-oriented** REST | `GET /venues/{venueId}/locations` |
+| State transitions | **Command endpoints** (POST to a sub-resource) | `POST /venues/{venueId}/receipts/{id}/approve` |
 
-## Conventions
+- Dashboard endpoints take `venueIds` (one or more) as a query parameter, so one venue, several or
+  all followed venues use the same endpoint. Stock is always one venue: `/venues/{venueId}/…`.
+- The app never computes metrics; it formats what the backend returns (`docs/domain/METRICS.md`).
 
-- REST over HTTPS, JSON, base path `/api/v1`.
-- Auth: `Authorization: Bearer <access token>` (short-lived JWT) + refresh token.
-- Every venue-scoped route takes a `venueId` path segment. `venueId=all` means "all venues the user
-  follows", for read endpoints that support aggregation.
-- Money: `{ "amountMinor": 4832000, "currency": "CZK" }` (minor units, integer). The client
-  formats it.
-- Timestamps: ISO-8601 UTC (`2026-11-06T20:40:00Z`). Business days: `YYYY-MM-DD` local date.
-  Responses that depend on local time include the venue `timeZone`.
-- Periods: `period=hour|day|week|month` + optional `from`/`to` (custom range from *Choose dates*).
-- Pagination: cursor-based (`cursor`, `limit`), response `{ items, nextCursor }`.
-- Errors: RFC 9457 Problem Details (`type`, `title`, `status`, `detail`, `code`).
-- Screen-shaped read endpoints are fine (one call per screen) for the dashboard screens, to keep
-  the mobile app thin. Metrics are computed by the backend (`docs/domain/METRICS.md`).
-- Freshness: read responses include `dataAsOf` (last POS sync time).
+## Naming
 
-## Endpoint inventory (by screen)
+- Base path `/api/v1`. Plural nouns, kebab-case paths: `/venues/{venueId}/stock-counts`.
+- JSON fields camelCase. Enum values `SCREAMING_SNAKE` (`"status": "NEEDS_MATCH"`).
+- State changes are command endpoints (`/approve`, `/complete`, `/confirm`), not field updates.
+- Clients must tolerate unknown fields and unknown enum values (map to `UNKNOWN`).
 
-### Auth and onboarding
+## Identifiers
 
-| Method | Path | Screen | Notes |
-|--------|------|--------|-------|
-| POST | `/auth/email/start` | A1 | Send 6-digit code. Rate-limited. |
-| POST | `/auth/email/verify` | A2 | Code → tokens. Code valid 10 min. |
-| POST | `/auth/apple` | A1 | Apple identity token → tokens. |
-| POST | `/auth/google` | A1 | Google ID token → tokens. |
-| POST | `/auth/refresh` | – | Refresh token rotation. |
-| POST | `/auth/logout` | – | |
-| DELETE | `/me` | – | Account deletion (App Store requirement). |
-| GET  | `/me` | – | User, memberships, role, followed venues, onboarding state. |
-| POST | `/pos/storyous/connect` | A3 | Returns authorisation URL. |
-| GET/POST | `/pos/storyous/callback` | A3 | OAuth callback (if applicable). |
-| POST | `/pos/storyous/invite-owner` | A3 | *I'm not the owner, invite them*. |
-| GET  | `/pos/sync/status` | A4 | Steps with state/progress. Poll or SSE. |
-| GET  | `/venues` | A5 | Venues found on the POS account. |
-| PUT  | `/me/venues` | A5 | Followed venues. |
+- All IDs are **UUIDv7**, as strings in the API, typed in code (`VenueId`, `ReceiptId`).
+  PostgreSQL 18 `uuidv7()` or app-side generation.
+- **IDs are not secrets.** They embed a creation timestamp and are partly predictable. Never rely on
+  an ID being unguessable: every request is authorised by venue access. Secrets (refresh tokens,
+  email codes) are separate, cryptographically random values.
+- POS (Storyous) IDs never appear in the API.
 
-### Dashboard
+## Data formats
 
-| Method | Path | Screen |
-|--------|------|--------|
-| GET | `/venues/{venueId}/today` | 01 Today |
-| GET | `/venues/{venueId}/tables?mode=now\|week` | 01a Tables |
-| GET | `/venues/{venueId}/sales?period=…` | 02 Sales |
-| GET | `/venues/{venueId}/sales/products?day=…&category=…` | 02a Products by hour |
-| GET | `/venues/{venueId}/sales/hourly-patterns?weeks=8` | 02b Hourly patterns |
-| GET | `/venues/{venueId}/losses?period=…` | 02c Discounts & losses |
-| GET | `/venues/{venueId}/staff?day=…` | 03 Staff |
-| GET | `/venues/{venueId}/staff/{staffId}?day=…` | 03a Waiter detail |
-| GET | `/venues/{venueId}/bills/{billId}` | Receipt (not designed) |
+| Type | Format | Example |
+|------|--------|---------|
+| Money amount | integer minor units + currency | `{"amountMinor": 4832000, "currency": "CZK"}` |
+| Rate / sub-minor price (cost per ml, tax rate) | decimal string | `"0.6000"` |
+| Stock quantity | decimal string + unit | `{"value": "1.25", "unit": "BOTTLE"}` |
+| Timestamp | ISO-8601 UTC | `"2026-11-06T20:40:00Z"` |
+| Business day | local date | `"2026-11-06"` |
+| Percentages, deltas | raw number, app formats | `12.4` |
 
-### Stock
+Never send money or quantities as JSON floats. Responses that depend on local time include the
+venue `timeZone`.
 
-| Method | Path | Screen |
-|--------|------|--------|
-| GET  | `/venues/{venueId}/stock/order-plan` | 04 |
-| GET  | `/venues/{venueId}/stock/order-plan/lines/{itemId}` | S1 |
-| PATCH| `/venues/{venueId}/stock/order-plan/lines/{itemId}` | S1 (qty, keep/skip) |
-| POST | `/venues/{venueId}/stock/order-plan/send` | 04 |
-| GET  | `/venues/{venueId}/stock/idle` | S2 |
-| POST | `/venues/{venueId}/stock/idle/{itemId}/actions` | S2 |
-| GET  | `/venues/{venueId}/stock/counts/current` | S3 |
-| PUT  | `/venues/{venueId}/stock/counts/{countId}/lines/{itemId}` | S3 |
-| POST | `/venues/{venueId}/stock/counts/{countId}/complete` | S3 |
-| GET  | `/venues/{venueId}/stock/locations` | S4 |
-| GET  | `/venues/{venueId}/stock/pull-list?date=…` | S5 |
-| POST | `/venues/{venueId}/stock/transfers` | S5 |
-| POST | `/venues/{venueId}/stock/invoices` (multipart image) | S6 |
-| GET  | `/venues/{venueId}/stock/invoices/{invoiceId}` | S6 |
-| PATCH| `/venues/{venueId}/stock/invoices/{invoiceId}/lines/{lineId}` | S6 (match) |
-| POST | `/venues/{venueId}/stock/invoices/{invoiceId}/approve` | S6 (owner only) |
-| GET  | `/venues/{venueId}/recipes/{productId}` | S7 |
-| POST | `/venues/{venueId}/stock/corrections` | S7 |
+## Text and localisation
 
-### Assistant
+- The API does not send UI sentences. It sends **codes and parameters**; the app builds the text
+  from its own string resources (English, Czech later).
+- Rule-based hint cards: `{"code": "BEST_TABLE_ZONE", "params": {...}}`. Unknown code → the app hides
+  the card.
+- Errors: see below; `detail` is an English fallback for codes the app doesn't know yet (older app
+  versions after a backend release).
 
-| Method | Path | Screen |
-|--------|------|--------|
-| GET  | `/venues/{venueId}/assistant/briefing` | 05 |
-| GET  | `/venues/{venueId}/assistant/messages?cursor=…` | 05 |
-| POST | `/venues/{venueId}/assistant/messages` (streamed answer) | 05 |
-| GET  | `/venues/{venueId}/suggestions` | 05 / Insights |
-| POST | `/venues/{venueId}/suggestions/{id}/apply` · `/dismiss` | 05 |
-| GET  | `/venues/{venueId}/knowledge` | 05a |
-| POST | `/venues/{venueId}/knowledge/documents` (multipart) | 05a |
-| PATCH| `/venues/{venueId}/knowledge/documents/{id}` (access) | 05a |
-| DELETE | `/venues/{venueId}/knowledge/documents/{id}` | 05a |
+## Errors
 
-### Push notifications (proposed)
-
-| Method | Path | Notes |
-|--------|------|-------|
-| POST | `/me/devices` | Register FCM/APNs token. Use cases: invoice waiting for approval, stockout risk, sync error. |
-
-## Example: `GET /venues/{venueId}/today`
+RFC 9457 Problem Details with extension members:
 
 ```json
 {
-  "venueId": "v_main",
-  "businessDay": "2026-11-06",
-  "timeZone": "Europe/Prague",
-  "dataAsOf": "2026-11-06T20:38:00Z",
-  "paidRevenue": { "amountMinor": 4832000, "currency": "CZK" },
-  "comparison": { "label": "last Friday", "deltaPct": 12.4 },
-  "openTabs": { "total": { "amountMinor": 986000, "currency": "CZK" }, "tables": 10 },
-  "tips": { "total": { "amountMinor": 394000, "currency": "CZK" }, "cardPct": 69 },
-  "hourly": [
-    { "hour": "16:00", "value": { "amountMinor": 120000, "currency": "CZK" }, "kind": "past" },
-    { "hour": "22:00", "value": { "amountMinor": 610000, "currency": "CZK" }, "kind": "current" },
-    { "hour": "23:00", "value": { "amountMinor": 560000, "currency": "CZK" }, "kind": "forecast" }
-  ],
-  "occupancy": { "occupied": 10, "total": 13, "seated": 41 },
-  "guests": 286,
-  "revenuePerGuest": { "amountMinor": 16900, "currency": "CZK" },
-  "onShift": 4,
-  "possibleLoss": { "amountMinor": 187000, "currency": "CZK" }
+  "type": "https://api.onemind.app/problems/receipt-already-approved",
+  "title": "Receipt already approved",
+  "status": 409,
+  "code": "RECEIPT_ALREADY_APPROVED",
+  "detail": "This receipt was approved on 17 Nov and can't be approved again.",
+  "params": { "approvedAt": "2026-11-17T14:05:00Z" },
+  "traceId": "4bf92f3577b34da6",
+  "errors": [{ "field": "lines[2].quantity", "code": "MUST_BE_POSITIVE" }]
 }
 ```
+
+- `code` is stable and machine-readable; the app switches on it, never on `title`/`detail`.
+- `errors[]` lists field validation problems.
+- Status codes: `400` malformed, `401` no/invalid token, `403` no access to the venue,
+  `404` not found (also for resources in venues the user can't access, so they're not revealed),
+  `409` conflict (version, state), `422` business rule violation, `426` app too old,
+  `429` rate limited.
+
+## Updates, concurrency, idempotency
+
+- **No PATCH.** Small editable resources (location, stock item, recipe) are replaced with **PUT**
+  (full representation). State transitions use command endpoints.
+- **Optimistic locking:** editable resources carry an integer `version`. PUT and commands send it;
+  if it doesn't match → `409` with code `VERSION_CONFLICT`.
+- **Idempotency:** POSTs that create things (receipt upload, transfers, count lines, commands with
+  side effects) require an `Idempotency-Key` header (UUID), stored 24 h. Following the IETF draft:
+  - same key + same body → the original response is replayed,
+  - missing key where required → `400`,
+  - same key + different body → `422`,
+  - same key while the first request is still running → `409`.
+
+## Lists, filters, files, long-running work
+
+- **Pagination:** only for lists that grow (receipts, stock movements). Cursor-based:
+  `?cursor=…&limit=…` → `{ "items": [...], "nextCursor": "…" | null }`. Small lists (locations)
+  are not paginated.
+- **Filters:** explicit per endpoint (`period`, `from`, `to`, `category`, `locationId`). No generic
+  filter language.
+- **Uploads:** receipts are sent as `multipart/form-data` to the backend, max 10 MB; the app
+  compresses photos first.
+- **Async work:** receipt extraction returns `202 Accepted` with the receipt in status `EXTRACTING`;
+  the app polls `GET` until `NEEDS_REVIEW`. Then the owner reviews and approves.
+
+## Auth and headers
+
+- `Authorization: Bearer <access JWT>` (15 min); refresh token rotation via `/auth/refresh`
+  ([ADR 0004](../architecture/adr/0004_OWN_JWT_AUTH.md)).
+- Email code start always answers `202`. `DELETE /me` deletes the account.
+- Live read endpoints return `ETag` and `dataAsOf`; clients send `If-None-Match` → `304`
+  ([ADR 0005](../architecture/adr/0005_POLLING_AND_SSE.md)).
+- Count line writes accept a client `countedAt` and require `Idempotency-Key`
+  ([ADR 0006](../architecture/adr/0006_OFFLINE_STRATEGY.md)).
+
+## Endpoint inventory (first release, planned)
+
+### Auth and onboarding
+
+| Method | Path | Screen |
+|--------|------|--------|
+| POST | `/auth/email/start` | A1 |
+| POST | `/auth/email/verify` | A2 |
+| POST | `/auth/apple` · `/auth/google` | A1 |
+| POST | `/auth/refresh` · `/auth/logout` | – |
+| GET / DELETE | `/me` | – |
+| POST | `/pos/storyous/connect` | A3 |
+| GET | `/pos/sync/status` | A4 |
+| GET | `/venues` | A5 |
+| PUT | `/me/followed-venues` | A5 |
+
+### Dashboard (screen-shaped, `?venueIds=…`)
+
+| Method | Path | Screen |
+|--------|------|--------|
+| GET | `/dashboard/today` | 01 |
+| GET | `/dashboard/tables?mode=now\|week` | 01a |
+| GET | `/dashboard/sales?period=…` | 02 |
+| GET | `/dashboard/products?day=…&category=…` | 02a |
+| GET | `/dashboard/hourly-patterns?weeks=8` | 02b |
+| GET | `/dashboard/losses?period=…` | 02c |
+| GET | `/dashboard/staff?day=…` | 03 |
+| GET | `/dashboard/staff/{staffId}?day=…` | 03a |
+
+### Stock (`/venues/{venueId}/…`)
+
+| Method | Path | Screen |
+|--------|------|--------|
+| GET / POST | `/locations` | S4 |
+| PUT | `/locations/{id}` | location form |
+| POST | `/locations/{id}/archive` | location form |
+| GET / POST | `/stock-items` | S6, S7 |
+| PUT | `/stock-items/{id}` | – |
+| GET | `/stock?locationId=…` | S4, stock tab |
+| GET / POST (multipart) | `/receipts` | S6 |
+| GET | `/receipts/{id}` | S6 |
+| PUT | `/receipts/{id}/lines` | S6 (corrections, matches) |
+| POST | `/receipts/{id}/approve` | S6 |
+| GET / POST | `/stock-counts` | S3 |
+| PUT | `/stock-counts/{id}/lines/{stockItemId}` | S3 |
+| POST | `/stock-counts/{id}/complete` | S3 |
+| GET | `/pull-list?date=…` | S5 |
+| POST | `/transfers` | S5 |
+| GET / POST | `/recipes` | S7 |
+| GET / PUT | `/recipes/{productId}` | S7 |
+| POST | `/recipes/import` (multipart Excel) + `/recipes/import/{id}/confirm` | S7 |
+
+Later (not first release): order plan, idle stock, corrections, assistant, knowledge, push devices.

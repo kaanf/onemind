@@ -50,6 +50,7 @@ When you create them, follow the sub-project AGENTS.md files.
 | Entities, DB schema, DTOs                | [docs/domain/MODEL.md](docs/domain/MODEL.md)                         |
 | Stock, orders, counts, recipes           | [docs/domain/STOCK.md](docs/domain/STOCK.md)                         |
 | POS sync                                 | [docs/integrations/STORYOUS.md](docs/integrations/STORYOUS.md)       |
+| Storyous partnership, competitors        | [docs/product/STORYOUS_PARTNERSHIP.md](docs/product/STORYOUS_PARTNERSHIP.md) |
 | Assistant, suggestions, documents, OCR   | [docs/ai/ASSISTANT.md](docs/ai/ASSISTANT.md)                         |
 | UI, colors, type, components             | [docs/design/DESIGN_SYSTEM.md](docs/design/DESIGN_SYSTEM.md)         |
 | Navigation between screens               | [docs/product/NAVIGATION.md](docs/product/NAVIGATION.md)             |
@@ -99,11 +100,27 @@ Cross-platform page does not show (for example the Insights suggestion cards).
 - **Ask before** adding a new third-party dependency or service, changing the database schema in a
   non-additive way, or touching auth.
 
-## Commit and PR conventions
+## Branches, commits and PRs ([ADR 0012](docs/architecture/adr/0012_CROSS_CUTTING_CONCERNS.md))
 
-- Conventional Commits: `feat(mobile): …`, `fix(backend): …`, `docs: …`, `chore: …`.
-- Scope is `backend`, `mobile`, `docs` or `repo`.
-- PR description: what changed, why, screenshots for UI, and which docs were updated.
+- `main` = released state, `dev` = integration. Never commit directly to either.
+- Before starting work, check the current branch and working tree. Create a short-lived branch
+  **from `dev`** named with a Conventional Commit type: `feat/…`, `fix/…`, `chore/…`, `docs/…`.
+  If you are already on a change branch, say which one and whether the task belongs there.
+- Commits: Conventional Commits, `<type>(<scope>): <description>`; scope is `backend`, `mobile`,
+  `api`, `docs` or `repo`.
+- PRs target `dev` and are squash-merged; don't reuse a merged branch. Releases are one PR
+  `dev` → `main` (merge commit), then tagged. Hotfix: `hotfix/…` from `main` → `main`, then
+  merge `main` back into `dev`. Agents don't merge PRs or tag; the owner does.
+- PR description: what changed, why, screenshots for UI, which docs were updated, which checks ran
+  (passed / failed / not run).
+
+## Cross-cutting rules
+
+- **Logging:** structured JSON, `traceId` on every line, never log emails, tokens, codes, staff names
+  or other personal data — log IDs.
+- **Text:** every user-facing string in resources (English now, Czech before release); money
+  formatted by the venue's currency, times in the venue's time zone.
+- **No product analytics and no feature-flag system** in the first release (ADR 0012).
 
 ## Status
 

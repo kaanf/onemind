@@ -10,13 +10,15 @@ reference the question ID in a code comment / PR. When a question is answered, m
 |----|----------|
 | P2 | Exact permissions for `STAFF` users: which tabs can they see (Sales? Staff earnings?) and which actions can they take? |
 | P3 | How do staff users get access: owner invites by email? Linked to a POS staff member? |
-| P4 | Localisation: English + Czech at launch? Others? |
 | P5 | Where do suggestions live in the Cross-platform design (inside Assistant feed, cards on Today, notifications)? |
 | P6 | Entry points to S4 Locations, S6 Scan invoice, S7 Recipes inside the Stock tab (not designed). |
 | P7 | Receipt screen, venue switcher sheet, settings, account, notifications, empty/error/loading states, dark mode: need designs. |
 | P8 | Pricing / subscription and paywall? (affects onboarding) |
 | P9 | "Review and send to suppliers": how is the order sent (email, PDF share, supplier portal)? |
 | P10 | Supplier data (deadlines, delivery days, case sizes, prices): who enters it and where? |
+| P13 | Narrow the first release to read-only dashboards (stock, receipts and counts later) to make the Storyous pitch cleaner? See `product/STORYOUS_PARTNERSHIP.md`. |
+| P14 | Stock: our own system with Storyous read-only (current plan), and how to position it against Storyous Inventory. |
+| P15 | Storyous partnership outcome (owner is handling it): access model, extra data (open bills, voids, attendance), terms. |
 | P12 | Can the table layout be edited in the app, or only taken from the POS? |
 
 ## Metrics
@@ -28,7 +30,6 @@ reference the question ID in a code comment / PR. When a question is answered, m
 | M3 | Week/month comparisons: full previous period or same elapsed span? |
 | M4 | Payment methods other than card/cash (vouchers, meal cards, Benefit): how to show? |
 | M5 | Guest count when the POS has none: count 1 per bill, or exclude? |
-| M6 | Staff sales attribution: bill's waiter, or the person who added each item? |
 | M7 | Happy Hour "extra sales" baseline method. |
 | M8 | Threshold for "above usual" deleted items. |
 | M9 | Stock corrections in losses at sale price or cost? |
@@ -73,3 +74,9 @@ See [architecture/README.md#decisions-to-discuss](architecture/README.md#decisio
 | R19 | Hosting | One Hetzner VM with Docker Compose, PostgreSQL self-hosted, nightly off-site backups, free tiers until launch (ADR 0008) | 2026-11-20 |
 | R20 | Repository host and CI | GitHub + GitHub Actions (ADR 0008) | 2026-11-20 |
 | R21 | Product name | OneMind (deep-link scheme `onemind://`) | 2026-11-20 |
+| R22 | Backend architecture | Modular monolith with Spring Modulith; modules account, pos, reporting, stock; schema per module; pragmatic hexagonal; DDD-lite in stock; outbox events with idempotent listeners; db-scheduler; sealed outcomes + DomainException (ADR 0009) | 2026-11-20 |
+| R24 | DB schema (platform, account, pos, reporting) | Accepted in `architecture/DB_SCHEMA.md`; user data deleted immediately, organization data after 30 days | 2026-11-20 |
+| R25 | Staff attribution (M6) | Sales/guests/bills to who opened the bill, tips to who closed it | 2026-11-20 |
+| R26 | Mobile architecture | crew-kmp structure, generated models in `core:api`, DataStore (Room later) (ADR 0011) | 2026-11-20 |
+| R27 | Cross-cutting (ADR 0012) | Structured logs + traceId, local/prod + dev/prod variants, Czech before release, no analytics or flags in first release, CI gates, `dev` → `main` branches | 2026-11-20 |
+| R23 | API design | OpenAPI 3.0.3; BFF dashboards + REST stock + command endpoints; UUIDv7 (not secrets); minor-unit money, decimal-string quantities/rates; codes + English fallback; RFC 9457; PUT + version; Idempotency-Key (ADR 0010) | 2026-11-20 |

@@ -2,22 +2,22 @@
 
 Kotlin + Spring Boot API for OneMind. Read the root [`../AGENTS.md`](../AGENTS.md) first.
 
-> **Status:** the project is not scaffolded yet. Items marked *Proposed* follow
-> `docs/architecture/README.md` and may change after the architecture discussion. If you scaffold
-> the project, follow this file and update it with the real commands.
+> **Status:** scaffolded (Spring Boot 4.2, Java 25). Architecture decided in ADR 0009. Items still
+> marked *Proposed* may change.
 
 ## Responsibilities
 
 - Auth (email OTP, Apple, Google) and memberships/roles.
 - Storyous connection and **read-only** sync into our database.
 - All metric calculations (`docs/domain/METRICS.md`). The mobile app only displays.
-- Stock engine (`docs/domain/STOCK.md`): movements, counts, transfers, order plan, invoices, recipes.
-- AI services (`docs/ai/ASSISTANT.md`): chat with tools, briefing, suggestions, RAG, invoice OCR.
+- Stock engine (`docs/domain/STOCK.md`): movements, receipts, counts, transfers, recipes.
+- AI: receipt extraction in the first release (ADR 0007); the assistant later
+  (`docs/ai/ASSISTANT.md`).
 - The public API (`docs/api/`).
 
 ## Stack
 
-- Kotlin (JVM 21), Spring Boot 3.x, Gradle Kotlin DSL with a version catalog
+- Kotlin (JVM 25 LTS), Spring Boot 4.x, Gradle Kotlin DSL with a version catalog
   (`gradle/libs.versions.toml`).
 - PostgreSQL + Flyway + **jOOQ** ([ADR 0002](../docs/architecture/adr/0002_POSTGRES_FLYWAY_JOOQ.md)).
   **No JPA/Hibernate**: do not add `spring-boot-starter-data-jpa` or `@Entity` classes.
@@ -29,47 +29,54 @@ Kotlin + Spring Boot API for OneMind. Read the root [`../AGENTS.md`](../AGENTS.m
   Spring Boot test slices.
 - **Docker is required to build** (jOOQ codegen and integration tests use Testcontainers).
 
-## Layout (proposed: modular monolith)
+## Architecture ([ADR 0009](../docs/architecture/adr/0009_BACKEND_MODULAR_MONOLITH.md))
+
+Modular monolith, boundaries verified by **Spring Modulith**. Read ADR 0009 before adding a
+module, a cross-module call, an event or a table.
 
 ```
-backend/
-├── build.gradle.kts
-├── settings.gradle.kts
-├── gradle/libs.versions.toml
-└── src/
-    ├── main/kotlin/<basePackage>/
-    │   ├── Application.kt
-    │   ├── common/          ← money, time/business-day, errors, security, pagination
-    │   ├── identity/        ← users, auth, memberships
-    │   ├── pos/             ← PosProvider interface, storyous/ client, sync jobs, id mapping
-    │   ├── sales/           ← bills, payments, discounts, read models, aggregations
-    │   ├── floor/           ← tables
-    │   ├── staff/           ← staff members, shifts
-    │   ├── menu/            ← products, categories, happy hour rules
-    │   ├── stock/           ← items, locations, movements, counts, transfers, order plan, invoices, recipes
-    │   └── assistant/       ← chat, tools, briefing, suggestions, knowledge, ocr
-    ├── main/resources/
-    │   ├── application.yml
-    │   └── db/migration/    ← Flyway V001__*.sql
-    └── test/kotlin/...
+backend/src/main/kotlin/com/onemind/backend/
+├── BackendApplication.kt
+├── common/      ← shared kernel: Money, Quantity, typed IDs, business-day calendar, errors, security, pagination
+├── account/     ← users, auth, organizations, venues, memberships          (schema: account)
+├── pos/         ← Storyous client, sync jobs, POS read model               (schema: pos)
+├── reporting/   ← metrics, hourly rollups, screen queries                  (schema: reporting; reads pos)
+└── stock/       ← items, locations, movements, receipts, counts, transfers, recipes (schema: stock)
 ```
 
-Each context package has the same inner structure:
+Inside each module:
 
 ```
-<context>/
-├── api/          ← @RestController implementing generated OpenAPI interfaces, DTO ↔ domain mappers
-├── application/  ← use cases / services, transactions
-├── domain/       ← entities, value objects, domain rules (no Spring annotations)
-└── infra/        ← jOOQ repositories, external clients, schedulers
+<module>/
+├── api/          ← PUBLIC: service interfaces, DTOs and events other modules may use
+├── web/          ← @RestController implementing generated OpenAPI interfaces, mappers
+├── application/  ← use cases, @Transactional, venue access checks
+├── domain/       ← plain Kotlin model and rules (only where rules exist, e.g. stock)
+└── infra/        ← jOOQ repositories/queries, external clients, scheduled jobs
 ```
 
 Rules:
 
-- Contexts talk through `application` services or domain events, never through another context's
-  repositories or tables.
-- `domain/` is plain Kotlin: no Spring, no persistence annotations. Unit-test it without Spring.
+- A module may use another module **only through its `api` package**: never its `application`,
+  `domain`, `infra` or `web` classes. The Modulith boundary test enforces this and must pass in CI.
+- **Each module owns one PostgreSQL schema** and uses only its own jOOQ package. Exception:
+  `reporting` may read (never write) `pos` tables. Cross-module foreign keys only to
+  `account.venue` and `account.app_user`.
+- Ports/adapters only for external systems: `PosProvider`, `ReceiptExtractor`, `FileStorage`,
+  `EmailSender`. Don't add interfaces for internal classes without a reason.
+- `stock` uses aggregates and value objects; invariants live in the aggregate. `reporting` uses
+  jOOQ query classes that return response models directly (no domain layer). `pos` uses plain data
+  classes.
+- Async work between modules uses domain events via the Spring Modulith event publication registry
+  (`@ApplicationModuleListener`). Delivery is at least once: **every listener must be
+  idempotent**, with a test that delivers the same event twice.
+- Background jobs use **db-scheduler**. Jobs must be idempotent and safe to retry.
+- `domain/` is plain Kotlin: no Spring, no jOOQ. Unit-test it without Spring.
 - Controllers are thin: validate, call one use case, map to DTO.
+- **Follow the API rules in `docs/api/README.md`** ([ADR 0010](../docs/architecture/adr/0010_API_DESIGN.md)):
+  UUIDv7 IDs (never treated as secrets), minor-unit money, decimal-string quantities and rates,
+  RFC 9457 errors with a stable `code` and English `detail`, no PATCH, `version` → `409`,
+  `Idempotency-Key` on creating POSTs, `404` for other venues' resources.
 - **API changes start in `docs/api/openapi.yaml`.** Never hand-write a request/response DTO
   that the spec should generate. Never edit generated code (`build/generated`).
 - Inside `/api/v1` changes are additive only (see ADR 0001). CI fails on breaking spec changes.
@@ -88,9 +95,19 @@ Rules:
   (user ↔ venue membership, role) happens in the application layer for every request. Add a test
   for cross-venue access on every new endpoint.
 - Null-safety: no `!!` in production code.
-- Errors: domain exceptions mapped to RFC 9457 Problem Details in one `@ControllerAdvice`.
-- Logging: structured (JSON) logs, no PII or secrets, include `venueId` and request ID.
-- Configuration via `application.yml` + environment variables. Secrets never in the repo.
+- **Errors:** expected business outcomes the caller must handle are **sealed return types**
+  (`Matched | NeedsMatch | Unreadable`). Rule violations and unexpected failures are exceptions
+  from the sealed `DomainException` hierarchy (stable error codes), mapped once to RFC 9457 Problem
+  Details in a `@ControllerAdvice`. No Arrow, no generic `Result` wrapper.
+- **Transactions:** one per use case, in `application`. Never call Claude or Storyous inside a DB
+  transaction.
+- **Concurrency:** Spring MVC on virtual threads with blocking jOOQ/JDBC. No coroutines, no
+  WebFlux. Keep the HikariCP pool small (10–20) and bound concurrent calls to external APIs.
+- Logging: Spring Boot structured logging (ECS JSON to stdout), Micrometer Tracing (`traceparent`),
+  `traceId` in logs and error responses, log the client's `X-Request-Id`. No personal data or
+  secrets in logs or Sentry events; log IDs (ADR 0012).
+- Configuration via `application.yml` + environment variables; profiles `local` and `prod`.
+  Secrets never in the repo.
 
 ## Auth rules ([ADR 0004](../docs/architecture/adr/0004_OWN_JWT_AUTH.md))
 
@@ -126,8 +143,8 @@ Rules:
 
 ## Metrics rules
 
-- Implement each metric in `docs/domain/METRICS.md` exactly once, in the `sales` (or relevant)
-  context, with a unit test per definition using fixture bills (include a midnight-crossing
+- Implement each metric in `docs/domain/METRICS.md` exactly once, in the `reporting`
+  module, with a unit test per definition using fixture bills (include a midnight-crossing
   business day and a DST day).
 - If a metric definition is marked **(?)**, implement the documented default and reference the
   open-question ID in a comment.
@@ -172,17 +189,17 @@ Rules:
 
 ## Commands
 
-To be filled in when the project is scaffolded. Expected:
+Run from `backend/`. Docker is required for tests (Testcontainers) and, once added, jOOQ codegen.
 
 ```bash
-./gradlew build          # openapi + jooq codegen, compile, test (needs Docker)
-./gradlew test
-./gradlew openApiGenerate
-./gradlew generateJooq   # task name depends on the codegen plugin chosen
-docker compose up -d     # local Postgres + MinIO (see ../infra/, ADR 0008)
-./gradlew bootRun        # local run
-./gradlew ktlintCheck    # or detekt
+docker compose -f ../infra/docker-compose.yml up -d   # local PostgreSQL 18 on localhost:5433
+./gradlew bootRun                                     # run the API on :8080 (health: /actuator/health)
+./gradlew test                                        # tests (start PostgreSQL via Testcontainers)
+./gradlew build                                       # compile + test + jar
+./gradlew bootTestRun                                 # run the app with a Testcontainers PostgreSQL (no compose needed)
 ```
+
+Not set up yet (next steps): OpenAPI code generation, jOOQ code generation, ktlint/detekt.
 
 ## Hosting ([ADR 0008](../docs/architecture/adr/0008_HETZNER_HOSTING_ZERO_COST_START.md))
 

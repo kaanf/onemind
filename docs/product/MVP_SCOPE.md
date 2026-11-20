@@ -49,3 +49,21 @@ In the first release the Stock tab opens on **locations and stock value (S4)**; 
 **Design to be added** (owner will add to the canvas): Stock tab landing for the first release,
 location create/edit form.
 
+## Adjustments from the Storyous API check (2026-11-20)
+
+The public Storyous API only returns **paid** bills and has no staff attendance, item-level voids
+or table seats (`docs/integrations/STORYOUS.md`). In the first release:
+
+- **No shifts or hours.** Staff screens show sales, tips, guests and bills per person (from bill
+  `createdBy` / `paidBy`). Shifts come later through a staff clock-in on their own phones.
+- **No live occupancy, open tabs or seated guests.** Today drops those cards; Tables shows only
+  *This week* (no *Now* tab). No manual table status entry (it would mean managing two systems).
+- **Deleted items** = whole deleted bills only (`includeDeleted`); item-level voids are not
+  available.
+- **Products by hour** use the bill's session start (`sessionCreated`); there is no per-item order
+  time.
+- Values derived indirectly (e.g. estimated table capacity from the highest guest count seen) must
+  be labelled as estimates and defined in `docs/domain/METRICS.md`.
+- These may change if a Storyous partnership gives access to more data
+  (see `docs/product/STORYOUS_PARTNERSHIP.md`).
+

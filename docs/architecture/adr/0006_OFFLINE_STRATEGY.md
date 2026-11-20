@@ -1,6 +1,6 @@
 # 0006 · Read-only offline cache, offline stock counting
 
-- **Status:** Accepted
+- **Status:** Accepted (local storage amended by [ADR 0011](0011_MOBILE_ARCHITECTURE.md))
 - **Date:** 2026-11-20
 - **Deciders:** Kaan
 
@@ -39,8 +39,9 @@ invoice, sending an order, chatting) need the server anyway.
 
 ### Local storage
 
-- Library: **SQLDelight** (proposed default; can be revisited during scaffold). One local
-  database with tables for the response cache, count sheets and the outbox.
+- **DataStore** for the read cache (last response per screen key) and settings, as in crew-kmp.
+- A database only when offline stock counting is built: **Room** (KMP), via crew-kmp's Room
+  convention plugin, for count sheets and the outbox.
 
 ## Alternatives considered
 
@@ -52,6 +53,6 @@ invoice, sending an order, chatting) need the server anyway.
 
 - The backend must support `Idempotency-Key` on count endpoints and accept late, out-of-order
   count lines.
-- The app needs a small sync engine (outbox + retry + status) and a local database from the start.
+- The app needs a small sync engine (outbox + retry + status) and a local database once offline counting is built.
 - Every screen must handle "showing cached data" as a state, alongside loading, content, empty and
   error.
