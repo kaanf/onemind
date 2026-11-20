@@ -1,0 +1,5 @@
+description: Business rule violation.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/Problem.yaml

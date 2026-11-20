@@ -1,0 +1,7 @@
+name: X-App-Version
+in: header
+required: false
+description: App version of the client; below the minimum supported version the API answers `426`.
+schema:
+  type: string
+  example: 1.0.0

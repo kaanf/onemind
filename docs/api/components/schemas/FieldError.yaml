@@ -1,0 +1,13 @@
+type: object
+required:
+  - field
+  - code
+properties:
+  field:
+    type: string
+    description: Path of the invalid field in the request body.
+    example: lines[2].quantity
+  code:
+    type: string
+    description: Stable validation code (`SCREAMING_SNAKE`).
+    example: MUST_BE_POSITIVE

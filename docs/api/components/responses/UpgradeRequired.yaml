@@ -1,0 +1,5 @@
+description: App version below the minimum supported version.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/Problem.yaml

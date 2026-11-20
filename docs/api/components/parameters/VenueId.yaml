@@ -1,0 +1,7 @@
+name: venueId
+in: path
+required: true
+description: Venue ID (UUIDv7). Venues the user can't access answer `404`.
+schema:
+  type: string
+  format: uuid

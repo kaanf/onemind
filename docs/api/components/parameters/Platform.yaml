@@ -1,0 +1,9 @@
+name: X-Platform
+in: header
+required: false
+description: Client platform.
+schema:
+  type: string
+  enum:
+    - IOS
+    - ANDROID

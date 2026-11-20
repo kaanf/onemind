@@ -1,0 +1,5 @@
+description: No access to the venue.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/Problem.yaml

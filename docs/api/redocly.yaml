@@ -1,0 +1,9 @@
+# Spec lint config (ADR 0001). Run from the repo root:
+#   npx @redocly/cli@2.82.0 lint --config docs/api/redocly.yaml docs/api/openapi.yaml
+extends:
+  - recommended
+rules:
+  # Shared components are defined ahead of the first endpoints; turn back on once paths use them.
+  no-unused-components: off
+  # Private API, no public license.
+  info-license: off

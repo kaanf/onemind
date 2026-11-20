@@ -1,0 +1,55 @@
+openapi: 3.0.3
+info:
+  title: OneMind API
+  version: 1.0.0
+  description: |
+    Back-office API for the OneMind mobile app. Conventions: `docs/api/README.md` (ADR 0010).
+    Inside `/api/v1` changes are additive only (ADR 0001).
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags: []
+paths: {}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access JWT, 15 min (ADR 0004).
+  schemas:
+    Problem:
+      $ref: ./components/schemas/Problem.yaml
+    FieldError:
+      $ref: ./components/schemas/FieldError.yaml
+    Money:
+      $ref: ./components/schemas/Money.yaml
+  parameters:
+    IdempotencyKey:
+      $ref: ./components/parameters/IdempotencyKey.yaml
+    AppVersion:
+      $ref: ./components/parameters/AppVersion.yaml
+    Platform:
+      $ref: ./components/parameters/Platform.yaml
+    VenueId:
+      $ref: ./components/parameters/VenueId.yaml
+    VenueIds:
+      $ref: ./components/parameters/VenueIds.yaml
+  responses:
+    BadRequest:
+      $ref: ./components/responses/BadRequest.yaml
+    Unauthorized:
+      $ref: ./components/responses/Unauthorized.yaml
+    Forbidden:
+      $ref: ./components/responses/Forbidden.yaml
+    NotFound:
+      $ref: ./components/responses/NotFound.yaml
+    Conflict:
+      $ref: ./components/responses/Conflict.yaml
+    UnprocessableEntity:
+      $ref: ./components/responses/UnprocessableEntity.yaml
+    UpgradeRequired:
+      $ref: ./components/responses/UpgradeRequired.yaml
+    TooManyRequests:
+      $ref: ./components/responses/TooManyRequests.yaml

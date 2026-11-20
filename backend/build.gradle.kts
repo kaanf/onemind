@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.spring)
     alias(libs.plugins.spring.boot)
     alias(libs.plugins.spring.dependency.management)
+    alias(libs.plugins.openapi.generator)
     alias(libs.plugins.ktlint)
 }
 
@@ -52,8 +53,51 @@ kotlin {
     }
 }
 
+// Controller interfaces and DTOs from the API contract (ADR 0001). Generated into build/, never committed.
+// Packages sit outside com.onemind.backend so Spring Modulith does not treat them as a module.
+val openApiOutputDir = layout.buildDirectory.dir("generated/openapi")
+
+openApiGenerate {
+    generatorName = "kotlin-spring"
+    inputSpec = layout.projectDirectory.file("../docs/api/openapi.yaml")
+    outputDir = openApiOutputDir
+    apiPackage = "com.onemind.api.v1.web"
+    modelPackage = "com.onemind.api.v1.model"
+    generateApiTests = false
+    generateModelTests = false
+    generateApiDocumentation = false
+    generateModelDocumentation = false
+    configOptions =
+        mapOf(
+            "interfaceOnly" to "true",
+            "useTags" to "true",
+            "useSpringBoot4" to "true",
+            "useJackson3" to "true",
+            "useBeanValidation" to "true",
+            "skipDefaultInterface" to "true",
+            "documentationProvider" to "none",
+            "annotationLibrary" to "none",
+            "enumPropertyNaming" to "original",
+            "gradleBuildFile" to "false",
+            "exceptionHandler" to "false",
+            // Null handling stays with the global ObjectMapper.
+            "generateJsonIncludeAnnotations" to "false",
+            "generateJsonSetterNullsAnnotations" to "false",
+        )
+}
+
+// Wiring the source dir to the task output makes every consumer (compile, ktlint) run after it.
+sourceSets {
+    main {
+        kotlin.srcDir(tasks.openApiGenerate.map { openApiOutputDir.get().dir("src/main/kotlin") })
+    }
+}
+
 ktlint {
     version = libs.versions.ktlint.cli
+    filter {
+        exclude { it.file.path.contains("/build/generated/") }
+    }
 }
 
 configurations.matching { it.name.startsWith("ktlint") }.configureEach {
