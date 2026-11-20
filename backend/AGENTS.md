@@ -83,7 +83,10 @@ Rules:
 
 ## Coding conventions
 
-- Kotlin official style; ktlint or detekt enforced in CI (*Proposed*).
+- Style: ktlint (`ktlint_official` code style, see `../.editorconfig`), checked by `./gradlew build`
+  and in CI. Run `./gradlew ktlintFormat` before committing. detekt is added once 2.0 is stable
+  (1.23.x does not support Kotlin 2.2+).
+- Versions live in `gradle/libs.versions.toml`; no version strings in `build.gradle.kts`.
 - Immutable data classes for DTOs and value objects. Use `value class` for IDs
   (`VenueId`, `BillId`) and `Money`.
 - **Money:** `Money(amountMinor: Long, currency: Currency)`. Never `Double`. Rounding rules in
@@ -195,11 +198,16 @@ Run from `backend/`. Docker is required for tests (Testcontainers) and, once add
 docker compose -f ../infra/docker-compose.yml up -d   # local PostgreSQL 18 on localhost:5433
 ./gradlew bootRun                                     # run the API on :8080 (health: /actuator/health)
 ./gradlew test                                        # tests (start PostgreSQL via Testcontainers)
-./gradlew build                                       # compile + test + jar
+./gradlew build                                       # compile + ktlint + test + jar
 ./gradlew bootTestRun                                 # run the app with a Testcontainers PostgreSQL (no compose needed)
+./gradlew ktlintCheck                                 # style check (also part of build)
+./gradlew ktlintFormat                                # fix style violations
 ```
 
-Not set up yet (next steps): OpenAPI code generation, jOOQ code generation, ktlint/detekt.
+Colima: if Testcontainers' Ryuk container fails with "error while creating mount source path
+…docker.sock", export `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock` in your shell.
+
+Not set up yet (next steps): OpenAPI code generation, jOOQ code generation, detekt.
 
 ## Hosting ([ADR 0008](../docs/architecture/adr/0008_HETZNER_HOSTING_ZERO_COST_START.md))
 
