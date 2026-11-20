@@ -33,7 +33,7 @@ generated.
   `suggestedReplies`, `done` (final message ID), `error`.
 - The final message is also saved, so `GET …/messages` returns it even if the stream breaks.
   On disconnect, the app reloads the message instead of resending the question.
-- Backend: Spring MVC `SseEmitter` on virtual threads (Java 21). Mobile: Ktor SSE client.
+- Backend: Spring MVC `SseEmitter` on virtual threads (Java 21+). Mobile: Ktor SSE client.
 - OpenAPI describes the endpoint with `text/event-stream` and documents each event payload as a
   schema in `components`.
 

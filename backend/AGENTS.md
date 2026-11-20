@@ -17,7 +17,7 @@ Kotlin + Spring Boot API for OneMind. Read the root [`../AGENTS.md`](../AGENTS.m
 
 ## Stack
 
-- Kotlin (JVM 21), Spring Boot 3.x, Gradle Kotlin DSL with a version catalog
+- Kotlin (JVM 25 LTS), Spring Boot 4.x, Gradle Kotlin DSL with a version catalog
   (`gradle/libs.versions.toml`).
 - PostgreSQL + Flyway + **jOOQ** ([ADR 0002](../docs/architecture/adr/0002_POSTGRES_FLYWAY_JOOQ.md)).
   **No JPA/Hibernate**: do not add `spring-boot-starter-data-jpa` or `@Entity` classes.
@@ -37,7 +37,7 @@ backend/
 ├── settings.gradle.kts
 ├── gradle/libs.versions.toml
 └── src/
-    ├── main/kotlin/<basePackage>/
+    ├── main/kotlin/com/onemind/backend/
     │   ├── Application.kt
     │   ├── common/          ← money, time/business-day, errors, security, pagination
     │   ├── identity/        ← users, auth, memberships
@@ -172,17 +172,17 @@ Rules:
 
 ## Commands
 
-To be filled in when the project is scaffolded. Expected:
+Run from `backend/`. Docker is required for tests (Testcontainers) and, once added, jOOQ codegen.
 
 ```bash
-./gradlew build          # openapi + jooq codegen, compile, test (needs Docker)
-./gradlew test
-./gradlew openApiGenerate
-./gradlew generateJooq   # task name depends on the codegen plugin chosen
-docker compose up -d     # local Postgres + MinIO (see ../infra/, ADR 0008)
-./gradlew bootRun        # local run
-./gradlew ktlintCheck    # or detekt
+docker compose -f ../infra/docker-compose.yml up -d   # local PostgreSQL 18
+./gradlew bootRun                                     # run the API on :8080 (health: /actuator/health)
+./gradlew test                                        # tests (start PostgreSQL via Testcontainers)
+./gradlew build                                       # compile + test + jar
+./gradlew bootTestRun                                 # run the app with a Testcontainers PostgreSQL (no compose needed)
 ```
+
+Not set up yet (next steps): OpenAPI code generation, jOOQ code generation, ktlint/detekt.
 
 ## Hosting ([ADR 0008](../docs/architecture/adr/0008_HETZNER_HOSTING_ZERO_COST_START.md))
 

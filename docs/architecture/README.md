@@ -48,8 +48,8 @@ flowchart LR
 | Repo | Monorepo: `backend/`, `mobile/`, `docs/` | **Decided** |
 | Doc language | English | **Decided** |
 | Design | Cross-platform direction (single UI for Android + iOS) | **Decided** |
-| Backend language | Kotlin (JVM 21) | **Decided** |
-| Backend framework | Spring Boot 3.x | **Decided** |
+| Backend language | Kotlin (JVM 25 LTS) | **Decided** |
+| Backend framework | Spring Boot 4.x (4.2 at project start) | **Decided** |
 | Backend style | Modular monolith, one Gradle module or package per bounded context | Proposed |
 | Database | PostgreSQL + Flyway migrations | **Decided** · [ADR 0002](adr/0002_POSTGRES_FLYWAY_JOOQ.md) |
 | Persistence | jOOQ, no JPA/Hibernate; hourly rollup tables for reports | **Decided** · [ADR 0002](adr/0002_POSTGRES_FLYWAY_JOOQ.md) |

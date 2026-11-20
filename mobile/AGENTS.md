@@ -52,7 +52,7 @@ mobile/
 ├── gradle/libs.versions.toml
 ├── composeApp/                       ← shared KMP module (UI + presentation + data)
 │   └── src/
-│       ├── commonMain/kotlin/<basePackage>/
+│       ├── commonMain/kotlin/com/onemind/app/
 │       │   ├── app/                  ← App(), navigation graph, root DI
 │       │   ├── core/
 │       │   │   ├── designsystem/     ← theme, tokens, typography, components
