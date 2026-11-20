@@ -192,7 +192,7 @@ Rules:
 Run from `backend/`. Docker is required for tests (Testcontainers) and, once added, jOOQ codegen.
 
 ```bash
-docker compose -f ../infra/docker-compose.yml up -d   # local PostgreSQL 18
+docker compose -f ../infra/docker-compose.yml up -d   # local PostgreSQL 18 on localhost:5433
 ./gradlew bootRun                                     # run the API on :8080 (health: /actuator/health)
 ./gradlew test                                        # tests (start PostgreSQL via Testcontainers)
 ./gradlew build                                       # compile + test + jar
