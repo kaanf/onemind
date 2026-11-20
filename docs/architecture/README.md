@@ -50,10 +50,10 @@ flowchart LR
 | Design | Cross-platform direction (single UI for Android + iOS) | **Decided** |
 | Backend language | Kotlin (JVM 25 LTS) | **Decided** |
 | Backend framework | Spring Boot 4.x (4.2 at project start) | **Decided** |
-| Backend style | Modular monolith, one Gradle module or package per bounded context | Proposed |
+| Backend style | Modular monolith (account, pos, reporting, stock), Spring Modulith, schema per module | **Decided** · [ADR 0009](adr/0009_BACKEND_MODULAR_MONOLITH.md) |
 | Database | PostgreSQL + Flyway migrations | **Decided** · [ADR 0002](adr/0002_POSTGRES_FLYWAY_JOOQ.md) |
 | Persistence | jOOQ, no JPA/Hibernate; hourly rollup tables for reports | **Decided** · [ADR 0002](adr/0002_POSTGRES_FLYWAY_JOOQ.md) |
-| Jobs | Spring scheduling + DB-backed job queue (e.g. JobRunr / db-scheduler) | Open |
+| Jobs | db-scheduler (PostgreSQL-backed) | **Decided** · [ADR 0009](adr/0009_BACKEND_MODULAR_MONOLITH.md) |
 | Mobile | Kotlin Multiplatform | **Decided** |
 | Mobile UI | Compose Multiplatform (shared UI for Android and iOS) | **Decided** · [ADR 0003](adr/0003_COMPOSE_MULTIPLATFORM_UI.md) |
 | Mobile arch | MVVM/UDF: ViewModel + immutable `UiState` + `StateFlow` | Proposed |
@@ -77,10 +77,10 @@ flowchart LR
 1. ~~Compose Multiplatform vs native SwiftUI~~ → decided in [ADR 0003](adr/0003_COMPOSE_MULTIPLATFORM_UI.md).
 2. ~~Shared Kotlin code between backend and mobile~~ → decided in [ADR 0001](adr/0001_OPENAPI_CONTRACT_FIRST.md).
 3. ~~Persistence approach and report aggregation~~ → decided in [ADR 0002](adr/0002_POSTGRES_FLYWAY_JOOQ.md).
-4. Sync architecture: polling vs webhooks, job queue, multi-tenant scheduling.
+4. Sync architecture: polling vs webhooks (depends on what the Storyous API offers) and per-venue scheduling. Job queue → db-scheduler ([ADR 0009](adr/0009_BACKEND_MODULAR_MONOLITH.md)).
 5. ~~Real-time~~ → decided in [ADR 0005](adr/0005_POLLING_AND_SSE.md).
 6. ~~Offline behaviour~~ → decided in [ADR 0006](adr/0006_OFFLINE_STRATEGY.md).
-7. Multi-tenancy model (shared schema with `organization_id`/`venue_id` + row-level checks).
+7. ~~Multi-tenancy model~~ → decided in [ADR 0009](adr/0009_BACKEND_MODULAR_MONOLITH.md) (venue-scoped methods + access check per use case; no RLS for now).
 8. ~~LLM for the first release~~ → decided in [ADR 0007](adr/0007_RECEIPT_EXTRACTION_WITH_CLAUDE.md).
    Assistant provider and privacy (pseudonymisation / DPA / EU-only inference) remain open until
    the assistant is built.
@@ -101,3 +101,4 @@ Write one file per decision: `adr/NNNN_SHORT_TITLE.md`, using [`adr/0000_TEMPLAT
 | [0006](adr/0006_OFFLINE_STRATEGY.md) | Read-only offline cache, offline stock counting | Accepted |
 | [0007](adr/0007_RECEIPT_EXTRACTION_WITH_CLAUDE.md) | Receipt extraction with Claude Haiku 5.5 | Accepted |
 | [0008](adr/0008_HETZNER_HOSTING_ZERO_COST_START.md) | Hosting on Hetzner, starting at near-zero cost | Accepted |
+| [0009](adr/0009_BACKEND_MODULAR_MONOLITH.md) | Backend architecture: modular monolith with Spring Modulith | Accepted |

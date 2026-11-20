@@ -73,3 +73,4 @@ See [architecture/README.md#decisions-to-discuss](architecture/README.md#decisio
 | R19 | Hosting | One Hetzner VM with Docker Compose, PostgreSQL self-hosted, nightly off-site backups, free tiers until launch (ADR 0008) | 2026-11-20 |
 | R20 | Repository host and CI | GitHub + GitHub Actions (ADR 0008) | 2026-11-20 |
 | R21 | Product name | OneMind (deep-link scheme `onemind://`) | 2026-11-20 |
+| R22 | Backend architecture | Modular monolith with Spring Modulith; modules account, pos, reporting, stock; schema per module; pragmatic hexagonal; DDD-lite in stock; outbox events with idempotent listeners; db-scheduler; sealed outcomes + DomainException (ADR 0009) | 2026-11-20 |

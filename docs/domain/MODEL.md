@@ -4,21 +4,21 @@ Logical model. It is a **draft**: the persistence design (tables, indexes, parti
 finalised in the architecture discussion. Field lists show what the screens need, not a final
 schema.
 
-## Bounded contexts
+## Modules and contexts
 
-| Context        | Owns                                                                 | Source of data            |
-|----------------|----------------------------------------------------------------------|---------------------------|
-| Identity       | Organization, User, membership, app roles, sessions                   | Our app                   |
-| POS integration| PosConnection, SyncJob, raw POS payloads, ID mapping                   | Storyous (read-only)      |
-| Sales          | Venue, BusinessDay, Bill, BillItem, Payment, Discount, DeletedItem, Refund | POS (synced, immutable) |
-| Floor          | Table, TableZone, table sessions                                      | POS (+ optional manual layout) |
-| Staff          | StaffMember, Shift                                                     | POS                       |
-| Menu           | Product, Category, HappyHourRule                                       | POS                       |
-| Stock          | StockItem, Supplier, Recipe, StockLocation, StockMovement, StockCount, Transfer, PullList, Correction, OrderPlan, Delivery, SupplierInvoice | Our app (user input + computed) |
-| Assistant      | Conversation, Message, Citation, Briefing, Suggestion, Insight, KnowledgeDocument | Our app + LLM        |
+Backend modules are defined in [ADR 0009](../architecture/adr/0009_BACKEND_MODULAR_MONOLITH.md).
+Each module owns one PostgreSQL schema.
 
-Sales, Floor, Staff and Menu are **read models of the POS**: never edited by users. Stock and
-Assistant hold **our own** data.
+| Module (schema) | Owns | Source of data |
+|-----------------|------|----------------|
+| `account` | Organization, User, Membership, app roles, sessions/refresh tokens, **Venue**, followed venues | Our app (venues registered by the POS sync) |
+| `pos` | PosConnection, SyncJob, external ID mapping, raw payloads; POS read model: Bill, BillItem, Payment, Discount, DeletedItem, Refund, Product, Category, HappyHourRule, Table, TableZone, StaffMember, Shift | Storyous (read-only, immutable copy) |
+| `reporting` | Hourly rollups and metric queries over `pos` data (reads `pos` tables, writes only its own) | Derived |
+| `stock` | StockItem, StockLocation, ParLevel, StockMovement, Receipt (SupplierInvoice) + lines, SupplierItemAlias, StockCount, Transfer/PullList, Recipe, Supplier | Our app (user input + computed) |
+| *(later)* `assistant` | Conversation, Message, Citation, Briefing, Suggestion, Insight, KnowledgeDocument | Our app + LLM |
+
+`pos` data is a **read model of the POS**: never edited by users. `account` and `stock` hold **our
+own** data. The field lists below are grouped by topic, not by module.
 
 ## Entities
 
