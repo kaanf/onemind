@@ -122,8 +122,10 @@ Cross-platform page does not show (for example the Insights suggestion cards).
   formatted by the venue's currency, times in the venue's time zone.
 - **No product analytics and no feature-flag system** in the first release (ADR 0012).
 
-## Status
+## Status and roadmap
 
-Architecture is **not final**. `docs/architecture/README.md` lists proposed defaults and the
-decisions still to be discussed. Treat anything marked *Proposed* as a default you may follow,
-not a settled rule.
+**Read [docs/ROADMAP.md](docs/ROADMAP.md) at the start of every session.** It shows the current
+phase, the next unchecked task and the blockers. Tick items there in the PR that completes them.
+Architecture decisions are final unless an ADR changes them; anything still marked *Proposed* is a
+default, not a rule.
+
