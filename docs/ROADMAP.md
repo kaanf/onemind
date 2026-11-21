@@ -118,12 +118,17 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
 
 - [ ] `PosProvider` + mock provider: deterministic, realistic venues, menu, desks, staff and bills
       (bills across midnight, Europe/Prague DST days, discounts, voids, open tabs), shaped like the
-      Storyous API in `docs/integrations/STORYOUS.md`
+      Storyous API in `docs/integrations/STORYOUS.md`. Acceptance (rule 2): enabled only in the
+      local/dev profile; prod startup fails if it is configured (test); mock venues are visibly
+      named as demo; no fixture data is packaged into the prod artifact
+- [ ] Interim onboarding: after verify, a new account picks mock places on A5 (dev/demo only), which
+      creates the organization, venues and membership; update `docs/product/SCREENS.md`
 - [ ] Sync jobs (db-scheduler) fed by `PosProvider`: places → venues, menu, desks, bills
       (`modifiedSince`), initial 90-day import, `BillsSynced` event
 - [ ] Reporting rollups refreshed from `BillsSynced`; rebuild job
 - [ ] Later (P15): read-only Storyous client behind `PosProvider` (client credentials, token cache,
-      paging) and onboarding A3–A5 (no OAuth redirect; see `docs/integrations/STORYOUS.md`)
+      paging), built and tested against recorded fixtures that fail on any non-GET call; onboarding
+      A3–A5 (no OAuth redirect; see `docs/integrations/STORYOUS.md`)
 - [ ] Purge job: delete organizations whose `deletion_due_at` has passed (set by `DELETE /me`, #28)
 - [ ] Phase-end `REVIEW pr: audit`
 
@@ -148,6 +153,7 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
 
 ## Phase 7 — Release preparation
 
+- [ ] Precondition: the real Storyous client (phase 4 "Later", P15) is connected; no release on mock data
 - [ ] Czech translation
 - [ ] Hetzner VM: Caddy, backend, PostgreSQL, nightly off-site backups + restore test (ADR 0008)
 - [ ] Production Sentry, uptime monitor, transactional email provider
