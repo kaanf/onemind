@@ -170,34 +170,11 @@ object Guards {
  * Money-named identifiers, matched by whole camelCase / snake_case tokens (the same rule as the
  * backend guards): `amount`, `paidRevenue`, `possibleLoss`, `averageBill` are money; `tooltipWidth`,
  * `multiplier`, `cardRate`, `discountPct`, `guestCount` are not. Ratios, percentages and counts are raw
- * numbers by contract (`docs/api/README.md`), and sizes are drawing values.
+ * numbers by contract (`docs/api/README.md`), and sizes are drawing values. The words and suffixes come
+ * from [MoneyWords] (shared with the backend); a plural s/es also matches (`prices`, `salesByHour`).
  */
 object MoneyNames {
-    // Same lists as the backend (docs/api/lint/money-words.json, PR #43): singular words, and a plural
-    // s/es also matches (`prices`, `losses`, `salesByHour`).
-    private val moneyWords =
-        setOf(
-            "money",
-            "amount",
-            "price",
-            "total",
-            "subtotal",
-            "revenue",
-            "sales",
-            "cost",
-            "tip",
-            "discount",
-            "loss",
-            "payment",
-            "refund",
-            "bill",
-            "net",
-            "gross",
-            "minor",
-        )
-    private val notMoneySuffixes = setOf("rate", "ratio", "percent", "pct", "share", "count", "quantity")
-
-    // UI-only (not in the backend list): drawing values such as `totalHeight` or `revenueFraction`.
+    // Mobile-only (not in money-words.json): drawing values such as `totalHeight` or `revenueFraction`.
     private val drawingSuffixes = setOf("height", "width", "fraction")
 
     private val tokenBoundary = Regex("""_+|(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|(?<=[A-Za-z])(?=[0-9])""")
@@ -210,7 +187,9 @@ object MoneyNames {
     ): Boolean {
         val tokens = tokens(name)
         val last = tokens.last()
-        return tokens.any { it.isWordIn(moneyWords) } && !last.isWordIn(notMoneySuffixes) && !last.isWordIn(drawingSuffixes)
+        return tokens.any { it.isWordIn(words.moneyWords) } &&
+            !last.isWordIn(words.notMoneySuffixes) &&
+            !last.isWordIn(drawingSuffixes)
     }
 
     /** The token is one of [words], or its plural with `s` / `es`. */

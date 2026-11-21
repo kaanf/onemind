@@ -159,12 +159,15 @@ with `./gradlew :core:konsist:test` in CI and checks:
   `composeApp`, Ktor, Koin, Android/androidx or Compose; presentation imports no data;
 - generated `core:api` models are imported only in data layers;
 - money-named declarations are never `Float`/`Double`, in every layer (product rule 5). Money names
-  are whole camelCase/snake tokens from the backend's list (`docs/api/lint/money-words.json`:
-  `money`, `amount`, `price`, `total`, `subtotal`, `revenue`, `sales`, `cost`, `tip`, `discount`,
-  `loss`, `payment`, `refund`, `bill`, `net`, `gross`, `minor`), a plural `s`/`es` also matches
-  (`prices`, `salesByHour`). Names ending in `Rate`/`Ratio`/`Percent`/`Pct`/`Share`/`Count`/`Quantity`
-  are not money (same as the backend); `Height`/`Width`/`Fraction` are mobile-only suffixes for
-  drawing values. Keep the lists equal to the backend's. Percentages and drawing values may stay
+  are whole camelCase/snake tokens from `moneyWords` in `docs/api/lint/money-words.json`, the list
+  shared with the backend; a plural `s`/`es` also matches (`prices`, `salesByHour`). Names whose last
+  word is in `notMoneySuffixes` (rates, ratios, percentages, counts, …) are not money. The guard reads
+  the file at test time (it is a declared input of `:core:konsist:test`), so there is no copy in
+  Kotlin: change the list only in that file. A new array key in the file fails the guard until the
+  mobile side reads it. `Height`/`Width`/`Fraction` are mobile-only suffixes for drawing values, kept
+  in `MoneyNames`. Percentages and drawing values may stay floating point.
+  Known limit: the guard reads declared type names, not resolved types, so a `typealias X = Double`
+  or a value class wrapping `Double` on a money name is not caught. Don't alias or wrap money as
   floating point. In domain and data, a line naming money
   also has no floating-point literal or `toDouble()`/`toFloat()`;
 - no system clock outside the clock seam (`CoreDataModule.kt`) and no device time zone anywhere
