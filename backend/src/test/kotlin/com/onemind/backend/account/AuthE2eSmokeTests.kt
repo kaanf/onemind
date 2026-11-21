@@ -88,14 +88,16 @@ class AuthE2eSmokeTests {
     @Test
     fun `an expired or invalid access token gets 401, and a refreshed one works`() {
         val tokens = api.signIn(email, mail)
-        // 15 min lifetime plus the validator's default 60 s clock skew.
-        clock.advance(Duration.ofMinutes(17))
 
+        // Still unexpired, so only the broken signature is rejected.
+        val invalid = expectProblem(HttpStatus.UNAUTHORIZED) { api.me(tokens.accessToken.dropLast(4) + "AAAA").deleteMe() }
+        assertEquals("UNAUTHORIZED", invalid.code)
+
+        // The access token is expired by more than the validator's clock skew.
+        clock.advance(Duration.ofMinutes(17))
         val expired = expectProblem(HttpStatus.UNAUTHORIZED) { api.me(tokens.accessToken).deleteMe() }
         assertEquals("UNAUTHORIZED", expired.code)
         assertNotNull(expired.traceId)
-        val invalid = expectProblem(HttpStatus.UNAUTHORIZED) { api.me(tokens.accessToken.dropLast(4) + "AAAA").deleteMe() }
-        assertEquals("UNAUTHORIZED", invalid.code)
 
         val refreshed = assertNotNull(api.auth.refreshTokens(RefreshTokenRequest(tokens.refreshToken)).body)
         assertEquals(HttpStatus.NO_CONTENT, api.me(refreshed.accessToken).deleteMe().statusCode)
