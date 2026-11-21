@@ -25,7 +25,11 @@ is a plan; the source of truth for shapes is the OpenAPI spec once written.
   Reuse them with `$ref` instead of redefining.
 - Lint: `npx @redocly/cli@2.82.0 lint --config docs/api/redocly.yaml docs/api/openapi.yaml` (repo root).
 - Backend generates controller interfaces + DTOs (`kotlin-spring`, `interfaceOnly`); mobile generates
-  models only (`kotlin`, kotlinx.serialization; ADR 0011). No shared Kotlin module.
+  models only (`kotlin`, `multiplatform`, kotlinx.serialization; ADR 0011). No shared Kotlin module.
+- openapi-generator's parser does not resolve a `$ref` from one split schema file to another
+  (`Problem.yaml` → `./FieldError.yaml` falls back to `object`). Mobile bundles the spec with Redocly
+  before generating; the backend's generated `Problem.errors` is still `List<Any>` (unused: errors are
+  built with Spring's `ProblemDetail`).
 - Workflow: change the spec first, then backend and mobile in the same PR.
 - Inside `/api/v1` changes are **additive only**. CI (`.github/workflows/ci.yml`, PRs touching
   `docs/api/`) runs the linter and `oasdiff breaking` against `main`'s spec (skipped while `main` has

@@ -58,6 +58,11 @@ Application ID / bundle ID: `com.onemind.app` (dev builds `com.onemind.app.dev`)
 ## API calls
 
 - Contract changes start in `docs/api/openapi.yaml`; regenerate `core:api`; fix data modules.
+- `core:api` bundles the split spec with Redocly (`npx`, same version as CI lint), then generates
+  models with OpenAPI Generator (`kotlin`, `multiplatform`) into `build/generated/openapi`, package
+  `com.onemind.core.api.model`. Free-form values (`additionalProperties: true`) are `JsonElement`.
+  The generator cannot map unknown enum values to `UNKNOWN` for kotlinx: solve this when the first
+  enum enters the spec.
 - Write requests by hand in the feature repository (method, path, query, headers). Send an
   `Idempotency-Key` (UUID) on creating POSTs and reuse it on retries of the same action.
 - JSON: `ignoreUnknownKeys = true`; unknown enum values → `UNKNOWN`.
@@ -152,12 +157,14 @@ Navigation versions must stay aligned with the Compose Multiplatform version.
 
 ## Commands
 
-Run from `mobile/`. Needs JDK 21, the Android SDK (`ANDROID_HOME` or `local.properties` with
-`sdk.dir`) and Xcode with an iOS simulator runtime.
+Run from `mobile/`. Needs JDK 21, Node.js (`npx`, for the `core:api` spec bundle), the Android SDK
+(`ANDROID_HOME` or `local.properties` with `sdk.dir`) and Xcode with an iOS simulator runtime.
 
 ```sh
 ./gradlew :build-logic:convention:build                    # compile + validate convention plugins
 ./gradlew ktlintCheck                                      # lint every module (ktlintFormat to fix)
+./gradlew testAndroidHostTest                              # commonTest of every module on the JVM
+./gradlew :core:api:openApiGenerate                        # regenerate API models after a spec change
 ./gradlew :androidApp:assembleDebug                        # Android debug APK
 ./gradlew :androidApp:assembleRelease                      # Android release (R8); unsigned without ONEMIND_* signing values
 ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64  # iOS framework (shared code compiles for iOS)

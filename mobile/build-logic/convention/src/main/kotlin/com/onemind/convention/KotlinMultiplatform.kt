@@ -16,6 +16,8 @@ internal fun Project.configureKotlinMultiplatform() {
             minSdk = libs.intVersion("projectMinSdkVersion")
             namespace = pathToPackageName()
             experimentalProperties["android.experimental.kmp.enableAndroidResources"] = true
+            // Runs commonTest on the JVM (`testAndroidHostTest`), so tests need no simulator or emulator.
+            withHostTest {}
         }
 
         iosArm64()
