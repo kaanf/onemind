@@ -86,6 +86,13 @@ abstract class TooManyRequestsException(
     params: Map<String, Any> = emptyMap(),
 ) : DomainException(code, detail, params + ("retryAfterSeconds" to retryAfter.toSeconds().coerceAtLeast(1)))
 
+/** `426`: the app is older than the minimum supported version and must be updated (ADR 0001). */
+abstract class UpgradeRequiredException(
+    code: String,
+    detail: String,
+    params: Map<String, Any> = emptyMap(),
+) : DomainException(code, detail, params)
+
 /** A rate limit without a more specific code. */
 class RateLimitedException(
     retryAfter: Duration,

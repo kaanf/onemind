@@ -30,3 +30,5 @@ post:
       $ref: ../../components/responses/UnprocessableEntity.yaml
     '429':
       $ref: ../../components/responses/TooManyRequests.yaml
+    '426':
+      $ref: ../../components/responses/UpgradeRequired.yaml

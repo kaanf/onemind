@@ -1,7 +1,10 @@
 name: X-App-Version
 in: header
 required: false
-description: App version of the client; below the minimum supported version the API answers `426`.
+description: |
+  App version of the client (`1.4.2`, optionally with a `-beta.1` or `+87` suffix, which is ignored).
+  Below the platform's minimum the API answers `426 APP_UPGRADE_REQUIRED`; a value that isn't a
+  version is `400 APP_VERSION_INVALID` while that platform has a minimum.
 schema:
   type: string
   example: 1.0.0

@@ -40,7 +40,8 @@ module** between `backend/` and `mobile/`.
 - CI runs a breaking-change check (`oasdiff breaking`) against the main branch's spec, and fails on
   breaking changes.
 - The app sends `X-App-Version` and `X-Platform`. The backend can answer `426 Upgrade Required`
-  below a minimum supported version.
+  below a minimum supported version (`common/web/MinimumAppVersionFilter`; rules in
+  `docs/api/README.md`).
 - Spec is linted in CI with Redocly CLI (`recommended` rules, config `docs/api/redocly.yaml`).
 
 ## Alternatives considered

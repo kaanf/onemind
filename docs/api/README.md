@@ -36,7 +36,14 @@ is a plan; the source of truth for shapes is the OpenAPI spec once written.
   none). It fails on errors and warnings; `oasdiff-levels.txt` allows new response enum values
   (allowed in v1) and fails on removed ones. Locally: `oasdiff breaking --fail-on WARN --severity-levels
   docs/api/oasdiff-levels.txt <main-copy>/docs/api/openapi.yaml docs/api/openapi.yaml`.
-- Clients send `X-App-Version` and `X-Platform`; the backend may answer `426 Upgrade Required`.
+- Clients send `X-App-Version` and `X-Platform`; the backend may answer `426 Upgrade Required`
+  (`APP_UPGRADE_REQUIRED`, `params.platform`, `params.minimumVersion`). The minimum per platform comes
+  from `MIN_APP_VERSION_IOS` / `MIN_APP_VERSION_ANDROID` (empty = no check). Every `/api/v1` request is
+  checked before authentication (so an outdated app is told to update even on sign-in and refresh);
+  `/actuator/health` never is. Without both headers, or for another platform, a request passes (not
+  an app). A version that doesn't parse is `400 APP_VERSION_INVALID` while that platform has a
+  minimum. Versions compare by their numeric parts (`1.10 > 1.9`, `1.4 = 1.4.0`); a `-beta`/`+build`
+  suffix is ignored, so raise the minimum to a released version.
 
 ## Endpoint style
 
