@@ -12,7 +12,6 @@ import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.core.annotation.Order
-import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.security.authentication.AnonymousAuthenticationToken
@@ -71,17 +70,13 @@ class IdempotencyFilter(
                 ?: return fail(request, response, InvalidIdempotencyKeyException())
         val (hashedRequest, hash) = hash(request)
         val claim =
-            try {
-                records.claim(userId, key, request.method, request.requestURI, hash, clock.instant(), TTL, LOCK_TIMEOUT)
-            } catch (_: DataIntegrityViolationException) {
-                // The record references app_user: a still-valid access token of a deleted account.
-                return fail(request, response, AuthenticationRequiredException())
-            }
+            records.claim(userId, key, request.method, request.requestURI, hash, clock.instant(), TTL, LOCK_TIMEOUT)
         when (claim) {
             is IdempotencyClaim.Acquired -> proceed(hashedRequest, response, filterChain, userId, key, claim.claimId)
             IdempotencyClaim.InProgress -> fail(request, response, IdempotentRequestInProgressException())
             IdempotencyClaim.Mismatch -> fail(request, response, IdempotencyKeyReusedException())
             is IdempotencyClaim.Replay -> replay(response, claim)
+            IdempotencyClaim.UnknownUser -> fail(request, response, AuthenticationRequiredException())
         }
     }
 

@@ -50,7 +50,8 @@ dependencies {
     implementation(libs.spring.modulith.api)
     implementation(libs.spring.modulith.starter.jdbc)
     implementation(libs.db.scheduler.spring.boot.starter)
-    runtimeOnly(libs.postgresql)
+    // Compile scope only for PSQLException's structured fields (constraint name) in idempotency/infra.
+    implementation(libs.postgresql)
     // Versions come from the Spring Boot BOM, so codegen matches the runtime jOOQ and Flyway.
     jooqCodegen(libs.postgresql)
     jooqCodegen(libs.jooq.codegen)
