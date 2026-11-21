@@ -27,8 +27,10 @@ Last updated: 2026-11-21.
 
 ## Process and guardrails (from the 2026-11-21 setup review; runs alongside the phases)
 
-Every gate counts as done only when its PR links a red CI run from a deliberate violation and the
-green run after it.
+Every gate counts as done only when its PR proves it bites: either a linked red CI run from a
+deliberate violation and the green run after it, or fixture tests in a job that feeds `CI result`
+that assert the violation is caught and the allowed shape passes, and the same rule runs over the
+real code in that job with a scope proven non-empty (owner, 2026-11-21).
 
 - [x] Merge safety and coordination: orchestrator verifies checks itself, PLAN message, `critical
       areas` line, guard files, autonomy tier, batched owner questions, public-repo rule (#35)
@@ -134,8 +136,9 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
       (`modifiedSince`), initial 90-day import, `BillsSynced` event
 - [ ] Reporting rollups refreshed from `BillsSynced`; rebuild job
 - [ ] Later (P15): read-only Storyous client behind `PosProvider` (client credentials, token cache,
-      paging), built and tested against recorded fixtures that fail on any non-GET call; onboarding
-      A3–A5 (no OAuth redirect; see `docs/integrations/STORYOUS.md`)
+      paging), built and tested against recorded fixtures that fail on any non-GET call; drop
+      `allowEmptyShould(true)` from `ProductRules.posIsReadOnly` so the gate proves a non-empty
+      scope; onboarding A3–A5 (no OAuth redirect; see `docs/integrations/STORYOUS.md`)
 - [ ] Purge job: delete organizations whose `deletion_due_at` has passed (set by `DELETE /me`, #28)
 - [ ] Phase-end `REVIEW pr: audit`
 

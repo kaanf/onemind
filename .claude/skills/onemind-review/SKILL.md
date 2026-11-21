@@ -56,7 +56,10 @@ rules". Keep this list in sync with AGENTS.md.
 
 - Tests cover the rules in the change (happy path + the edge cases above), not only plumbing.
 - Can the new tests fail? Name the line whose removal or change would turn each one red; a gate PR (one that adds or
-  changes a test, lint rule or CI step meant to block violations) must link a red run from a deliberate violation and the green run after it.
+  changes a test, lint rule or CI step meant to block violations) must prove it bites, as in the guardrails header of
+  `docs/ROADMAP.md`: a linked red run from a deliberate violation and the green run after it, or fixture tests in a job
+  that feeds `CI result` asserting both the violation and the allowed shape, plus the rule running over real code with a
+  scope proven non-empty.
 - Duplicated logic (the same calculation or mapping in two places).
 - Swallowed errors: `catch` / `runCatching` / `getOrNull` that drops the cause without handling,
   logging or rethrowing it.
