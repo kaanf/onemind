@@ -1,3 +1,5 @@
+import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.spring)
@@ -114,6 +116,34 @@ openApiGenerate {
         )
 }
 
+// Test-only HTTP client from the same contract, for the end-to-end smoke tests (account/AuthE2eSmokeTests):
+// Spring HTTP interfaces (@HttpExchange) + models, compiled into the test source set only.
+val openApiTestClientDir = layout.buildDirectory.dir("generated/openapi-test-client")
+
+val openApiGenerateTestClient by tasks.registering(GenerateTask::class) {
+    generatorName = "kotlin-spring"
+    library = "spring-declarative-http-interface"
+    inputSpec = layout.projectDirectory.file("../docs/api/openapi.yaml")
+    outputDir = openApiTestClientDir
+    apiPackage = "com.onemind.api.v1.client"
+    modelPackage = "com.onemind.api.v1.client.model"
+    generateApiTests = false
+    generateModelTests = false
+    generateApiDocumentation = false
+    generateModelDocumentation = false
+    configOptions =
+        mapOf(
+            "useTags" to "true",
+            "useSpringBoot4" to "true",
+            "useJackson3" to "true",
+            "skipDefaultInterface" to "true",
+            "documentationProvider" to "none",
+            "annotationLibrary" to "none",
+            "enumPropertyNaming" to "original",
+            "gradleBuildFile" to "false",
+        )
+}
+
 // Prints a new ES256 signing key for access tokens (ADR 0004): `./gradlew generateJwtKey`.
 tasks.register<JavaExec>("generateJwtKey") {
     group = "application"
@@ -175,6 +205,9 @@ tasks.generateJooqClasses {
 sourceSets {
     main {
         kotlin.srcDir(tasks.openApiGenerate.map { openApiOutputDir.get().dir("src/main/kotlin") })
+    }
+    test {
+        kotlin.srcDir(openApiGenerateTestClient.map { openApiTestClientDir.get().dir("src/main/kotlin") })
     }
 }
 

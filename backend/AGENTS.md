@@ -263,8 +263,12 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
 - Storyous client tests against recorded fixtures (no live calls in CI).
 - Email: `EmailSender` is concrete (R9). Tests that read sent mail register a `@Primary`
   `JavaMailSender` that records messages (a `JavaMailSenderImpl` subclass overriding
-  `send(vararg SimpleMailMessage)`, see `account/AuthApiTests.RecordingMailSender`), so the real
-  sender runs; no mocking library needed.
+  `send(vararg SimpleMailMessage)`: `testing/RecordingMailSender`), so the real sender runs; no
+  mocking library needed. Time moves with a `@Primary` `testing/MutableClock`.
+- End-to-end smoke tests (`account/AuthE2eSmokeTests`, `AppVersionE2eSmokeTests`) run the real app on
+  a random port and call it through `testing/ApiClient`: Spring HTTP interfaces generated from
+  `openapi.yaml` by `openApiGenerateTestClient` into the test source set only (never the jar), with
+  strict JSON reading, so a response that drifts from the spec fails.
 
 ## Commands
 
