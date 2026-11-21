@@ -9,5 +9,5 @@ sealed interface VenueScope {
         val venueId: String,
     ) : VenueScope
 
-    data object AllVenues : VenueScope
+    data object All : VenueScope
 }

@@ -18,7 +18,7 @@ class InMemoryVenueScopeRepositoryTest {
         repository.select(VenueScope.Venue("venue-1"))
         assertEquals(VenueScope.Venue("venue-1"), repository.selected.value)
 
-        repository.select(VenueScope.AllVenues)
-        assertEquals(VenueScope.AllVenues, repository.selected.value)
+        repository.select(VenueScope.All)
+        assertEquals(VenueScope.All, repository.selected.value)
     }
 }
