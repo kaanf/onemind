@@ -32,7 +32,8 @@ jobs:
           fetch-depth: 2
 
       # On a PR, HEAD is the merge commit and HEAD^1 the base branch, so this diff is the PR's change.
-      # Pushes and manual runs check everything. The spec feeds backend and mobile codegen.
+      # Pushes and manual runs check everything. The spec feeds backend and mobile codegen; the root
+      # .editorconfig feeds both ktlint setups.
       - id: diff
         run: |
           changed() {
@@ -44,9 +45,9 @@ jobs:
             fi
           }
           {
-            echo "backend=$(changed backend docs/api)"
+            echo "backend=$(changed backend docs/api .editorconfig)"
             echo "api=$(changed docs/api)"
-            echo "mobile=$(changed mobile docs/api)"
+            echo "mobile=$(changed mobile docs/api .editorconfig)"
           } | tee -a "$GITHUB_OUTPUT"
 
   # `!= 'false'` instead of `== 'true'`: if `changes` fails, the jobs run rather than skip as green.
