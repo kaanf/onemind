@@ -56,6 +56,7 @@ When you create them, follow the sub-project AGENTS.md files.
 | Navigation between screens               | [docs/product/NAVIGATION.md](docs/product/NAVIGATION.md)             |
 | Endpoints, request/response shapes       | [docs/api/README.md](docs/api/README.md)                             |
 | Architecture decisions                   | [docs/architecture/README.md](docs/architecture/README.md)           |
+| Working in parallel sessions (lanes)     | [docs/PARALLEL_WORK.md](docs/PARALLEL_WORK.md)                       |
 
 The visual source of truth is the design canvas
 (https://claude.ai/artifact/1n4dWyBqXD1AzPVNi8bTz3, page **Cross-platform**).
@@ -110,7 +111,7 @@ Cross-platform page does not show (for example the Insights suggestion cards).
   `api`, `docs` or `repo`.
 - PRs target `dev` and are squash-merged; don't reuse a merged branch. Releases are one PR
   `dev` → `main` (merge commit), then tagged. Hotfix: `hotfix/…` from `main` → `main`, then
-  merge `main` back into `dev`. Agents don't merge PRs or tag; the owner does.
+  merge `main` back into `dev`. Agents merge a PR only after the owner approves that PR, and never tag.
 - PR description: what changed, why, screenshots for UI, which docs were updated, which checks ran
   (passed / failed / not run).
 
