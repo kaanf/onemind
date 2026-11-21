@@ -4,4 +4,5 @@ plugins {
 
 dependencies {
     implementation(projects.composeApp)
+    implementation(libs.koin.android)
 }

@@ -18,6 +18,17 @@ kotlin {
             implementation(projects.feature.sales.presentation)
             implementation(projects.feature.staff.data)
             implementation(projects.feature.staff.presentation)
+
+            implementation(libs.bundles.koin.common)
+            implementation(libs.jetbrains.compose.navigation)
+            implementation(libs.jetbrains.lifecycle.runtime.compose)
+        }
+        getByName("androidHostTest").dependencies {
+            implementation(libs.koin.test)
         }
     }
+}
+
+compose.resources {
+    packageOfResClass = "com.onemind.composeapp.generated.resources"
 }

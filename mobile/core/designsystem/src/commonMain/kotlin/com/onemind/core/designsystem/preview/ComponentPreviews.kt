@@ -26,6 +26,7 @@ import com.onemind.core.designsystem.components.OneMindFilterChip
 import com.onemind.core.designsystem.components.OneMindListCard
 import com.onemind.core.designsystem.components.OtpInput
 import com.onemind.core.designsystem.components.OutlineButton
+import com.onemind.core.designsystem.components.PlaceholderScreen
 import com.onemind.core.designsystem.components.PrimaryButton
 import com.onemind.core.designsystem.components.PrimaryButtonStyle
 import com.onemind.core.designsystem.components.ProgressRow
@@ -165,5 +166,13 @@ private fun ChartsPreview() {
             selectedIndex = 1,
             onSelect = {},
         )
+    }
+}
+
+@Preview
+@Composable
+private fun PlaceholderScreenPreview() {
+    OneMindTheme {
+        PlaceholderScreen(title = "Stock", message = "Coming soon.")
     }
 }

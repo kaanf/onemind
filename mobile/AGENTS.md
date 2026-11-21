@@ -4,10 +4,10 @@ Kotlin Multiplatform app (Android + iOS, shared Compose UI) for OneMind. Read th
 [`../AGENTS.md`](../AGENTS.md) first, then
 [ADR 0011](../docs/architecture/adr/0011_MOBILE_ARCHITECTURE.md).
 
-> **Status:** build logic, version catalog and the module skeleton below are in place (modules
-> are empty: `core:api` generation, design system and app shell are next, see `docs/ROADMAP.md`,
-> phase 2). The structure follows the owner's other KMP app, **crew-kmp**
-> (`~/Projects/crew/crew-kmp`). Use it as the reference implementation for structure, Gradle
+> **Status:** build logic, version catalog, module skeleton, `core:api` generation, design system
+> and the app shell (navigation root, 4-tab bar with placeholder screens, Koin) are in place;
+> variants/Sentry and screens come next, see `docs/ROADMAP.md`. The structure follows the owner's
+> other KMP app, **crew-kmp** (`~/Projects/crew/crew-kmp`). Use it as the reference implementation for structure, Gradle
 > convention plugins and patterns — not for product code or copy.
 
 ## Responsibilities
@@ -91,11 +91,18 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
 ## Navigation and DI
 
 - Navigation Compose with typed `@Serializable` routes; one graph per feature
-  (`XxxGraphRoutes`, `XxxGraph`). The root in `composeApp` owns the tab bar
-  (Today · Sales · Staff · Stock later) and cross-feature transitions. Navigation stays out of
-  business logic.
-- Koin: one module per feature layer (`XxxDataModule`, `XxxPresentationModule`), assembled in
-  `composeApp`; platform modules via `expect/actual`. Keep a Koin graph verification test green.
+  (`XxxGraphRoutes` with a `Graph` route, `NavGraphBuilder.xxxGraph()`). `NavigationRoot` in
+  `composeApp` owns the tab bar (`TopLevelDestination`: Today · Sales · Staff · Stock) and
+  cross-feature transitions, passed into feature graphs as callbacks. The active tab is the one whose
+  graph contains the current destination, so detail screens keep their parent tab active; switching
+  tabs saves and restores each tab's back stack. Navigation stays out of business logic.
+- The Stock graph lives in `composeApp` until `feature:stock` exists (phase 6).
+- Koin: one module per feature layer (`xxxDataModule`, `xxxPresentationModule`), listed in
+  `appModules` (`composeApp/di/KoinHelper.kt`); platform bindings in `expect val platformModule`.
+  Hosts call `initKoin` once (`OneMindApplication` on Android, `iOSApp.init` on iOS).
+  `KoinGraphTest` (`composeApp/src/androidHostTest`) verifies the graph; keep it green.
+- The selected venue / *All venues* is `VenueScopeRepository` (`core:domain`), a single instance
+  (in memory for now; persisted with the venue switcher, P7).
 
 ## UI rules
 

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tab_today">Today</string>
+    <string name="tab_sales">Sales</string>
+    <string name="tab_staff">Staff</string>
+    <string name="tab_stock">Stock</string>
+    <string name="stock_title">Stock</string>
+    <string name="stock_placeholder_message">Coming soon.</string>
+</resources>
