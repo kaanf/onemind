@@ -47,6 +47,7 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** Proves every product-rule gate catches its violation and lets the allowed shape pass (fixtures in `com.onemind.archfixture`). */
@@ -71,8 +72,21 @@ class ProductRulesTest {
             "netSales",
             "subtotal",
         ).forEach { assertTrue(ProductRules.isMoneyName(it), it) }
-        listOf("multiple", "costume", "tooltipOffset", "discountRate", "totalCount", "tipShare", "lossPct", "itemQuantity")
-            .forEach { assertFalse(ProductRules.isMoneyName(it), it) }
+        listOf(
+            "multiple",
+            "costume",
+            "tooltipOffset",
+            "discountRate",
+            "totalCount",
+            "tipShare",
+            "lossPct",
+            "itemQuantity",
+            "tipRates",
+            "discountPercents",
+            "billNumber",
+            "paymentIds",
+            "priceIndex",
+        ).forEach { assertFalse(ProductRules.isMoneyName(it), it) }
     }
 
     @Test
@@ -97,6 +111,13 @@ class ProductRulesTest {
             Ledger::class,
             InlineRounding::class,
         ).forEach { assertTrue(rule.violatedBy(it), "not caught: ${it.simpleName}") }
+    }
+
+    @Test
+    fun `rule 5 reports a code unit it can't reflect instead of passing it`() {
+        assertNull(ProductRules.parameterNamesOf { throw NoClassDefFoundError("com/onemind/archfixture/Gone") })
+        val charge = Charger::class.java.declaredMethods.single { it.name == "charge" }
+        assertEquals(listOf("amount" to true), ProductRules.parameterNamesOf { charge })
     }
 
     @Test
