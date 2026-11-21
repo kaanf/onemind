@@ -21,7 +21,7 @@ define colors as semantic tokens so a dark palette can be added later.
 | `divider`                | `#EFEFEC`  | Row separators inside cards |
 | `surfaceMuted`           | `#F1F1EE`  | Chips, free table tile, source chips, quiet heat cell |
 | `textPrimary`            | `#14161A`  | Main text, dark tiles, selected chip background |
-| `textSecondary`          | `#6B7079`  | Labels, meta, inactive tab |
+| `textSecondary`          | `#696E77`  | Labels, meta, inactive tab (canvas `#6B7079`, darkened for WCAG AA) |
 | `textTertiary`           | `#5C626C`  | Table row labels |
 | `textPlaceholder`        | `#8A8F98`  | Input placeholder (decorative only) |
 | `iconMuted`              | `#9BA0A8`  | Dashed/waiting icons, neutral swatches |
@@ -43,8 +43,8 @@ define colors as semantic tokens so a dark palette can be added later.
 | `chartFuture`            | `#EEEFF1`  | Future hours |
 
 Heat ramp (Hourly patterns, 7 steps): `#F1F1EE, #E0E2F8, #C4C8F3, #9AA0EC, #6B71E3, #4338CA, #312E81`.
-Tables ramp (6 steps): `#F1F1EE, #E0E2F8, #C4C8F3, #9AA0EC, #6B71E3, #4F46E5` (white text from
-step 5).
+Tables ramp (6 steps): `#F1F1EE, #E0E2F8, #C4C8F3, #9AA0EC, #6269E1, #4F46E5` (white text from
+step 5; step 5 is canvas `#6B71E3` darkened for WCAG AA).
 
 Accent theme options in the design: `#4F46E5` (indigo, default), `#14161A`, `#0F766E`, `#9F1239`.
 Treat accent as a single token so it can be switched.
@@ -82,7 +82,7 @@ Treat accent as a single token so it can be switched.
 
 | Component | Notes |
 |-----------|-------|
-| **Tab bar** | 5 items, icon 22 + label 11. Active: `textPrimary` + 28×3 accent bar on the top edge. White background, top border. Bottom inset for home indicator. |
+| **Tab bar** | 5 items in the design, **4 in the first release** (no Assistant, `MVP_SCOPE.md`), icon 22 + label 11. Active: `textPrimary` + 28×3 accent bar on the top edge. White background, top border. Bottom inset for home indicator. |
 | **Top bar (detail)** | 56 high, back button 44×44 (icon arrow), title 17/600 + subtitle 12. |
 | **Segmented tabs** | Text tabs with 2 px accent underline on selection (*Hour/Day/Week/Month*, *Now/This week*, *Order plan/Idle stock/Count*). |
 | **Chips (filter)** | 36 high, radius 10. Selected: `textPrimary` bg + white text. Unselected: white + `borderStrong`. |
@@ -92,9 +92,9 @@ Treat accent as a single token so it can be switched.
 | **Fraction picker** | 4 equal toggle buttons *Full ¼ ½ ¾*. |
 | **Stat tile** | Overline label + value; grid of 2–3 columns. |
 | **List row** | Leading (avatar initials / swatch / dot / type badge), title + meta, trailing value(s), optional chevron. |
-| **Avatar initials** | Circle with initials (*TN*, *EP*). |
+| **Avatar initials** | Initials (*TN*, *EP*) in a 40 × 40 rounded square (radius 12, `surfaceMuted`) in staff rows, as on the canvas; the dark 44 circle is the account button. |
 | **Hint card** | `accentSoft` bg, sparkle icon in accent, bold lead sentence + body. Used for generated insights. |
-| **Warning card** | `warningSurface` bg with `warningStrongText`. |
+| **Warning card** | `warningSurface` bg, 1 px `warningBorder`, warning icon in `warningText`, text `textPrimary` with a bold lead (canvas). Optional trailing arrow when it links. |
 | **Bar chart** | Rounded bars (3 px), optional value labels, axis labels 10–11 px, highlight colors per rule. |
 | **Heatmap** | Grid of buttons with accessible labels (*Sat 22:00, 54 guests*). |
 | **Floor plan** | Grid of table tiles; Bar spans the row; selected outline `selection`. |
@@ -105,15 +105,41 @@ Treat accent as a single token so it can be switched.
 | **OTP input** | 6 boxes 56 high, radius 12, focused box accent border. |
 
 Icons: simple stroke icons (1.75–2 stroke, round caps), 22 px in the tab bar. Use one icon set
-consistently (e.g. Lucide-like). Never emoji.
+consistently (e.g. Lucide-like). Never emoji. In the app they are `OneMindIcons` (`ImageVector`s
+built from the canvas SVG paths); add new ones there rather than adding an icon library.
+
+### In code (`com.onemind.core.designsystem.components`)
+
+| Component | Composable |
+|-----------|------------|
+| Card | `OneMindCard`, `OneMindListCard` (for rows) |
+| Tab bar | `TabBar` + `TabBarItem` |
+| Top bar (detail) | `DetailTopBar` |
+| Segmented tabs | `SegmentedTabs` |
+| Chips (filter) | `OneMindFilterChip` |
+| Primary / outline button | `PrimaryButton` (`Accent`, `Dark`), `OutlineButton` |
+| Stat tile | `StatTile` (`Compact`, `Overline`) |
+| List row | `ListRow` |
+| Avatar initials | `AvatarInitials` |
+| Delta / tag badge | `DeltaBadge` (`Positive`, `Negative`, `Neutral`) |
+| Hint card / warning card | `HintCard`, `WarningCard` |
+| Bar chart | `BarChart` + `Bar` |
+| Heatmap | `Heatmap` + `HeatmapRow`, `HeatCell` |
+| Floor plan | `FloorPlan` + `FloorTile`, `TileTone` |
+| Progress row | `ProgressRow` + `ProgressStatus` |
+| OTP input | `OtpInput` |
+
+Not built yet: **Stepper**, **Fraction picker**, **Checklist row** (with the stock screens, phase 6) and
+**Chat bubble**, **Composer** (assistant, out of the first release).
 
 ## Accessibility
 
 - Touch targets ≥ 44 × 44.
 - Contrast 4.5:1 for text (the palette above is chosen for this; check new colors). A test in
-  `core:designsystem` checks the text tokens on their surfaces. Two pairs used on the canvas fall
-  short and need a design decision: `textSecondary` on `surfaceMuted` (4.4:1, muted avatar
-  initials) and white text on tables ramp step 5 `#6B71E3` (4.1:1).
+  `core:designsystem` checks the text tokens on their surfaces. Two canvas colours fell short and
+  were darkened slightly, same hue (owner decision 2026-11-21): `textSecondary` `#6B7079` →
+  `#696E77` (4.5:1 on `surfaceMuted`) and tables ramp step 5 `#6B71E3` → `#6269E1` (4.5:1 with white
+  text). The canvas still shows the old values.
 - Icon-only buttons have content descriptions (*Back to Sales*, *Send*, *Attach a document*).
 - Heatmap cells and table tiles expose a spoken label with their value.
 - Don't use color alone: risk rows have a dot **and** red text; variance has text too.
