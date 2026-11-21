@@ -39,7 +39,7 @@ Last updated: 2026-11-21.
 - [x] Spring Modulith event publication registry (JDBC, `platform` schema, purge job) + db-scheduler
 - [ ] Error handling: `DomainException` hierarchy + RFC 9457 `@ControllerAdvice` (`code`, `detail`,
       `params`, `traceId`)
-- [ ] Structured JSON logging + Micrometer Tracing (`traceId`, `X-Request-Id`)
+- [x] Structured JSON logging + Micrometer Tracing (`traceId`, `X-Request-Id`)
 - [ ] Idempotency-Key filter + `platform.idempotency_record`
 - [ ] GitHub Actions: backend build/test, spec lint + `oasdiff breaking`
 
