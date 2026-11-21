@@ -6,7 +6,6 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(projects.feature.today.domain)
-            implementation(projects.feature.sales.presentation)
         }
     }
 }
