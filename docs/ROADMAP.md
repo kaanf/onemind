@@ -14,10 +14,11 @@ Last updated: 2026-11-21.
   `pos`, `reporting`), backend scaffold, local Docker (Colima) are in `dev`.
 - **Phase 1 is done.** Error handling, JSON logging + tracing, idempotency, event registry +
   db-scheduler and CI (backend build/test, spec lint, `oasdiff breaking`) are in `dev`.
-- **Current phase: 2 — Mobile scaffold.**
+- **Current phase: 2 — Mobile scaffold.** Phase 3 backend auth runs in parallel (backend lane).
 - **Blockers outside the code:** Storyous partnership / API credentials (P15, owner); design
   additions for the first-release Stock tab landing and location form (owner, only needed in
-  phase 6).
+  phase 6); update the design canvas to the two darkened colour tokens (`textSecondary`,
+  `tablesRamp` step 5) from `docs/design/DESIGN_SYSTEM.md` (owner/designer).
 
 ## Phase 0 — Foundations ✅
 
@@ -52,7 +53,8 @@ Last updated: 2026-11-21.
 - [x] Modules per ADR 0011: `core:{api,data,domain,presentation,designsystem}`,
       `feature:{auth,today,sales,staff}`, `composeApp`, `androidApp`, `iosApp`
 - [x] `core:api` generation from `openapi.yaml` (models only)
-- [ ] Design system: tokens, Inter / Inter Tight, components from `docs/design/DESIGN_SYSTEM.md`
+- [x] Design system: tokens, Inter / Inter Tight, components from `docs/design/DESIGN_SYSTEM.md`
+      (light palette only; dark palette waits for P7)
 - [ ] App shell: navigation root, 4-tab bar (Today, Sales, Staff, Stock later), Koin + graph test
 - [ ] Variants `dev`/`prod` with BuildKonfig; Sentry in hosts
 - [ ] GitHub Actions: common tests + Android build on PR; iOS build on `dev`/`main` + nightly
@@ -91,6 +93,7 @@ Last updated: 2026-11-21.
 - [ ] `stock` schema + migrations
 - [ ] Purchase receipts: upload, ISDOC parsing, Claude Haiku 5.5 extraction, review, approve (ADR 0007)
 - [ ] Locations + transfers, on-demand counts (opening count), recipes (column-mapping import)
+- [ ] Design system components for stock screens: Stepper, FractionPicker, ChecklistRow
 
 ## Phase 7 — Release preparation
 
@@ -106,5 +109,5 @@ Last updated: 2026-11-21.
   `backend/build.gradle.kts` once ktlint supports the project's Kotlin version.
 
 
-Assistant (chat, briefing, suggestions, knowledge), order plan, idle stock, corrections, staff
+Assistant (chat, briefing, suggestions, knowledge; `ChatBubble`/`Composer` components), order plan, idle stock, corrections, staff
 shifts via a staff app, multi-POS (Dotykačka first), product analytics (PostHog EU).
