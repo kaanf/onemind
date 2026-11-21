@@ -82,7 +82,7 @@ Treat accent as a single token so it can be switched.
 
 | Component | Notes |
 |-----------|-------|
-| **Tab bar** | 5 items, icon 22 + label 11. Active: `textPrimary` + 28×3 accent bar on the top edge. White background, top border. Bottom inset for home indicator. |
+| **Tab bar** | 5 items in the design, **4 in the first release** (no Assistant, `MVP_SCOPE.md`), icon 22 + label 11. Active: `textPrimary` + 28×3 accent bar on the top edge. White background, top border. Bottom inset for home indicator. |
 | **Top bar (detail)** | 56 high, back button 44×44 (icon arrow), title 17/600 + subtitle 12. |
 | **Segmented tabs** | Text tabs with 2 px accent underline on selection (*Hour/Day/Week/Month*, *Now/This week*, *Order plan/Idle stock/Count*). |
 | **Chips (filter)** | 36 high, radius 10. Selected: `textPrimary` bg + white text. Unselected: white + `borderStrong`. |
@@ -92,9 +92,9 @@ Treat accent as a single token so it can be switched.
 | **Fraction picker** | 4 equal toggle buttons *Full ¼ ½ ¾*. |
 | **Stat tile** | Overline label + value; grid of 2–3 columns. |
 | **List row** | Leading (avatar initials / swatch / dot / type badge), title + meta, trailing value(s), optional chevron. |
-| **Avatar initials** | Circle with initials (*TN*, *EP*). |
+| **Avatar initials** | Initials (*TN*, *EP*) in a 40 × 40 rounded square (radius 12, `surfaceMuted`) in staff rows, as on the canvas; the dark 44 circle is the account button. |
 | **Hint card** | `accentSoft` bg, sparkle icon in accent, bold lead sentence + body. Used for generated insights. |
-| **Warning card** | `warningSurface` bg with `warningStrongText`. |
+| **Warning card** | `warningSurface` bg, 1 px `warningBorder`, warning icon in `warningText`, text `textPrimary` with a bold lead (canvas). Optional trailing arrow when it links. |
 | **Bar chart** | Rounded bars (3 px), optional value labels, axis labels 10–11 px, highlight colors per rule. |
 | **Heatmap** | Grid of buttons with accessible labels (*Sat 22:00, 54 guests*). |
 | **Floor plan** | Grid of table tiles; Bar spans the row; selected outline `selection`. |
@@ -105,7 +105,32 @@ Treat accent as a single token so it can be switched.
 | **OTP input** | 6 boxes 56 high, radius 12, focused box accent border. |
 
 Icons: simple stroke icons (1.75–2 stroke, round caps), 22 px in the tab bar. Use one icon set
-consistently (e.g. Lucide-like). Never emoji.
+consistently (e.g. Lucide-like). Never emoji. In the app they are `OneMindIcons` (`ImageVector`s
+built from the canvas SVG paths); add new ones there rather than adding an icon library.
+
+### In code (`com.onemind.core.designsystem.components`)
+
+| Component | Composable |
+|-----------|------------|
+| Card | `OneMindCard`, `OneMindListCard` (for rows) |
+| Tab bar | `TabBar` + `TabBarItem` |
+| Top bar (detail) | `DetailTopBar` |
+| Segmented tabs | `SegmentedTabs` |
+| Chips (filter) | `OneMindFilterChip` |
+| Primary / outline button | `PrimaryButton` (`Accent`, `Dark`), `OutlineButton` |
+| Stat tile | `StatTile` (`Compact`, `Overline`) |
+| List row | `ListRow` |
+| Avatar initials | `AvatarInitials` |
+| Delta / tag badge | `DeltaBadge` (`Positive`, `Negative`, `Neutral`) |
+| Hint card / warning card | `HintCard`, `WarningCard` |
+| Bar chart | `BarChart` + `Bar` |
+| Heatmap | `Heatmap` + `HeatmapRow`, `HeatCell` |
+| Floor plan | `FloorPlan` + `FloorTile`, `TileTone` |
+| Progress row | `ProgressRow` + `ProgressStatus` |
+| OTP input | `OtpInput` |
+
+Not built yet: **Stepper**, **Fraction picker**, **Checklist row** (with the stock screens, phase 6) and
+**Chat bubble**, **Composer** (assistant, out of the first release).
 
 ## Accessibility
 
