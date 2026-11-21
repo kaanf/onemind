@@ -1,0 +1,16 @@
+# Keeps the SHA-pinned actions in .github/workflows current. Gradle versions are bumped by hand
+# in backend/gradle/libs.versions.toml. GitHub reads this file from the default branch (main), so
+# updates start after the first release.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      actions:
+        patterns: ["*"]
