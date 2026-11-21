@@ -70,6 +70,21 @@ The backend issues and verifies **its own tokens** with Spring Security.
 - **Sending:** after the code's transaction commits, in the request; a failure is logged and the user
   asks again after 30 s. Not through the event publication registry, which would store the plain
   code in `platform.event_publication`.
+- **Apple/Google:** `POST /auth/apple` and `/auth/google` verify the ID token with
+  `NimbusJwtDecoder.withJwkSetUri` (RS256; Apple `https://appleid.apple.com/auth/keys`, Google
+  `https://www.googleapis.com/oauth2/v3/certs`; keys cached, refetched for an unknown `kid`; 5 s
+  timeouts), then `iss` (Apple `https://appleid.apple.com`; Google `https://accounts.google.com` or
+  `accounts.google.com`), `aud` and `exp` with the app clock. Accepted audiences come from
+  `APPLE_CLIENT_IDS` and `GOOGLE_CLIENT_IDS` (comma-separated; empty turns that provider off). Apple's
+  `nonce` claim must be the SHA-256 (hex) of the raw nonce the app sends; Google's must equal the
+  nonce if the app sends one (without it, a captured Google token can be replayed until it expires,
+  about an hour; the app should always send one). `email_verified` may be a boolean or `"true"` (Apple). A Google email
+  is trusted only for `@gmail.com` or when it is in the token's `hd` (Workspace) domain; Google does
+  not vouch for other addresses, so those accounts sign in only by subject (no linking or creation,
+  `422 EMAIL_NOT_VERIFIED`), which prevents pre-hijacking an existing account. The user is found
+  by provider subject, else by verified email (linking any existing account, private relay addresses
+  included), else created; an unknown subject without a verified email is refused. 30 sign-ins per IP
+  per 10 minutes. The JWKS being unreachable is a `500`, not `401`.
 - **Refresh tokens:** 256 random bits, stored as SHA-256. A refresh rotates within the family; a
   used, revoked or expired token answers `401 REFRESH_TOKEN_INVALID`, and a used one also revokes the
   family. An hourly job deletes expired refresh tokens and codes older than a day.

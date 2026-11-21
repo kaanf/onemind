@@ -159,7 +159,9 @@ RFC 9457 Problem Details with extension members:
 - Email code start always answers `202`. `DELETE /me` deletes the account.
 - Auth codes: `EMAIL_CODE_RESEND_TOO_SOON` and `RATE_LIMITED` (`429`, with `Retry-After` and
   `params.retryAfterSeconds`), `EMAIL_CODE_INVALID` (`params.attemptsLeft`), `EMAIL_CODE_EXPIRED`,
-  `EMAIL_CODE_ATTEMPTS_EXCEEDED` (`422`), `REFRESH_TOKEN_INVALID` (`401`: sign in again). A missing or
+  `EMAIL_CODE_ATTEMPTS_EXCEEDED` (`422`), `REFRESH_TOKEN_INVALID` (`401`: sign in again). Apple/Google:
+  `ID_TOKEN_INVALID` (`401`: signature, issuer, audience, expiry or nonce), `EMAIL_NOT_VERIFIED`
+  (`422`: a new Apple/Google account without a verified email; use an email code). A missing or
   invalid access token is `401 UNAUTHORIZED` with `WWW-Authenticate: Bearer`; no access is
   `403 FORBIDDEN`.
 - Live read endpoints return `ETag` and `dataAsOf`; clients send `If-None-Match` → `304`

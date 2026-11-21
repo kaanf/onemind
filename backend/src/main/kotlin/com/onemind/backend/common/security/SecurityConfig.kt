@@ -69,6 +69,6 @@ class SecurityConfig {
     }
 
     private companion object {
-        val PUBLIC_POSTS = listOf("/auth/email/start", "/auth/email/verify", "/auth/refresh")
+        val PUBLIC_POSTS = listOf("/auth/email/start", "/auth/email/verify", "/auth/apple", "/auth/google", "/auth/refresh")
     }
 }

@@ -1,6 +1,7 @@
 package com.onemind.backend.account.application
 
 import com.onemind.backend.account.infra.EmailLoginCodeRepository
+import com.onemind.backend.account.infra.IdentityProvider
 import com.onemind.backend.account.infra.UserAccountRepository
 import com.onemind.backend.common.email.EmailMessage
 import com.onemind.backend.common.email.EmailSender
@@ -118,6 +119,7 @@ class EmailSignIn(
                     else -> {
                         codes.consume(latest.id, now)
                         val userId = users.findOrCreateByVerifiedEmail(address, now)
+                        users.linkIdentity(userId, IdentityProvider.EMAIL, address.lowercase(), address, now)
                         log.info("Signed in with an email code: userId={}", userId)
                         Verification.SignedIn(sessions.startSession(userId, deviceName, now))
                     }

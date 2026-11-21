@@ -125,40 +125,66 @@ class UserAccountRepository(
     private val dsl: DSLContext,
 ) {
     /**
-     * The user with this verified [email], created on first sign-in, with an `EMAIL` identity.
-     * Accounts are linked by verified email (ADR 0004).
+     * The user with this verified [email], created if there is none. Accounts are linked by verified
+     * email (ADR 0004). [displayName] is stored only if the account has none.
      */
     fun findOrCreateByVerifiedEmail(
         email: String,
         now: Instant,
+        displayName: String? = null,
     ): UUID {
         val u = APP_USER
-        val userId =
-            dsl
-                .insertInto(u)
-                .set(u.EMAIL, email)
-                .set(u.EMAIL_VERIFIED_AT, now)
-                .set(u.CREATED_AT, now)
-                .set(u.UPDATED_AT, now)
-                .onConflict(u.EMAIL)
-                .doUpdate()
-                .set(u.EMAIL_VERIFIED_AT, coalesce(u.EMAIL_VERIFIED_AT, excluded(u.EMAIL_VERIFIED_AT)))
-                .returning(u.ID)
-                .fetchOne()
-                ?.get(u.ID) ?: error("upsert returned no user")
+        return dsl
+            .insertInto(u)
+            .set(u.EMAIL, email)
+            .set(u.EMAIL_VERIFIED_AT, now)
+            .set(u.DISPLAY_NAME, displayName)
+            .set(u.CREATED_AT, now)
+            .set(u.UPDATED_AT, now)
+            .onConflict(u.EMAIL)
+            .doUpdate()
+            .set(u.EMAIL_VERIFIED_AT, coalesce(u.EMAIL_VERIFIED_AT, excluded(u.EMAIL_VERIFIED_AT)))
+            .set(u.DISPLAY_NAME, coalesce(u.DISPLAY_NAME, excluded(u.DISPLAY_NAME)))
+            .returning(u.ID)
+            .fetchOne()
+            ?.get(u.ID) ?: error("upsert returned no user")
+    }
+
+    fun findUserIdByIdentity(
+        provider: IdentityProvider,
+        subject: String,
+    ): UUID? {
+        val i = USER_IDENTITY
+        return dsl
+            .select(i.USER_ID)
+            .from(i)
+            .where(i.PROVIDER.eq(provider.name), i.SUBJECT.eq(subject))
+            .fetchOne(i.USER_ID)
+    }
+
+    /** Links a sign-in method to the user; a link that already exists is kept. */
+    fun linkIdentity(
+        userId: UUID,
+        provider: IdentityProvider,
+        subject: String,
+        email: String?,
+        now: Instant,
+    ) {
         val i = USER_IDENTITY
         dsl
             .insertInto(i)
             .set(i.USER_ID, userId)
-            .set(i.PROVIDER, "EMAIL")
-            .set(i.SUBJECT, email.lowercase())
+            .set(i.PROVIDER, provider.name)
+            .set(i.SUBJECT, subject)
             .set(i.EMAIL, email)
             .set(i.CREATED_AT, now)
             .onConflictDoNothing()
             .execute()
-        return userId
     }
 }
+
+/** `account.user_identity.provider`. */
+enum class IdentityProvider { APPLE, GOOGLE, EMAIL }
 
 data class RefreshTokenRow(
     val id: UUID,
