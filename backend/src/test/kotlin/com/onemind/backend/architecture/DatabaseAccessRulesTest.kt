@@ -31,6 +31,6 @@ class DatabaseAccessRulesTest {
 
     private fun violations(type: KClass<*>): Int {
         val classes = ClassFileImporter().importClasses(type.java)
-        return rules.count { it.evaluate(classes).hasViolation() }
+        return rules.count { it.allowEmptyShould(true).evaluate(classes).hasViolation() }
     }
 }

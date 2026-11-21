@@ -106,7 +106,6 @@ object ProductRules {
             .resideInAPackage("$appRoot..")
             .should(notHoldMoneyAsFloatingPoint())
             .because("money is integer minor units or BigDecimal, never Float/Double (AGENTS.md rule 5)")
-            .allowEmptyShould(true)
 
     /** Rule 6: "now" comes from the injected `Clock`; only [CLOCK_SOURCE] reads the system clock or zone. */
     fun noSystemTime(appRoot: String): ArchRule =
@@ -117,7 +116,6 @@ object ProductRules {
             .doNotHaveFullyQualifiedName("$appRoot.$CLOCK_SOURCE")
             .should(notReadSystemTime())
             .because("inject Clock and use common/time/BusinessDayCalendar (AGENTS.md rule 6)")
-            .allowEmptyShould(true)
 
     /** Rule 6: an instant becomes a local date or time only in [TIME_PACKAGE], so business days have one entry point. */
     fun localDatesOnlyInCommonTime(appRoot: String): ArchRule =
@@ -128,15 +126,17 @@ object ProductRules {
             .resideOutsideOfPackage("$appRoot.$TIME_PACKAGE..")
             .should(notConvertInstantsToLocalTime())
             .because("business days come from common/time/BusinessDayCalendar, never a calendar date (AGENTS.md rule 6)")
-            .allowEmptyShould(true)
 
     /** Rule 1: nothing in the `pos` module can send a mutating HTTP request. */
     fun posIsReadOnly(appRoot: String): ArchRule =
         classes()
             .that()
             .resideInAPackage("$appRoot.pos..")
+            .and()
+            .doNotHaveSimpleName("package-info")
             .should(notSendMutatingHttp())
             .because("the POS is read-only: we never write to Storyous (AGENTS.md rule 1)")
+            // pos has no code yet (PosProvider lands in phase 4); drop this once it has.
             .allowEmptyShould(true)
 
     /** Splits `getTotalPrice`, `amount_minor` or `Payment$Companion` into lower-case words; drops a mangled `-<hash>`. */
