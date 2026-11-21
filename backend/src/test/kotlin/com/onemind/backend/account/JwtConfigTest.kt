@@ -21,7 +21,7 @@ import java.time.ZoneOffset
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/** Access-token keys (ADR 0004): required in prod, P-256 with a kid, and rotation without sign-outs. */
+/** Access-token keys and expiry (ADR 0004): required in prod, P-256 with a kid, rotation without sign-outs, no clock skew. */
 class JwtConfigTest {
     private val now = Instant.parse("2026-11-21T12:00:00Z")
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
@@ -56,6 +56,19 @@ class JwtConfigTest {
         assertEquals("user", decoder.decode(sign(previous)).subject)
         assertEquals("user", decoder.decode(sign(current)).subject)
         assertFailsWith<BadJwtException> { decoder.decode(sign(JwtConfig.generateKey("stranger"))) }
+    }
+
+    @Test
+    fun `an access token is accepted until its expiry and rejected 1 s after (no clock skew)`() {
+        val key = JwtConfig.generateKey("current")
+        val token = sign(key)
+        val expiresAt = now + Duration.ofMinutes(15)
+
+        fun decoderAt(at: Instant) =
+            JwtConfig(properties(signingKey = key.toJSONString()), local).jwtDecoder(Clock.fixed(at, ZoneOffset.UTC))
+
+        assertEquals("user", decoderAt(expiresAt - Duration.ofSeconds(1)).decode(token).subject)
+        assertFailsWith<BadJwtException> { decoderAt(expiresAt + Duration.ofSeconds(1)).decode(token) }
     }
 
     private fun properties(

@@ -10,22 +10,43 @@ import com.onemind.backend.account.domain.IdentityProvider
 import com.onemind.backend.account.infra.client.IdTokenIssuerProperties
 import com.onemind.backend.account.infra.client.IdTokenProperties
 import com.onemind.backend.account.infra.client.IdTokenVerifier
+import com.onemind.backend.account.infra.client.idTokenTimestampValidator
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.security.oauth2.jwt.BadJwtException
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtException
 import java.net.ServerSocket
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.Date
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class IdTokenVerifierTest {
     private val now = Instant.parse("2026-11-21T12:00:00Z")
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
     private val key = RSAKeyGenerator(2048).keyID("k").generate()
+
+    @Test
+    fun `a provider token's expiry allows 60 s of clock skew, not more`() {
+        fun validAt(offset: Duration) =
+            !idTokenTimestampValidator(clock)
+                .validate(
+                    Jwt
+                        .withTokenValue("t")
+                        .header("alg", "RS256")
+                        .issuedAt(now - Duration.ofMinutes(10))
+                        .expiresAt(now - offset)
+                        .build(),
+                ).hasErrors()
+
+        assertTrue(validAt(Duration.ofSeconds(59)))
+        assertFalse(validAt(Duration.ofSeconds(61)))
+    }
 
     @Test
     fun `a provider without client IDs rejects every token without fetching keys`() {

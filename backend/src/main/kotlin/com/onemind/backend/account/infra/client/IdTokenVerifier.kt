@@ -48,6 +48,11 @@ data class VerifiedIdToken(
     val hostedDomain: String? = null,
 )
 
+/** Apple's and Google's clocks aren't ours, so their tokens' expiry allows 60 s of skew (ADR 0004). */
+internal val ID_TOKEN_CLOCK_SKEW: Duration = Duration.ofSeconds(60)
+
+internal fun idTokenTimestampValidator(clock: Clock) = JwtTimestampValidator(ID_TOKEN_CLOCK_SKEW).apply { setClock(clock) }
+
 /**
  * Verifies Apple and Google ID tokens (ADR 0004): RS256 signature against the provider's JWKS
  * (cached by Nimbus, refetched for an unknown `kid`), `iss`, `aud` and expiry with the app clock.
@@ -117,7 +122,7 @@ class IdTokenVerifier(
             .apply {
                 setJwtValidator(
                     DelegatingOAuth2TokenValidator(
-                        JwtTimestampValidator().apply { setClock(clock) },
+                        idTokenTimestampValidator(clock),
                         claimValidator("exp") { jwt -> jwt.expiresAt != null },
                         claimValidator("iss") { jwt -> jwt.getClaimAsString("iss") in properties.issuers },
                         claimValidator("aud") { jwt -> jwt.audience.orEmpty().any { it in properties.clientIds } },
