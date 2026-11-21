@@ -74,7 +74,7 @@ class BusinessDayCalendarTest {
     }
 
     @Test
-    fun `a cut-off inside the DST gap starts the day when the clock jumps`() {
+    fun `a cut-off inside the DST gap shifts forward by the gap`() {
         val range = BusinessDayCalendar.range(LocalDate.parse("2026-03-29"), prague, LocalTime.of(2, 30))
         assertEquals(at("2026-03-29T03:30"), range.start)
         assertEquals(Duration.ofHours(23), range.length)

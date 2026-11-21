@@ -7,6 +7,7 @@ import org.springframework.web.client.RestTemplate
 import org.springframework.web.service.annotation.GetExchange
 import org.springframework.web.service.annotation.HttpExchange
 import org.springframework.web.service.annotation.PostExchange
+import java.net.HttpURLConnection
 import java.net.http.HttpRequest
 
 // Rule 1 violations: each can send a mutating request from the pos module.
@@ -53,6 +54,32 @@ interface PostingExchange {
 interface DeletingExchange {
     @HttpExchange(url = "/bills/1", method = "DELETE")
     fun remove()
+}
+
+@HttpExchange(url = "/bills", method = "POST")
+interface TypeLevelPostingExchange {
+    @HttpExchange
+    fun create(): String
+}
+
+class HttpMethodFromString {
+    fun method(): HttpMethod = HttpMethod.valueOf("POST")
+}
+
+class CustomRestTemplate : RestTemplate()
+
+class RestTemplateSubclassPosting(
+    private val restTemplate: CustomRestTemplate,
+) {
+    fun send(): String? = restTemplate.postForObject("/bills", null, String::class.java)
+}
+
+class UrlConnectionPosting(
+    private val connection: HttpURLConnection,
+) {
+    fun send() {
+        connection.requestMethod = "POST"
+    }
 }
 
 // Allowed: GET only.

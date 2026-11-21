@@ -1,4 +1,5 @@
-# Proves rule/money-minor-units in redocly.yaml bites (run by CI, expected to fail with exactly 5 money problems).
+# Proves onemind/money-minor-units (redocly.yaml, money-plugin.js) bites: CI expects exactly the
+# problems listed in money-as-number.expected.
 # Not referenced from openapi.yaml, so the normal spec lint never reads it.
 openapi: 3.0.3
 info:
@@ -54,6 +55,24 @@ components:
           format: int32
         lossMinor:
           type: integer
+        tips:
+          type: number
+        subtotal:
+          type: number
+        averageBill:
+          type: number
+        refunds:
+          type: number
+          format: double
+        prices:
+          type: array
+          items:
+            type: number
+        costsMinor:
+          type: array
+          items:
+            type: integer
+            format: int32
         # Allowed: the Money object, int64 minor units, a sub-minor decimal string, ratios, counts and words that only contain a money token.
         revenue:
           $ref: '#/components/schemas/Money'
@@ -74,5 +93,18 @@ components:
           format: int32
         multiple:
           type: number
+        revenueByHour:
+          type: array
+          items:
+            type: integer
+            format: int64
+        hasDiscount:
+          type: boolean
+        tooltipOffset:
+          type: number
+        guestCounts:
+          type: array
+          items:
+            type: number
         costume:
           type: number

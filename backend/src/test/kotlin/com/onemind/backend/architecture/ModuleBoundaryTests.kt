@@ -12,6 +12,15 @@ import kotlin.test.assertEquals
 class ModuleBoundaryTests {
     private val modules = ApplicationModules.of(BackendApplication::class.java)
 
+    private companion object {
+        // JUnit makes one instance per test, so the import is shared here, not per instance.
+        val classes by lazy {
+            ClassFileImporter()
+                .withImportOption(ImportOption.DoNotIncludeTests())
+                .importPackages("com.onemind.backend")
+        }
+    }
+
     @Test
     fun `modules are the ones from ADR 0013`() {
         assertEquals(setOf("account", "common", "pos", "reporting", "stock"), modules.map { it.identifier.toString() }.toSet())
@@ -45,31 +54,16 @@ class ModuleBoundaryTests {
 
     @Test
     fun `modules use only their own jOOQ schema packages, and only from infra`() {
-        val classes =
-            ClassFileImporter()
-                .withImportOption(ImportOption.DoNotIncludeTests())
-                .importPackages("com.onemind.backend")
-
         DatabaseAccessRules.rules().forEach { it.check(classes) }
     }
 
     @Test
     fun `code follows the ADR 0013 package direction and rules R2 to R9`() {
-        val classes =
-            ClassFileImporter()
-                .withImportOption(ImportOption.DoNotIncludeTests())
-                .importPackages("com.onemind.backend")
-
         StructureRules.all().forEach { it.check(classes) }
     }
 
     @Test
-    fun `code keeps product rules 1, 5 and 6 (read-only POS, no float money, injected Clock)`() {
-        val classes =
-            ClassFileImporter()
-                .withImportOption(ImportOption.DoNotIncludeTests())
-                .importPackages("com.onemind.backend")
-
+    fun `code keeps product rules 1, 5 and 6 (read-only POS, no float money, one clock and business-day entry point)`() {
         ProductRules.all().forEach { it.check(classes) }
     }
 }

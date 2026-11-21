@@ -1,5 +1,7 @@
 # Spec lint config (ADR 0001). Run from the repo root:
 #   npx @redocly/cli@2.82.0 lint --config docs/api/redocly.yaml docs/api/openapi.yaml
+plugins:
+  - ./lint/money-plugin.js
 extends:
   - recommended
 rules:
@@ -7,34 +9,6 @@ rules:
   no-unused-components: off
   # Private API, no public license.
   info-license: off
-  # AGENTS.md rule 5: a money field is the Money object, int64 minor units or (sub-minor prices such
-  # as cost per ml, docs/api/README.md#data-formats) a decimal string, never a JSON number.
-  # Money fields are found by whole camelCase/snake_case words (amount, price, total, revenue, cost,
-  # tip, discount, loss, payment, money, minor); names ending in Rate, Ratio, Percent, Pct, Share,
-  # Count or Quantity are not money. Proven by lint-fixtures/money-as-number.yaml (CI, api job).
-  rule/money-is-integer:
-    subject:
-      type: Schema
-      property: type
-      matchParentKeys: &money-keys '/^(?!.*(Rate|Ratio|Percent|Pct|Share|Count|Quantity|_rate|_ratio|_percent|_pct|_share|_count|_quantity)$)(.*[a-z0-9_])?(money|Money|amount|Amount|price|Price|total|Total|revenue|Revenue|cost|Cost|tip|Tip|discount|Discount|loss|Loss|payment|Payment|minor|Minor)($|_|[A-Z])/'
-    message: Money is the Money object, integer minor units or a decimal string, never a JSON number (AGENTS.md rule 5).
-    severity: error
-    assertions:
-      enum: [integer, object, string]
-  rule/money-is-int64:
-    subject:
-      type: Schema
-      property: format
-      matchParentKeys: *money-keys
-    where:
-      - subject:
-          type: Schema
-          property: type
-          matchParentKeys: *money-keys
-        assertions:
-          const: integer
-    message: Money in minor units is int64 (AGENTS.md rule 5).
-    severity: error
-    assertions:
-      defined: true
-      const: int64
+  # AGENTS.md rule 5: money is the Money object, int64 minor units or a decimal string, never a JSON
+  # number. Word lists in lint/money-words.json; proven by lint/money-as-number.yaml (CI, api job).
+  onemind/money-minor-units: error
