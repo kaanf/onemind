@@ -3,6 +3,9 @@
 Extracted from the **Cross-platform** page of the design canvas. Implement these as tokens in
 the shared UI module (`mobile/`), never as literal values in screens.
 
+Implemented in `mobile/core/designsystem` (`com.onemind.core.designsystem.theme`): wrap the UI in
+`OneMindTheme { … }` and read `OneMindTheme.colors`, `.typography`, `.radius` and `.spacing`.
+
 Only a **light theme** is designed. Dark theme is not designed yet (open question); still,
 define colors as semantic tokens so a dark palette can be added later.
 
@@ -12,6 +15,7 @@ define colors as semantic tokens so a dark palette can be added later.
 |--------------------------|------------|-----|
 | `background`             | `#F7F7F5`  | App background (warm off-white) |
 | `surface`                | `#FFFFFF`  | Cards, tab bar, inputs |
+| `surfaceSubtle`          | `#FAFAF8`  | Full-width button at the bottom of a card (*All receipts*) |
 | `border`                 | `#E7E7E3`  | Card borders, tab bar top border |
 | `borderStrong`           | `#E2E2DE`  | Inputs, outline buttons, chips |
 | `divider`                | `#EFEFEC`  | Row separators inside cards |
@@ -26,13 +30,16 @@ define colors as semantic tokens so a dark palette can be added later.
 | `accentSoft`             | `#EEF0FD`  | Hint/insight card background |
 | `onAccent`               | `#FFFFFF`  | Text on accent |
 | `positive`               | `#15803D`  | Positive deltas, done states |
+| `positiveSurface`        | `#ECFDF3`  | Positive delta badge background (*+12.4% vs last Friday*) |
 | `negative`               | `#DC2626`  | Risk dots, negative swatch |
 | `negativeText`           | `#B91C1C`  | Risk text (*Runs out Sat*), below-par meta |
+| `negativeSurface`        | `#FEF2F2`  | Loss badge and icon box background |
 | `warningText`            | `#B45309`  | Price changes, unmatched lines |
 | `warningStrongText`      | `#92400E`  | Text on warning background |
 | `warningSurface`         | `#FFFBEB`  | Variance warning background |
+| `warningBorder`          | `#FDE68A`  | Warning card border |
 | `selection`              | `#F59E0B`  | Selected tile / heat cell outline |
-| `chartMuted`             | `#D5D7DB` / `#C9CCD1` | Non-highlighted bars |
+| `chartMuted`             | `#D5D7DB` (`chartMutedStrong` `#C9CCD1`) | Non-highlighted bars |
 | `chartFuture`            | `#EEEFF1`  | Future hours |
 
 Heat ramp (Hourly patterns, 7 steps): `#F1F1EE, #E0E2F8, #C4C8F3, #9AA0EC, #6B71E3, #4338CA, #312E81`.
@@ -44,16 +51,20 @@ Treat accent as a single token so it can be switched.
 
 ## Typography
 
-- **Inter** (400, 500, 600) for UI. **Inter Tight** (500, 600, 700) for large figures.
+- **Inter** (400, 500, 600) for UI. **Inter Tight** (500, 600, 700) for screen titles and large
+  figures. Bundled as static TTFs (OFL, licenses in `mobile/core/designsystem/licenses/`).
 - Tabular numerals everywhere numbers align (`font-feature-settings: 'tnum'`), plus `cv11`.
 - Bundle the fonts in the app (Compose resources); do not load from the network.
 
 | Style          | Size / weight             | Use |
 |----------------|---------------------------|-----|
-| `display`      | Inter Tight 28–34 / 600   | Hero figures (*48 320 Kč*, *14 160 Kč*) |
-| `title`        | Inter 28–34 / 700         | Screen titles on tabs (*Today*) |
+| `displayLarge` | Inter Tight 40 / 600, letter-spacing −0.03em, line height 1 | Hero figure on Today (*48 320 Kč*) |
+| `display`      | Inter Tight 36 / 600, −0.03em, line height 1.05 | Hero figures (*312 480 Kč*, *22 410 Kč*) |
+| `displaySmall` | Inter Tight 30 / 600, −0.02em | Figure in a detail card (*87 sold*) |
+| `title`        | Inter Tight 28 / 600, −0.02em | Screen titles on tabs (*Today*) |
+| `figure`       | Inter Tight 22 / 600      | Stat tile values (*18:40*, *3 940*) |
 | `headline`     | Inter 17 / 600            | Detail screen titles, card titles |
-| `body`         | Inter 15 / 400–500        | Rows, chat text (line height 1.4–1.5) |
+| `body`         | Inter 15 / 400–500        | Rows, chat text (line height 1.4–1.5); section titles 15 / 600 |
 | `bodySmall`    | Inter 13–14 / 400–500     | Secondary rows, buttons in chips |
 | `caption`      | Inter 12 / 400            | Meta lines |
 | `overline`     | Inter 11 / 600–700, letter-spacing 0.08em, UPPERCASE | Section labels (*PAID SO FAR*, *TONIGHT'S BRIEFING*) |
@@ -99,7 +110,10 @@ consistently (e.g. Lucide-like). Never emoji.
 ## Accessibility
 
 - Touch targets ≥ 44 × 44.
-- Contrast 4.5:1 for text (the palette above is chosen for this; check new colors).
+- Contrast 4.5:1 for text (the palette above is chosen for this; check new colors). A test in
+  `core:designsystem` checks the text tokens on their surfaces. Two pairs used on the canvas fall
+  short and need a design decision: `textSecondary` on `surfaceMuted` (4.4:1, muted avatar
+  initials) and white text on tables ramp step 5 `#6B71E3` (4.1:1).
 - Icon-only buttons have content descriptions (*Back to Sales*, *Send*, *Attach a document*).
 - Heatmap cells and table tiles expose a spoken label with their value.
 - Don't use color alone: risk rows have a dot **and** red text; variance has text too.
