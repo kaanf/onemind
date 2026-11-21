@@ -122,7 +122,7 @@ jooq {
 }
 
 tasks.generateJooqClasses {
-    schemas = listOf("account", "pos", "reporting")
+    schemas = listOf("account", "pos", "reporting", "platform")
     basePackageName = "com.onemind.db"
     outputDirectory = layout.buildDirectory.dir("generated-src/jooq")
     migrationLocations.setFromFilesystem("src/main/resources/db/migration")
@@ -130,6 +130,8 @@ tasks.generateJooqClasses {
     flywayProperties.putAll(mapOf("flyway.defaultSchema" to "platform", "flyway.schemas" to "platform"))
     usingJavaConfig {
         withName("org.jooq.codegen.KotlinGenerator")
+        // platform tables of libraries (Flyway, Spring Modulith, db-scheduler) are accessed by them only.
+        database.withExcludes("flyway_schema_history|event_publication|scheduled_tasks")
         database.withForcedTypes(
             // citext keeps its own binding so comparisons stay case-insensitive (not text = text).
             org.jooq.meta.jaxb

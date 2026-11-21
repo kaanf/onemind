@@ -5,7 +5,8 @@ import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
 
 /**
  * jOOQ package rules from ADR 0009: each module uses only its own schema package
- * (`reporting` may also read `pos`), and only `infra` packages touch jOOQ classes.
+ * (`reporting` may also read `pos`; `common` owns `platform`), and only `infra` packages touch
+ * jOOQ classes.
  * Roots are parameters so the rules can be tested against fixtures.
  */
 object DatabaseAccessRules {
@@ -16,6 +17,7 @@ object DatabaseAccessRules {
             "pos" to setOf("pos"),
             "reporting" to setOf("reporting", "pos"),
             "stock" to setOf("stock"),
+            "common" to setOf("platform"),
         )
     private val schemas = allowedSchemas.keys
 

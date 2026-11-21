@@ -10,7 +10,7 @@ import java.net.URI
 /**
  * Builds the RFC 9457 problems of the API (docs/api/README.md#errors, `Problem` in the spec):
  * `type` and `title` derived from `code`, plus the `traceId` of the current request. Used by
- * [ApiExceptionHandler] and by filters that answer before Spring MVC.
+ * [ApiExceptionHandler]; filters reach it through the `handlerExceptionResolver` bean.
  */
 @Component
 class Problems(

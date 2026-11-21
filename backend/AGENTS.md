@@ -92,6 +92,9 @@ Rules:
   UUIDv7 IDs (never treated as secrets), minor-unit money, decimal-string quantities and rates,
   RFC 9457 errors with a stable `code` and English `detail`, no PATCH, `version` → `409`,
   `Idempotency-Key` on creating POSTs, `404` for other venues' resources.
+- `Idempotency-Key` is handled once, by `common/idempotency/IdempotencyFilter` (any POST that sends
+  the header, per user, `platform.idempotency_record`). An endpoint only declares the shared
+  `IdempotencyKey` header parameter in the spec; don't re-implement deduplication in controllers.
 - **API changes start in `docs/api/openapi.yaml`.** Never hand-write a request/response DTO
   that the spec should generate. Never edit generated code (`build/generated`).
 - Inside `/api/v1` changes are additive only (see ADR 0001). CI fails on breaking spec changes.
@@ -119,9 +122,10 @@ Rules:
   Details in `common/error/ApiExceptionHandler`. A module's exception extends one of the categories
   in `common/error/DomainException.kt` (`InvalidRequestException` 400, `ForbiddenException` 403,
   `NotFoundException` 404, `ConflictException` 409, `RuleViolationException` 422) with its own
-  `code`, an English `detail` without personal data and optional `params`. Filters that answer
-  before Spring MVC build their problem with `common/error/Problems`. No Arrow, no generic `Result`
-  wrapper.
+  `code`, an English `detail` without personal data and optional `params`. A servlet filter that
+  must reject a request passes the exception to the `handlerExceptionResolver` bean
+  (`resolveException(request, response, null, e)`), so the problem looks like any other. No Arrow,
+  no generic `Result` wrapper.
 - **Transactions:** one per use case, in `application`. Never call Claude or Storyous inside a DB
   transaction.
 - **Concurrency:** Spring MVC on virtual threads with blocking jOOQ/JDBC. No coroutines, no

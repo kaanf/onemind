@@ -40,7 +40,7 @@ Last updated: 2026-11-21.
 - [x] Error handling: `DomainException` hierarchy + RFC 9457 `@ControllerAdvice` (`code`, `detail`,
       `params`, `traceId`)
 - [x] Structured JSON logging + Micrometer Tracing (`traceId`, `X-Request-Id`)
-- [ ] Idempotency-Key filter + `platform.idempotency_record`
+- [x] Idempotency-Key filter + `platform.idempotency_record`
 - [x] GitHub Actions: backend build/test, spec lint + `oasdiff breaking`
 
 ## Phase 2 — Mobile scaffold
@@ -61,7 +61,9 @@ Last updated: 2026-11-21.
 - [ ] Mobile: A1 sign in, A2 email code, secure token storage, refresh on 401, update screen on 426
 - [ ] Tests for every auth rule; cross-venue access test helper
 - [ ] Security `AuthenticationEntryPoint` / `AccessDeniedHandler` answer `401`/`403` as RFC 9457
-      problems via `common/error/Problems` (until then Spring Security's own responses)
+      problems through the `handlerExceptionResolver` (until then Spring Security's own responses)
+- [ ] The authenticated principal's name is the user's UUID (JWT `sub`): `IdempotencyFilter` scopes
+      keys by it and skips requests without one
 
 ## Phase 4 — Storyous integration
 
