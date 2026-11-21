@@ -50,7 +50,7 @@ flowchart LR
 | Design | Cross-platform direction (single UI for Android + iOS) | **Decided** |
 | Backend language | Kotlin (JVM 25 LTS) | **Decided** |
 | Backend framework | Spring Boot 4.x (4.2 at project start) | **Decided** |
-| Backend style | Modular monolith (account, pos, reporting, stock), Spring Modulith, schema per module | **Decided** · [ADR 0009](adr/0009_BACKEND_MODULAR_MONOLITH.md) |
+| Backend style | Modular monolith (account, pos, reporting, stock), Spring Modulith, schema per module | **Decided** · [ADR 0009](adr/0009_BACKEND_MODULAR_MONOLITH.md); internal structure [ADR 0013](adr/0013_BACKEND_MODULE_STRUCTURE.md) (proposed) |
 | Database | PostgreSQL + Flyway migrations | **Decided** · [ADR 0002](adr/0002_POSTGRES_FLYWAY_JOOQ.md) |
 | Persistence | jOOQ, no JPA/Hibernate; hourly rollup tables for reports | **Decided** · [ADR 0002](adr/0002_POSTGRES_FLYWAY_JOOQ.md) |
 | Jobs | db-scheduler (PostgreSQL-backed) | **Decided** · [ADR 0009](adr/0009_BACKEND_MODULAR_MONOLITH.md) |
@@ -116,7 +116,8 @@ Write one file per decision: `adr/NNNN_SHORT_TITLE.md`, using [`adr/0000_TEMPLAT
 | [0006](adr/0006_OFFLINE_STRATEGY.md) | Read-only offline cache, offline stock counting | Accepted |
 | [0007](adr/0007_RECEIPT_EXTRACTION_WITH_CLAUDE.md) | Receipt extraction with Claude Haiku 5.5 | Accepted |
 | [0008](adr/0008_HETZNER_HOSTING_ZERO_COST_START.md) | Hosting on Hetzner, starting at near-zero cost | Accepted |
-| [0009](adr/0009_BACKEND_MODULAR_MONOLITH.md) | Backend architecture: modular monolith with Spring Modulith | Accepted |
+| [0009](adr/0009_BACKEND_MODULAR_MONOLITH.md) | Backend architecture: modular monolith with Spring Modulith | Superseded by 0013 (when accepted) |
 | [0010](adr/0010_API_DESIGN.md) | API design rules | Accepted |
 | [0011](adr/0011_MOBILE_ARCHITECTURE.md) | Mobile architecture: crew-kmp structure with generated API models | Accepted |
 | [0012](adr/0012_CROSS_CUTTING_CONCERNS.md) | Cross-cutting: logging, environments, i18n, analytics, flags, testing, branches | Accepted |
+| [0013](adr/0013_BACKEND_MODULE_STRUCTURE.md) | Backend module internal structure (replaces 0009) | Proposed |

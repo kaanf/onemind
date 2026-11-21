@@ -1,6 +1,6 @@
 # 0009 · Backend architecture: modular monolith with Spring Modulith
 
-- **Status:** Accepted
+- **Status:** Superseded by [0013](0013_BACKEND_MODULE_STRUCTURE.md) (once 0013 is accepted)
 - **Date:** 2026-11-20
 - **Deciders:** Kaan
 
