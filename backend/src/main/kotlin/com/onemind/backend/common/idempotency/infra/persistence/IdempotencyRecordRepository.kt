@@ -1,4 +1,4 @@
-package com.onemind.backend.common.idempotency.infra
+package com.onemind.backend.common.idempotency.infra.persistence
 
 import com.onemind.db.platform.keys.IDEMPOTENCY_RECORD__IDEMPOTENCY_RECORD_USER_ID_FKEY
 import com.onemind.db.platform.tables.references.IDEMPOTENCY_RECORD

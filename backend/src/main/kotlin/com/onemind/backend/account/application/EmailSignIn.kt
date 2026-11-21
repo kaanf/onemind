@@ -1,8 +1,8 @@
 package com.onemind.backend.account.application
 
-import com.onemind.backend.account.infra.EmailLoginCodeRepository
-import com.onemind.backend.account.infra.IdentityProvider
-import com.onemind.backend.account.infra.UserAccountRepository
+import com.onemind.backend.account.domain.IdentityProvider
+import com.onemind.backend.account.infra.persistence.EmailLoginCodeRepository
+import com.onemind.backend.account.infra.persistence.UserAccountRepository
 import com.onemind.backend.common.email.EmailMessage
 import com.onemind.backend.common.email.EmailSender
 import com.onemind.backend.common.error.RateLimitedException

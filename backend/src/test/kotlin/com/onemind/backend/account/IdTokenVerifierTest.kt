@@ -6,10 +6,10 @@ import com.nimbusds.jose.crypto.RSASSASigner
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
-import com.onemind.backend.account.infra.IdTokenIssuerProperties
-import com.onemind.backend.account.infra.IdTokenProperties
-import com.onemind.backend.account.infra.IdTokenVerifier
-import com.onemind.backend.account.infra.IdentityProvider
+import com.onemind.backend.account.domain.IdentityProvider
+import com.onemind.backend.account.infra.client.IdTokenIssuerProperties
+import com.onemind.backend.account.infra.client.IdTokenProperties
+import com.onemind.backend.account.infra.client.IdTokenVerifier
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.security.oauth2.jwt.BadJwtException

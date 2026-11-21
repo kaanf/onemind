@@ -4,9 +4,9 @@ import com.tngtech.archunit.lang.ArchRule
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
 
 /**
- * jOOQ package rules from ADR 0009: each module uses only its own schema package
- * (`reporting` may also read `pos`; `common` owns `platform`), and only `infra` packages touch
- * jOOQ classes.
+ * jOOQ package rules from ADR 0013 (R1): each module uses only its own schema package (`common`
+ * owns `platform`); data of another module comes through its `api` or events, never its tables.
+ * Only `infra` packages touch jOOQ classes (R3 narrows this to `infra.persistence` with the C3 gates).
  * Roots are parameters so the rules can be tested against fixtures.
  */
 object DatabaseAccessRules {
@@ -15,7 +15,7 @@ object DatabaseAccessRules {
         mapOf(
             "account" to setOf("account"),
             "pos" to setOf("pos"),
-            "reporting" to setOf("reporting", "pos"),
+            "reporting" to setOf("reporting"),
             "stock" to setOf("stock"),
             "common" to setOf("platform"),
         )
@@ -32,7 +32,7 @@ object DatabaseAccessRules {
                 .should()
                 .dependOnClassesThat()
                 .resideInAnyPackage(*(schemas - allowed).map { "$dbRoot.$it.." }.toTypedArray())
-                .because("module $module owns only its schema (ADR 0009)")
+                .because("module $module owns only its schema (ADR 0013, R1)")
                 .allowEmptyShould(true)
         } +
             noClasses()

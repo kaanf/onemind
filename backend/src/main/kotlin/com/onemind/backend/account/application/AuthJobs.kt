@@ -1,8 +1,10 @@
-package com.onemind.backend.account.infra
+package com.onemind.backend.account.application
 
 import com.github.kagkarlsson.scheduler.task.helper.RecurringTask
 import com.github.kagkarlsson.scheduler.task.helper.Tasks
 import com.github.kagkarlsson.scheduler.task.schedule.FixedDelay
+import com.onemind.backend.account.infra.persistence.EmailLoginCodeRepository
+import com.onemind.backend.account.infra.persistence.RefreshTokenRepository
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.time.Clock

@@ -1,6 +1,16 @@
-package com.onemind.backend.common.error
+package com.onemind.backend.common.web
 
 import com.onemind.api.v1.model.FieldError
+import com.onemind.backend.common.error.ConflictException
+import com.onemind.backend.common.error.DomainException
+import com.onemind.backend.common.error.ForbiddenException
+import com.onemind.backend.common.error.InvalidRequestException
+import com.onemind.backend.common.error.NotFoundException
+import com.onemind.backend.common.error.Problems
+import com.onemind.backend.common.error.RuleViolationException
+import com.onemind.backend.common.error.TooManyRequestsException
+import com.onemind.backend.common.error.UnauthorizedException
+import com.onemind.backend.common.error.UpgradeRequiredException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus

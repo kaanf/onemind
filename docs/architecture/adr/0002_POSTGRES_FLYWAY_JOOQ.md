@@ -45,7 +45,7 @@ The backend is mainly a **reporting** system over POS data:
   application service, or a dedicated read-model query owned by the reporting context.
 - Bulk sync writes use `insertInto(...).onConflict(...).doUpdate()` with batching.
 - Money columns are `bigint` minor units. Timestamps are `timestamptz`, generated as `Instant`.
-  `currency char(3)` columns are generated as `java.util.Currency` (`common/money/CurrencyConverter`);
+  `currency char(3)` columns are generated as `java.util.Currency` (`common/money/infra/persistence/CurrencyConverter`);
   repositories build `common/money/Money` from the amount and currency columns (an amount and its
   currency are two columns, so a single-column converter can't produce `Money`).
 - `citext` and `inet` use the bindings from `jooq-postgres-extensions`, so citext comparisons stay

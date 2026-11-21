@@ -1,4 +1,4 @@
-package com.onemind.backend.account.infra
+package com.onemind.backend.account.infra.persistence
 
 import com.onemind.db.account.tables.references.MEMBERSHIP
 import com.onemind.db.account.tables.references.ORGANIZATION

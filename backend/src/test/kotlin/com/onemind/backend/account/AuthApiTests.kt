@@ -1,10 +1,10 @@
 package com.onemind.backend.account
 
 import com.onemind.backend.TestcontainersConfiguration
+import com.onemind.backend.account.application.AuthJobs
 import com.onemind.backend.account.application.EmailSignIn
-import com.onemind.backend.account.infra.AuthJobs
-import com.onemind.backend.account.infra.EmailLoginCodeRepository
-import com.onemind.backend.account.infra.RefreshTokenRepository
+import com.onemind.backend.account.infra.persistence.EmailLoginCodeRepository
+import com.onemind.backend.account.infra.persistence.RefreshTokenRepository
 import com.onemind.backend.common.email.EmailMessage
 import com.onemind.backend.common.email.EmailSender
 import org.junit.jupiter.api.Test
