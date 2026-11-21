@@ -16,10 +16,12 @@ Last updated: 2026-11-21.
   db-scheduler and CI (backend build/test, spec lint, `oasdiff breaking`) are in `dev`.
 - **Current phase: 2 — Mobile scaffold.** Phase 3 backend auth is done in parallel (backend lane):
   email code, JWT + refresh rotation (#22), Apple/Google (#27), logout and `DELETE /me` (#28),
-  auth rule tests + `VenueAccess` cross-venue check (#30). Next: app shell (mobile, #32) and the
-  guardrails below; new backend feature work pauses until the ADR 0013 gates land (until 2026-11-24
-  at the latest; the 426 check may go in between).
-- **Blockers outside the code:** Storyous partnership / API credentials (P15, owner); design
+  auth rule tests + `VenueAccess` cross-venue check (#30), 426 min-version check (#36). App shell is
+  done (#32). Next: the guardrails below (Konsist, ADR 0013 audit and gates); new backend feature
+  work pauses until the ADR 0013 gates land (until 2026-11-24 at the latest). Phase 4 runs on mock
+  POS data (owner, 2026-11-21).
+- **Blockers outside the code:** Storyous partnership / API credentials (P15, owner; not needed
+  until the real client is connected); design
   additions for the first-release Stock tab landing and location form (owner, only needed in
   phase 6); update the design canvas to the two darkened colour tokens (`textSecondary`,
   `tablesRamp` step 5) from `docs/design/DESIGN_SYSTEM.md` (owner/designer).
@@ -29,8 +31,8 @@ Last updated: 2026-11-21.
 Every gate counts as done only when its PR links a red CI run from a deliberate violation and the
 green run after it.
 
-- [ ] Merge safety and coordination: orchestrator verifies checks itself, PLAN message, `critical
-      areas` line, guard files, autonomy tier, batched owner questions, public-repo rule (orchestrator)
+- [x] Merge safety and coordination: orchestrator verifies checks itself, PLAN message, `critical
+      areas` line, guard files, autonomy tier, batched owner questions, public-repo rule (#35)
 - [x] Fork PR workflows need approval for all outside contributors (applied 2026-11-21)
 - [ ] `CI result` aggregator job (fails on failure, cancel or unexpected skip); iOS framework link job
       on mobile PRs feeds it (ci)
@@ -80,7 +82,7 @@ green run after it.
 - [x] `core:api` generation from `openapi.yaml` (models only)
 - [x] Design system: tokens, Inter / Inter Tight, components from `docs/design/DESIGN_SYSTEM.md`
       (light palette only; dark palette waits for P7)
-- [ ] App shell: navigation root, 4-tab bar (Today, Sales, Staff, Stock later), Koin + graph test
+- [x] App shell: navigation root, 4-tab bar (Today, Sales, Staff, Stock later), Koin + graph test (#32)
 - [ ] Variants `dev`/`prod` with BuildKonfig; Sentry in hosts
 - [x] GitHub Actions: common tests + Android build on PR; iOS build on `dev`/`main` + nightly
       (nightly/manual iOS runs start once `main` has the workflow, i.e. after the first release)
@@ -93,7 +95,7 @@ green run after it.
 - [x] Backend: email code (start/verify), Apple, Google, JWT access + rotating refresh, logout,
       `DELETE /me` (ADR 0004)
 - [ ] Mobile: A1 sign in, A2 email code, secure token storage, refresh on 401, update screen on 426
-- [ ] Backend: minimum app version (`X-App-Version` / `X-Platform`) → `426 Upgrade Required`
+- [x] Backend: minimum app version (`X-App-Version` / `X-Platform`) → `426 Upgrade Required` (#36)
 - [ ] ADR 0013 "Backend module internal structure" (replaces ADR 0009)
 - [ ] Audit existing backend code against ADR 0013 and fix deviations (before the gates, no baseline)
 - [ ] ArchUnit gates for ADR 0013 rules + Modulith `allowedDependencies`; `backend/AGENTS.md` names
@@ -109,14 +111,19 @@ green run after it.
 - [x] The authenticated principal's name is the user's UUID (JWT `sub`): `IdempotencyFilter` scopes
       keys by it and skips requests without one
 
-## Phase 4 — Storyous integration
+## Phase 4 — POS data (mock first)
 
-- [ ] `PosProvider` + read-only Storyous client (client credentials, token cache, paging)
-- [ ] Sync jobs (db-scheduler): places → venues, menu, desks, bills (`modifiedSince`), initial
-      90-day import, `BillsSynced` event
+Owner decision 2026-11-21: the real Storyous API is not connected for now; everything runs on mock
+data behind `PosProvider`. Mock data is dev/demo only: never shown as a real venue's figures (rule 2).
+
+- [ ] `PosProvider` + mock provider: deterministic, realistic venues, menu, desks, staff and bills
+      (bills across midnight, Europe/Prague DST days, discounts, voids, open tabs), shaped like the
+      Storyous API in `docs/integrations/STORYOUS.md`
+- [ ] Sync jobs (db-scheduler) fed by `PosProvider`: places → venues, menu, desks, bills
+      (`modifiedSince`), initial 90-day import, `BillsSynced` event
 - [ ] Reporting rollups refreshed from `BillsSynced`; rebuild job
-- [ ] Onboarding A3–A5 (adapted: no OAuth redirect; see `docs/integrations/STORYOUS.md`)
-- [ ] Until credentials exist: build and test against recorded fixtures
+- [ ] Later (P15): read-only Storyous client behind `PosProvider` (client credentials, token cache,
+      paging) and onboarding A3–A5 (no OAuth redirect; see `docs/integrations/STORYOUS.md`)
 - [ ] Purge job: delete organizations whose `deletion_due_at` has passed (set by `DELETE /me`, #28)
 - [ ] Phase-end `REVIEW pr: audit`
 
