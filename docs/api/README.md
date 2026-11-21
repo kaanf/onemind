@@ -26,7 +26,9 @@ is a plan; the source of truth for shapes is the OpenAPI spec once written.
 - Backend generates controller interfaces + DTOs (`kotlin-spring`, `interfaceOnly`); mobile generates
   models only (`kotlin`, kotlinx.serialization; ADR 0011). No shared Kotlin module.
 - Workflow: change the spec first, then backend and mobile in the same PR.
-- Inside `/api/v1` changes are **additive only**. CI runs a spec linter and `oasdiff breaking`.
+- Inside `/api/v1` changes are **additive only**. CI (`.github/workflows/ci.yml`, PRs touching
+  `docs/api/`) runs the linter and `oasdiff breaking` against `main`'s spec (skipped while `main` has
+  none). Locally: `oasdiff breaking --fail-on ERR <main-copy>/docs/api/openapi.yaml docs/api/openapi.yaml`.
 - Clients send `X-App-Version` and `X-Platform`; the backend may answer `426 Upgrade Required`.
 
 ## Endpoint style

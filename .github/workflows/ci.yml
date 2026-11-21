@@ -1,0 +1,109 @@
+# CI gates from ADR 0012 §6 (backend) and ADR 0001 (API spec). Mobile jobs come with phase 2.
+# Both jobs always report a result, so they can be required checks; the API steps skip themselves
+# when a PR does not touch the spec.
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  backend:
+    name: Backend build and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: 25
+
+      # Basic caching is the MIT-licensed provider (plain actions/cache); also validates the wrapper.
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-provider: basic
+          cache-read-only: ${{ github.ref != 'refs/heads/dev' && github.ref != 'refs/heads/main' }}
+
+      # build = OpenAPI + jOOQ codegen (Testcontainers), compile, ktlint, unit + integration tests,
+      # Spring Modulith boundary test. Docker is preinstalled on ubuntu runners.
+      - run: ./gradlew build
+
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: backend-test-reports
+          path: backend/build/reports/
+          retention-days: 7
+
+  api:
+    name: API spec lint and breaking changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      REDOCLY_CLI_VERSION: 2.82.0
+      OASDIFF_VERSION: 1.39.0
+      OASDIFF_SHA256: 71a85930728f367a2086077b7ae1411319421549d18473a3e8258b6451520433
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      # On a PR, HEAD is the merge commit and HEAD^1 the base branch, so this diff is the PR's change.
+      - name: Check for spec changes
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ] ||
+             ! git diff --quiet HEAD^1 HEAD -- docs/api .github/workflows/ci.yml; then
+            echo "spec=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "spec=false" >> "$GITHUB_OUTPUT"
+            echo "No changes under docs/api; spec checks skipped."
+          fi
+
+      - if: steps.changes.outputs.spec == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+
+      - name: Lint spec (Redocly)
+        if: steps.changes.outputs.spec == 'true'
+        run: >-
+          npx --yes @redocly/cli@${REDOCLY_CLI_VERSION} lint
+          --config docs/api/redocly.yaml --format github-actions docs/api/openapi.yaml
+
+      # ADR 0001: compare against the released contract on main. Skipped until main has a spec.
+      - name: Check breaking changes against main (oasdiff)
+        if: steps.changes.outputs.spec == 'true'
+        run: |
+          git fetch --no-tags --depth=1 origin main
+          if ! git cat-file -e FETCH_HEAD:docs/api/openapi.yaml 2>/dev/null; then
+            echo "::notice title=oasdiff::main has no docs/api/openapi.yaml yet; breaking-change check skipped."
+            exit 0
+          fi
+          base="$RUNNER_TEMP/base"
+          mkdir -p "$base"
+          git archive FETCH_HEAD docs/api | tar -x -C "$base"
+
+          archive="oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" \
+            "https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/$archive"
+          echo "${OASDIFF_SHA256}  $RUNNER_TEMP/$archive" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" oasdiff
+
+          "$RUNNER_TEMP/oasdiff" breaking --fail-on ERR --format githubactions \
+            "$base/docs/api/openapi.yaml" docs/api/openapi.yaml

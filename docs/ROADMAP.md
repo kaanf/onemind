@@ -41,7 +41,7 @@ Last updated: 2026-11-21.
       `params`, `traceId`)
 - [x] Structured JSON logging + Micrometer Tracing (`traceId`, `X-Request-Id`)
 - [ ] Idempotency-Key filter + `platform.idempotency_record`
-- [ ] GitHub Actions: backend build/test, spec lint + `oasdiff breaking`
+- [x] GitHub Actions: backend build/test, spec lint + `oasdiff breaking`
 
 ## Phase 2 — Mobile scaffold
 
