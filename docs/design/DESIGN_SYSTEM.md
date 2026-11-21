@@ -128,6 +128,7 @@ built from the canvas SVG paths); add new ones there rather than adding an icon 
 | Floor plan | `FloorPlan` + `FloorTile`, `TileTone` |
 | Progress row | `ProgressRow` + `ProgressStatus` |
 | OTP input | `OtpInput` |
+| Placeholder screen (temporary, not in the design) | `PlaceholderScreen`: tab title + one line, for tabs whose screen is not built yet |
 
 Not built yet: **Stepper**, **Fraction picker**, **Checklist row** (with the stock screens, phase 6) and
 **Chat bubble**, **Composer** (assistant, out of the first release).

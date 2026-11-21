@@ -1,16 +1,14 @@
 package com.onemind.composeapp
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
+import androidx.navigation.compose.rememberNavController
+import com.onemind.composeapp.navigation.NavigationRoot
 import com.onemind.core.designsystem.theme.OneMindTheme
 
-/** Root of the shared UI. Navigation, tab bar and Koin come with the app shell roadmap item. */
+/** Root of the shared UI. Koin is started by the host before this runs (`initKoin`). */
 @Composable
 fun App() {
     OneMindTheme {
-        Box(modifier = Modifier.fillMaxSize().background(OneMindTheme.colors.background))
+        NavigationRoot(navController = rememberNavController())
     }
 }

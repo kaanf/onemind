@@ -9,3 +9,7 @@ kotlin {
         }
     }
 }
+
+compose.resources {
+    packageOfResClass = "com.onemind.staff.presentation.generated.resources"
+}

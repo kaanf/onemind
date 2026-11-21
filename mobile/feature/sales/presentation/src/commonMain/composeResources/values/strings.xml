@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sales_title">Sales</string>
+    <string name="sales_placeholder_message">Coming soon.</string>
+</resources>

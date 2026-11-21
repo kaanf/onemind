@@ -7,6 +7,8 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.core.domain)
             implementation(projects.core.api)
+
+            implementation(libs.koin.core)
         }
     }
 }
