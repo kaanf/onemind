@@ -4,11 +4,10 @@ Kotlin Multiplatform app (Android + iOS, shared Compose UI) for OneMind. Read th
 [`../AGENTS.md`](../AGENTS.md) first, then
 [ADR 0011](../docs/architecture/adr/0011_MOBILE_ARCHITECTURE.md).
 
-> **Status:** not scaffolded yet. The structure follows the owner's other KMP app,
+> **Status:** Gradle build, `build-logic` and version catalog are in place; modules are added
+> next (see `docs/ROADMAP.md`, phase 2). The structure follows the owner's other KMP app,
 > **crew-kmp** (`~/Projects/crew/crew-kmp`). Use it as the reference implementation for
 > structure, Gradle convention plugins and patterns — not for product code or copy.
-> When you scaffold, start from crew-kmp's `build-logic` and version catalog, bump versions to
-> current stable, and update the Commands section below with real, verified commands.
 
 ## Responsibilities
 
@@ -130,10 +129,37 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
 - Koin graph verification test. Compose UI tests for key screens; screenshot tests later.
 - Android success does not verify iOS: build/test both targets.
 
+## Build logic
+
+`mobile/` is its own Gradle build (wrapper 9.9.2, run on JDK 21; versions in
+`gradle/libs.versions.toml`). Convention plugins in `build-logic/convention`, applied with
+`alias(libs.plugins.convention.<name>)`:
+
+| Plugin | For | Adds |
+|--------|-----|------|
+| `kmp.library` | domain, data, `core:api` | KMP Android library + `iosArm64`/`iosSimulatorArm64`, serialization, ktlint |
+| `cmp.library` | `core:designsystem`, `core:presentation` | `kmp.library` + Compose Multiplatform, Material 3, resources, previews |
+| `cmp.feature` | `feature:*:presentation` | `cmp.library` + `core:presentation`, `core:designsystem`, ViewModel, Navigation, Koin, Turbine |
+| `cmp.application` | `composeApp` | `cmp.library` + the single static iOS framework `ComposeApp` |
+| `android.application(.compose)` | `androidApp` | AGP 9 app (built-in Kotlin), release signing from `ONEMIND_*` properties/env, Compose |
+| `buildkonfig` | modules with build config | BuildKonfig with the module's package |
+| `ktlint` | applied by the above | same ktlint setup as the backend |
+
+Namespaces come from the Gradle path (`:feature:sales:presentation` → `com.onemind.sales.presentation`).
+Compose versions come from Compose Multiplatform only (no androidx Compose BOM). Lifecycle and
+Navigation versions must stay aligned with the Compose Multiplatform version.
+
 ## Commands
 
-To be filled in when scaffolded (copy the verified commands from crew-kmp's `docs/COMMANDS.md`
-and adapt module names).
+Run from `mobile/`. Needs the Android SDK (`ANDROID_HOME` or `local.properties` with `sdk.dir`)
+and Xcode for iOS.
+
+```sh
+./gradlew :build-logic:convention:build   # compile + validate convention plugins
+./gradlew ktlintCheck                     # lint every module (ktlintFormat to fix); needs at least one module
+```
+
+Module build, test and iOS commands are added with the modules.
 
 ## Definition of done (mobile)
 

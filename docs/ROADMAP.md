@@ -45,7 +45,7 @@ Last updated: 2026-11-21.
 
 ## Phase 2 — Mobile scaffold
 
-- [ ] Start from crew-kmp `build-logic` + version catalog (bump to current stable)
+- [x] Start from crew-kmp `build-logic` + version catalog (bump to current stable)
 - [ ] Modules per ADR 0011: `core:{api,data,domain,presentation,designsystem}`,
       `feature:{auth,today,sales,staff}`, `composeApp`, `androidApp`, `iosApp`
 - [ ] `core:api` generation from `openapi.yaml` (models only)
