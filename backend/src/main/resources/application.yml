@@ -28,7 +28,17 @@ db-scheduler:
   # Start polling only when the application is ready, not while beans are still being created.
   delay-startup-until-context-ready: true
 
+logging:
+  structured:
+    # JSON to stdout (ADR 0012). MDC values (traceId, spanId, requestId) become fields of every line.
+    format:
+      console: ecs
+
 management:
+  tracing:
+    # No exporter yet: spans only provide traceId/spanId for logs and error responses, so sample all.
+    sampling:
+      probability: 1.0
   endpoints:
     web:
       exposure:

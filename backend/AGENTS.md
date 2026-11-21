@@ -121,9 +121,12 @@ Rules:
   transaction.
 - **Concurrency:** Spring MVC on virtual threads with blocking jOOQ/JDBC. No coroutines, no
   WebFlux. Keep the HikariCP pool small (10–20) and bound concurrent calls to external APIs.
-- Logging: Spring Boot structured logging (ECS JSON to stdout), Micrometer Tracing (`traceparent`),
-  `traceId` in logs and error responses, log the client's `X-Request-Id`. No personal data or
-  secrets in logs or Sentry events; log IDs (ADR 0012).
+- Logging: Spring Boot structured logging (`logging.structured.format.console: ecs`, JSON to stdout),
+  Micrometer Tracing with the OpenTelemetry bridge and W3C `traceparent` (no span exporter yet).
+  MDC fields `traceId`, `spanId` and `requestId` (the client's `X-Request-Id`, set by
+  `common/observability/RequestIdFilter`, only if it is a UUID) appear on every log line; `traceId`
+  also goes into error responses. Tests that need a real trace use `@AutoConfigureTracing`. No
+  personal data or secrets in logs or Sentry events; log IDs (ADR 0012).
 - Configuration via `application.yml` + environment variables; profiles `local` and `prod`.
   Secrets never in the repo.
 
