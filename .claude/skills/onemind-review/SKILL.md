@@ -48,14 +48,15 @@ rules". Keep this list in sync with AGENTS.md.
 - Layer or boundary shortcuts (web calling persistence, a module reading another module's tables,
   generated models leaking past web) even where no gate catches them yet.
 - Guard files (`docs/PARALLEL_WORK.md#guard-files`) touched → weakened? Rules relaxed, baselines
-  grown or tests deleted to pass are a blocker. Check the REPORT's `critical areas` line is honest.
+  grown or tests deleted to pass are a blocker. Check the PR body's `critical areas` line is honest
+  and repeat it in your `REVIEW-RESULT`.
 - Glossary terms used in code, API and UI copy; no synonyms.
 
 ## 5. Quality
 
 - Tests cover the rules in the change (happy path + the edge cases above), not only plumbing.
-- Can the new tests fail? Name the line whose removal or change would turn each one red; gate PRs
-  must link a red run from a deliberate violation and the green run after it.
+- Can the new tests fail? Name the line whose removal or change would turn each one red; a gate PR (one that adds or
+  changes a test, lint rule or CI step meant to block violations) must link a red run from a deliberate violation and the green run after it.
 - Duplicated logic (the same calculation or mapping in two places).
 - Swallowed errors: `catch` / `runCatching` / `getOrNull` that drops the cause without handling,
   logging or rethrowing it.

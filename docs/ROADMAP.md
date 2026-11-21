@@ -17,8 +17,8 @@ Last updated: 2026-11-21.
 - **Current phase: 2 — Mobile scaffold.** Phase 3 backend auth is done in parallel (backend lane):
   email code, JWT + refresh rotation (#22), Apple/Google (#27), logout and `DELETE /me` (#28),
   auth rule tests + `VenueAccess` cross-venue check (#30). Next: app shell (mobile, #32) and the
-  guardrails below; new backend feature work pauses until the ADR 0013 gates land (at most 3 days
-  from 2026-11-21; the 426 check may go in between).
+  guardrails below; new backend feature work pauses until the ADR 0013 gates land (until 2026-11-24
+  at the latest; the 426 check may go in between).
 - **Blockers outside the code:** Storyous partnership / API credentials (P15, owner); design
   additions for the first-release Stock tab landing and location form (owner, only needed in
   phase 6); update the design canvas to the two darkened colour tokens (`textSecondary`,
