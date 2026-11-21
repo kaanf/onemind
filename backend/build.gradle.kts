@@ -36,6 +36,7 @@ dependencies {
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.spring.boot.starter.flyway)
     implementation(libs.spring.boot.starter.jooq)
+    implementation(libs.spring.boot.starter.mail)
     implementation(libs.spring.boot.starter.security)
     implementation(libs.spring.boot.starter.security.oauth2.resource.server)
     implementation(libs.spring.boot.starter.validation)
@@ -108,6 +109,15 @@ openApiGenerate {
             "generateJsonIncludeAnnotations" to "false",
             "generateJsonSetterNullsAnnotations" to "false",
         )
+}
+
+// Prints a new ES256 signing key for access tokens (ADR 0004): `./gradlew generateJwtKey`.
+tasks.register<JavaExec>("generateJwtKey") {
+    group = "application"
+    description = "Prints a new P-256 JWK for JWT_SIGNING_KEY."
+    // A dev tool, so it lives in the test sources and stays out of the boot jar.
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass = "com.onemind.backend.tools.GenerateJwtKeyKt"
 }
 
 // jOOQ classes from the migrated schema (ADR 0002): PostgreSQL container → Flyway → codegen.

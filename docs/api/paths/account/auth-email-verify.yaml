@@ -1,0 +1,29 @@
+post:
+  tags:
+    - Auth
+  operationId: verifyEmailSignIn
+  summary: Sign in with the emailed code (A2)
+  description: |
+    Signs in, creating the account on first sign-in. Only the latest code of the address counts; it
+    can be used once. `422` codes: `EMAIL_CODE_INVALID` (`params.attemptsLeft`), `EMAIL_CODE_EXPIRED`,
+    `EMAIL_CODE_ATTEMPTS_EXCEEDED` (5 wrong attempts: request a new code). Rate-limited per IP.
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/EmailCodeVerifyRequest.yaml
+  responses:
+    '200':
+      description: Signed in.
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/AuthTokens.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '422':
+      $ref: ../../components/responses/UnprocessableEntity.yaml
+    '429':
+      $ref: ../../components/responses/TooManyRequests.yaml

@@ -32,14 +32,26 @@ class ApiExceptionHandler(
         val status =
             when (e) {
                 is InvalidRequestException -> HttpStatus.BAD_REQUEST
+                is UnauthorizedException -> HttpStatus.UNAUTHORIZED
                 is ForbiddenException -> HttpStatus.FORBIDDEN
                 is NotFoundException -> HttpStatus.NOT_FOUND
                 is ConflictException -> HttpStatus.CONFLICT
                 is RuleViolationException -> HttpStatus.UNPROCESSABLE_CONTENT
+                is TooManyRequestsException -> HttpStatus.TOO_MANY_REQUESTS
             }
         // Code only: detail and params may carry business data.
         log.info("Request failed with {} {}", status.value(), e.code)
-        return ResponseEntity.status(status).body(problems.of(status, e.code, e.detail, e.params))
+        val response = ResponseEntity.status(status)
+        if (e is TooManyRequestsException) {
+            response.header(
+                HttpHeaders.RETRY_AFTER,
+                e.retryAfter
+                    .toSeconds()
+                    .coerceAtLeast(1)
+                    .toString(),
+            )
+        }
+        return response.body(problems.of(status, e.code, e.detail, e.params))
     }
 
     @ExceptionHandler(Exception::class)

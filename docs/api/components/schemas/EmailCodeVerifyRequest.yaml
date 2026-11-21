@@ -1,0 +1,19 @@
+type: object
+required:
+  - email
+  - code
+properties:
+  email:
+    type: string
+    format: email
+    maxLength: 254
+    example: owner@example.com
+  code:
+    type: string
+    pattern: '^[0-9]{6}$'
+    description: The 6-digit code from the email.
+    example: '482913'
+  deviceName:
+    type: string
+    maxLength: 100
+    description: Shown to the user in a future device list, e.g. "Kaan's iPhone".

@@ -1,0 +1,8 @@
+type: object
+required:
+  - refreshToken
+properties:
+  refreshToken:
+    type: string
+    maxLength: 200
+    description: The refresh token from the last token response. It can be used once.

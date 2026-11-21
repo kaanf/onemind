@@ -19,5 +19,12 @@ services:
       timeout: 3s
       retries: 10
 
+  # Catches sign-in emails locally: SMTP on 1025 (the backend's default), web UI on http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:v1.33.1
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 volumes:
   postgres-data:

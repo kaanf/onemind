@@ -15,6 +15,18 @@ spring:
     schemas: platform
   jooq:
     sql-dialect: postgres
+  # SMTP behind EmailSender; Mailpit locally (infra/docker-compose.yml). Provider: docs/OPEN_QUESTIONS.md.
+  mail:
+    # 127.0.0.1, not localhost: on Colima, ::1 accepts the connection but never sends the SMTP greeting.
+    host: ${MAIL_HOST:127.0.0.1}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    # 10 s: Colima's port forwarder delays the SMTP greeting by ~6 s locally.
+    properties:
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
   modulith:
     events:
       jdbc:
@@ -34,7 +46,30 @@ logging:
     format:
       console: ecs
 
+server:
+  # Client IP from X-Forwarded-For only when the request comes from a private-network proxy (Caddy).
+  forward-headers-strategy: native
+
+onemind:
+  security:
+    jwt:
+      issuer: https://api.onemind.app
+      audience: onemind-app
+      access-token-ttl: 15m
+      # Private P-256 JWK (`./gradlew generateJwtKey`); required in prod, a temporary key otherwise.
+      signing-key: ${JWT_SIGNING_KEY:}
+      previous-public-key: ${JWT_PREVIOUS_PUBLIC_KEY:}
+  auth:
+    # HMAC key for sign-in codes; required in prod, a temporary one otherwise.
+    email-code-pepper: ${EMAIL_CODE_PEPPER:}
+  mail:
+    from: ${MAIL_FROM:OneMind <no-reply@onemind.app>}
+
 management:
+  health:
+    # The SMTP provider being down must not take the backend out of rotation.
+    mail:
+      enabled: false
   tracing:
     # No exporter yet: spans only provide traceId/spanId for logs and error responses, so sample all.
     sampling:
