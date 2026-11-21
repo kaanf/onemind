@@ -16,11 +16,34 @@ Last updated: 2026-11-21.
   db-scheduler and CI (backend build/test, spec lint, `oasdiff breaking`) are in `dev`.
 - **Current phase: 2 — Mobile scaffold.** Phase 3 backend auth is done in parallel (backend lane):
   email code, JWT + refresh rotation (#22), Apple/Google (#27), logout and `DELETE /me` (#28),
-  auth rule tests + `VenueAccess` cross-venue check (#30). Next: app shell (mobile).
+  auth rule tests + `VenueAccess` cross-venue check (#30). Next: app shell (mobile, #32) and the
+  guardrails below; new backend feature work pauses until the ADR 0013 gates land (at most 3 days
+  from 2026-11-21; the 426 check may go in between).
 - **Blockers outside the code:** Storyous partnership / API credentials (P15, owner); design
   additions for the first-release Stock tab landing and location form (owner, only needed in
   phase 6); update the design canvas to the two darkened colour tokens (`textSecondary`,
   `tablesRamp` step 5) from `docs/design/DESIGN_SYSTEM.md` (owner/designer).
+
+## Process and guardrails (from the 2026-11-21 setup review; runs alongside the phases)
+
+Every gate counts as done only when its PR links a red CI run from a deliberate violation and the
+green run after it.
+
+- [ ] Merge safety and coordination: orchestrator verifies checks itself, PLAN message, `critical
+      areas` line, guard files, autonomy tier, batched owner questions, public-repo rule (orchestrator)
+- [x] Fork PR workflows need approval for all outside contributors (applied 2026-11-21)
+- [ ] `CI result` aggregator job (fails on failure, cancel or unexpected skip); iOS framework link job
+      on mobile PRs feeds it (ci)
+- [ ] Rulesets: `dev` PR + `CI result` + squash only; `main` PR + `CI result` + merge commit only; no
+      force push or deletion (orchestrator, after the aggregator merges)
+- [ ] Label PRs touching guard files `guard-files` and comment the list (ci)
+- [ ] `permissions.deny` snippets for each lane's `.claude/settings.local.json` (orchestrator)
+- [ ] detekt 2.0 as a non-blocking report job with baseline, backend and mobile; one PR, half a day;
+      dropped if it needs a Kotlin pin (ci)
+- [ ] "Version notes" in `backend/AGENTS.md` and `mobile/AGENTS.md`, each line linked to an official
+      release note or migration guide (backend, mobile)
+- [ ] Note for the owner: app-level venue scoping + test helper vs PostgreSQL row-level security
+      (orchestrator; RLS would need an ADR)
 
 ## Phase 0 — Foundations ✅
 
@@ -61,12 +84,25 @@ Last updated: 2026-11-21.
 - [ ] Variants `dev`/`prod` with BuildKonfig; Sentry in hosts
 - [x] GitHub Actions: common tests + Android build on PR; iOS build on `dev`/`main` + nightly
       (nightly/manual iOS runs start once `main` has the workflow, i.e. after the first release)
+- [ ] `:core:konsist` guard module: ADR 0011 module rules, no `Float`/`Double` money, one clock seam
+      (Konsist 0.18.1). No mobile feature screen starts before this merges.
+- [ ] Phase-end `REVIEW pr: audit`
 
 ## Phase 3 — Auth (first vertical slice)
 
 - [x] Backend: email code (start/verify), Apple, Google, JWT access + rotating refresh, logout,
       `DELETE /me` (ADR 0004)
 - [ ] Mobile: A1 sign in, A2 email code, secure token storage, refresh on 401, update screen on 426
+- [ ] Backend: minimum app version (`X-App-Version` / `X-Platform`) → `426 Upgrade Required`
+- [ ] ADR 0013 "Backend module internal structure" (replaces ADR 0009)
+- [ ] Audit existing backend code against ADR 0013 and fix deviations (before the gates, no baseline)
+- [ ] ArchUnit gates for ADR 0013 rules + Modulith `allowedDependencies`; `backend/AGENTS.md` names
+      the reference module
+- [ ] Product-rule gates: no `Float`/`Double` money (backend + spec lint), single `BusinessDay` entry
+      point with midnight and Europe/Prague DST tests, POS client read-only (fixtures fail on non-GET)
+- [ ] End-to-end auth smoke test: real backend (Testcontainers) driven by a client generated from
+      `openapi.yaml`: email code, refresh rotation, 401 refresh, 426
+- [ ] Phase-end `REVIEW pr: audit`
 - [x] Tests for every auth rule; cross-venue access test helper
 - [x] Security `AuthenticationEntryPoint` / `AccessDeniedHandler` answer `401`/`403` as RFC 9457
       problems through the `handlerExceptionResolver` (until then Spring Security's own responses)
@@ -82,6 +118,7 @@ Last updated: 2026-11-21.
 - [ ] Onboarding A3–A5 (adapted: no OAuth redirect; see `docs/integrations/STORYOUS.md`)
 - [ ] Until credentials exist: build and test against recorded fixtures
 - [ ] Purge job: delete organizations whose `deletion_due_at` has passed (set by `DELETE /me`, #28)
+- [ ] Phase-end `REVIEW pr: audit`
 
 ## Phase 5 — Dashboards
 
@@ -90,14 +127,17 @@ Last updated: 2026-11-21.
 - [ ] Staff (03), Waiter detail (03a)
 - [ ] Rule-based hint cards (codes + params), venue switcher / all-venues view
 - [ ] Polling + ETag, offline read cache (DataStore)
+- [ ] Phase-end `REVIEW pr: audit`
 
 ## Phase 6 — Stock (depends on P13/P14)
 
 - [ ] Decide P13 (dashboards-only first release?) and P14 (stock positioning)
-- [ ] `stock` schema + migrations
+- [ ] `stock` schema + migrations; acceptance: the app DB role cannot DELETE/UPDATE stock history
+      tables (REVOKE or trigger), proven by a test
 - [ ] Purchase receipts: upload, ISDOC parsing, Claude Haiku 5.5 extraction, review, approve (ADR 0007)
 - [ ] Locations + transfers, on-demand counts (opening count), recipes (column-mapping import)
 - [ ] Design system components for stock screens: Stepper, FractionPicker, ChecklistRow
+- [ ] Phase-end `REVIEW pr: audit`
 
 ## Phase 7 — Release preparation
 
@@ -113,7 +153,7 @@ Last updated: 2026-11-21.
 
 ## Later
 
-- detekt (`dev.detekt`) once 2.0 is stable; drop the ktlint Kotlin-compiler pin in
+- detekt as a blocking check once 2.0 is stable (a non-blocking job is tried above); drop the ktlint Kotlin-compiler pin in
   `backend/build.gradle.kts` once ktlint supports the project's Kotlin version.
 
 
