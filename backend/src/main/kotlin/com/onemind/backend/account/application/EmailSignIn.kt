@@ -53,13 +53,15 @@ class EmailSignIn(
         limitIp("auth-email-start", ip, START_LIMIT_PER_IP)
         val code =
             transactions.execute {
+                codes.lockAddress(address)
                 val now = clock.instant()
                 codes.latest(address)?.let { last ->
                     val wait = Duration.between(now, last.createdAt + RESEND_AFTER)
                     if (!wait.isNegative && !wait.isZero) throw EmailCodeResendTooSoonException(wait)
                 }
-                if (codes.countCreatedSince(address, now - CODE_LIMIT_WINDOW) >= CODE_LIMIT_PER_EMAIL) {
-                    throw RateLimitedException(CODE_LIMIT_WINDOW)
+                // Rolling window: a new code is allowed once the oldest counted one is an hour old.
+                codes.nthNewestCreatedSince(address, now - CODE_LIMIT_WINDOW, CODE_LIMIT_PER_EMAIL)?.let { oldestCounted ->
+                    throw RateLimitedException(Duration.between(now, oldestCounted + CODE_LIMIT_WINDOW))
                 }
                 secrets.newEmailCode().also { codes.insert(address, secrets.hashEmailCode(address, it), now + CODE_TTL, ip, now) }
             } ?: error("transaction returned no code")
@@ -74,7 +76,8 @@ class EmailSignIn(
             )
             log.info("Sign-in code sent")
         } catch (e: Exception) {
-            log.error("Could not send a sign-in code", e)
+            // Type only: SMTP errors can echo the recipient address, which must not be logged.
+            log.error("Could not send a sign-in code: {}", e.javaClass.name)
         }
     }
 

@@ -199,7 +199,8 @@ class AuthApiTests {
             clock.advance(Duration.ofSeconds(31))
         }
 
-        start().andExpectProblem(429, "RATE_LIMITED").andExpect { header { exists("Retry-After") } }
+        // Until the first of the five codes (5 × 31 s ago) is an hour old.
+        start().andExpectProblem(429, "RATE_LIMITED").andExpect { header { string("Retry-After", "${3600 - 5 * 31}") } }
     }
 
     @Test
@@ -295,6 +296,22 @@ class AuthApiTests {
         clock.advance(Duration.ofDays(30))
 
         refresh(tokens["refreshToken"].asString()).andExpectProblem(401, "REFRESH_TOKEN_INVALID")
+    }
+
+    @Test
+    fun `token responses are never stored for idempotency replay`() {
+        val tokens = signIn()
+        val key = UUID.randomUUID()
+
+        mockMvc
+            .post("/api/v1/auth/refresh") {
+                bearer(tokens["accessToken"].asString())
+                header("Idempotency-Key", key.toString())
+                contentType = MediaType.APPLICATION_JSON
+                content = json.writeValueAsString(mapOf("refreshToken" to tokens["refreshToken"].asString()))
+            }.andExpect { status { isOk() } }
+
+        assertEquals(0, jdbc.queryForObject<Int>("select count(*) from platform.idempotency_record where key = ?", key))
     }
 
     @Test

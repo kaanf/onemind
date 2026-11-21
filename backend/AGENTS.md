@@ -94,9 +94,11 @@ Rules:
   UUIDv7 IDs (never treated as secrets), minor-unit money, decimal-string quantities and rates,
   RFC 9457 errors with a stable `code` and English `detail`, no PATCH, `version` → `409`,
   `Idempotency-Key` on creating POSTs, `404` for other venues' resources.
-- `Idempotency-Key` is handled once, by `common/idempotency/IdempotencyFilter` (any POST that sends
-  the header, per user, `platform.idempotency_record`). An endpoint only declares the shared
-  `IdempotencyKey` header parameter in the spec; don't re-implement deduplication in controllers.
+- `Idempotency-Key` is handled once, by `common/idempotency/IdempotencyFilter` (per user,
+  `platform.idempotency_record`), for POSTs whose handler declares the header: an endpoint only adds
+  the shared `IdempotencyKey` header parameter in the spec; don't re-implement deduplication in
+  controllers. Never declare it on an endpoint whose response holds secrets (tokens): the response is
+  stored in plain text for 24 h.
 - **API changes start in `docs/api/openapi.yaml`.** Never hand-write a request/response DTO
   that the spec should generate. Never edit generated code (`build/generated`).
 - Inside `/api/v1` changes are additive only (see ADR 0001). CI fails on breaking spec changes.

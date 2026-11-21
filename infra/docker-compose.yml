@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: onemind
       POSTGRES_PASSWORD: onemind
     ports:
-      - "5433:5432"   # host 5433: a native PostgreSQL may already use 5432
+      - "127.0.0.1:5433:5432"   # host 5433: a native PostgreSQL may already use 5432; localhost only
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:
@@ -23,8 +23,9 @@ services:
   mailpit:
     image: axllent/mailpit:v1.33.1
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      # localhost only: the inbox has no login and holds live sign-in codes.
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
 
 volumes:
   postgres-data:

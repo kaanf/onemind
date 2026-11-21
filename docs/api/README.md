@@ -138,7 +138,7 @@ RFC 9457 Problem Details with extension members:
   - Keys are scoped per user. A replay repeats status, body, `Content-Type` and `Location`.
     Responses with `5xx` are not stored, so the client can retry with the same key.
   - An operation requires the key by declaring the shared `IdempotencyKey` header parameter in the
-    spec; the backend then applies these rules to it.
+    spec; the backend then applies these rules to it. On other operations the header is ignored.
 
 ## Lists, filters, files, long-running work
 

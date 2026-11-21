@@ -52,12 +52,27 @@ class EmailLoginCodeRepository(
         )
     }
 
-    fun countCreatedSince(
+    /**
+     * Serialises sign-in starts for one address until the transaction ends, so concurrent requests
+     * can't all pass the per-address limits.
+     */
+    fun lockAddress(email: String) = advisoryLock(dsl, "email-login-code:${email.lowercase()}")
+
+    /** Creation time of the [n]-th newest code since [since], or `null` if there are fewer. */
+    fun nthNewestCreatedSince(
         email: String,
         since: Instant,
-    ): Int {
+        n: Int,
+    ): Instant? {
         val c = EMAIL_LOGIN_CODE
-        return dsl.fetchCount(c, c.EMAIL.eq(email).and(c.CREATED_AT.gt(since)))
+        return dsl
+            .select(c.CREATED_AT)
+            .from(c)
+            .where(c.EMAIL.eq(email), c.CREATED_AT.gt(since))
+            .orderBy(c.CREATED_AT.desc())
+            .offset(n - 1)
+            .limit(1)
+            .fetchOne(c.CREATED_AT)
     }
 
     fun insert(
@@ -181,6 +196,21 @@ class RefreshTokenRepository(
             ?.get(t.ID) ?: error("insert returned no id")
     }
 
+    fun findFamilyId(tokenHash: String): UUID? {
+        val t = REFRESH_TOKEN
+        return dsl
+            .select(t.FAMILY_ID)
+            .from(t)
+            .where(t.TOKEN_HASH.eq(tokenHash))
+            .fetchOne(t.FAMILY_ID)
+    }
+
+    /**
+     * Serialises rotation and revocation of one family until the transaction ends. Row locks are not
+     * enough: a revocation running next to a rotation would not see the replacement row being inserted.
+     */
+    fun lockFamily(familyId: UUID) = advisoryLock(dsl, "refresh-token-family:$familyId")
+
     fun findByHashForUpdate(tokenHash: String): RefreshTokenRow? {
         val t = REFRESH_TOKEN
         val record =
@@ -232,6 +262,14 @@ class RefreshTokenRepository(
         val t = REFRESH_TOKEN
         return dsl.deleteFrom(t).where(t.EXPIRES_AT.lt(instant)).execute()
     }
+}
+
+/** Transaction-scoped PostgreSQL advisory lock on a string key (hash collisions only over-serialise). */
+private fun advisoryLock(
+    dsl: DSLContext,
+    key: String,
+) {
+    dsl.execute("select pg_advisory_xact_lock(hashtextextended(?, 0))", key)
 }
 
 /** Columns declared `not null` are nullable in generated jOOQ code. */

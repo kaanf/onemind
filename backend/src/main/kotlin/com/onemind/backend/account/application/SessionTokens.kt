@@ -62,8 +62,10 @@ class SessionTokenService(
         // Decided in a transaction that commits also when the token is rejected (the family revocation).
         val rotation =
             transactions.execute {
+                val hash = secrets.hashRefreshToken(refreshToken)
+                refreshTokens.findFamilyId(hash)?.let(refreshTokens::lockFamily)
                 val now = clock.instant()
-                val current = refreshTokens.findByHashForUpdate(secrets.hashRefreshToken(refreshToken))
+                val current = refreshTokens.findByHashForUpdate(hash)
                 when {
                     current == null || current.revokedAt != null || current.expiresAt <= now -> {
                         Rotation.Invalid
