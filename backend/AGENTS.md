@@ -61,39 +61,23 @@ Inside each business module (ADR 0013 §2):
     └── client/          ← adapters to external systems (IdTokenVerifier, PosProvider implementations)
 ```
 
-Direction: `web → application, domain`; `api → application, domain`; `application → domain, infra,
-api/events`; `infra → domain`; `domain →` nothing. `common` is organised by area and follows R3–R7.
+**New backend code follows the structure of the `account` module.** Canonical slice:
+`account/web/AuthController` → `account/application/RefreshTokens` →
+`account/infra/persistence/RefreshTokenRepository`.
 
-Rules (ADR 0013 §3; C3 turns most of them into ArchUnit/Modulith gates):
+The direction (`web`/`api` → `application` → `domain` ← `infra`) and rules R1–R9 of ADR 0013 are
+build gates in `architecture/` (`ModuleBoundaryTests` runs them on the code; `StructureRulesTest` and
+`DatabaseAccessRulesTest` prove each one against fixtures). A red gate names the rule; read it in
+ADR 0013 §3 instead of working around it. What the gates don't check:
 
-- **R1** A module uses only its own schema's jOOQ package (`common` owns `platform`); another
-  module's data comes through its `api` or events, never its tables. Cross-module foreign keys only
-  to `account.venue` and `account.app_user`.
-- **R2** Use-case classes, not growing `*Service` classes: at most 5 collaborators per
-  `application` bean (`Clock`, `TransactionTemplate` don't count).
-- **R3/R4** jOOQ (`org.jooq..`, `com.onemind.db..`) only in `infra/persistence`; `Record`s never
-  leave it.
-- **R5** Generated OpenAPI types (`com.onemind.api.v1..`) only in `web` (a module's or `common/web`).
-- **R6** `domain` imports no Spring, jOOQ or Jackson; unit-test it without Spring.
-- **R7** Transactions only in `application`.
-- **R8** Module graph, declared with `@ApplicationModule(allowedDependencies = …)` in each module's
-  `package-info.java` (`src/main/java`; Kotlin can't annotate packages) and pinned by
-  `architecture/ModuleBoundaryTests`:
-
-  | Module | Allowed dependencies |
-  |--------|----------------------|
-  | `account` | `common` |
-  | `pos` | `common`, `account::api` |
-  | `reporting` | `common`, `account::api`, `pos::api`, `pos::events`, `stock::api`, `stock::events` |
-  | `stock` | `common`, `account::api`, `pos::api`, `pos::events` |
-
-  `common` is open but must be listed (an explicit list replaces Modulith's default). `api` and
-  `api/events` are named interfaces (`@NamedInterface("api")` / `("events")`). A new module needs
-  both `package-info.java` files, its graph entry here and in ADR 0013, and an entry in
-  `DatabaseAccessRules` and `ModuleBoundaryTests`.
-- **R9** No interface without a second implementation. Interfaces: `PosProvider` (mock now,
-  Storyous later), `ReceiptExtractor`, `LlmClient`. `EmailSender` and `FileStorage` are concrete.
-  Sealed result types are fine.
+- Cross-module foreign keys only to `account.venue` and `account.app_user` (R1, database level).
+- One use case per screen or job (R2; the gate checks the 5-collaborator limit and `*Service` names).
+- A new interface needs a second implementation or an ADR 0013 exception (R9; the gate holds the
+  allowlist `PosProvider`, `ReceiptExtractor`, `LlmClient`).
+- Module graph (R8): `@ApplicationModule(allowedDependencies = …)` in each module's
+  `package-info.java` (`src/main/java`), equal to ADR 0013 §4 (pinned by `ModuleBoundaryTests`).
+  `common` must be listed although it is open. A new module needs `package-info.java` for the module,
+  `api` and `api/events`, and entries in ADR 0013, `DatabaseAccessRules` and `ModuleBoundaryTests`.
 - `stock` uses aggregates and value objects; invariants live in the aggregate. `reporting` keeps its
   calculations in `reporting/domain` and its queries in `reporting/infra/persistence`, over its own
   tables. `pos` uses plain data classes.
@@ -157,7 +141,7 @@ Rules (ADR 0013 §3; C3 turns most of them into ArchUnit/Modulith gates):
   must reject a request passes the exception to the `handlerExceptionResolver` bean
   (`resolveException(request, response, null, e)`), so the problem looks like any other. No Arrow,
   no generic `Result` wrapper.
-- **Transactions:** one per use case, in `application`. Never call Claude or Storyous inside a DB
+- **Transactions:** one per use case (where: R7, gated). Never call Claude or Storyous inside a DB
   transaction.
 - **Concurrency:** Spring MVC on virtual threads with blocking jOOQ/JDBC. No coroutines, no
   WebFlux. Keep the HikariCP pool small (10–20) and bound concurrent calls to external APIs.
@@ -244,7 +228,7 @@ Rules (ADR 0013 §3; C3 turns most of them into ArchUnit/Modulith gates):
   `build/generated-src/jooq`, package `com.onemind.db.<schema>` (e.g. `com.onemind.db.pos`). `build`
   regenerates them when a migration changes; never edit generated code. A new schema must be added
   to `generateJooqClasses.schemas` in `build.gradle.kts`.
-- jOOQ `Record` types never leave `infra/`. Repositories return domain objects.
+- Records stay in `infra/persistence` (R4, gated in `architecture/StructureRules`).
 - Use jOOQ's DSL for all SQL, including reports (window functions, CTEs). No raw SQL strings except
   in migrations.
 - Bulk sync writes: `insertInto(...).onConflict(...).doUpdate()` with batching.

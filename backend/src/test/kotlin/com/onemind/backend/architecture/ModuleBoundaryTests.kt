@@ -52,4 +52,14 @@ class ModuleBoundaryTests {
 
         DatabaseAccessRules.rules().forEach { it.check(classes) }
     }
+
+    @Test
+    fun `code follows the ADR 0013 package direction and rules R2 to R9`() {
+        val classes =
+            ClassFileImporter()
+                .withImportOption(ImportOption.DoNotIncludeTests())
+                .importPackages("com.onemind.backend")
+
+        StructureRules.all().forEach { it.check(classes) }
+    }
 }

@@ -1,4 +1,4 @@
-package com.onemind.backend.architecture.fixture.stock.infra
+package com.onemind.backend.architecture.fixture.stock.infra.persistence
 
 import com.onemind.db.pos.tables.references.BILL
 
