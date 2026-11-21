@@ -36,7 +36,7 @@ class GuardFixturesTest {
         assertOffenders(
             Guards.moneyIsNotFloatingPoint(fixtures),
             "MisplacedPackage.kt:8:5 amount: Double",
-            "MoneyNames.kt:5:16 amount: Double",
+            "MoneyNames.kt:5:17 amount: Double",
             "MoneyNames.kt:7:1 possibleLoss: Double",
             "MoneyNames.kt:9:1 averageBill: Float",
             "ChartTotal.kt:5:5 revenue: Double",
