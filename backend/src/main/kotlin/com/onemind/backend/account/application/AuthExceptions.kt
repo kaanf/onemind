@@ -38,3 +38,15 @@ class RefreshTokenInvalidException :
         code = "REFRESH_TOKEN_INVALID",
         detail = "Your session has ended. Sign in again.",
     )
+
+class IdTokenInvalidException :
+    UnauthorizedException(
+        code = "ID_TOKEN_INVALID",
+        detail = "We couldn't confirm that sign-in. Try again.",
+    )
+
+class EmailNotVerifiedException :
+    RuleViolationException(
+        code = "EMAIL_NOT_VERIFIED",
+        detail = "This account has no verified email. Sign in with an email code instead.",
+    )

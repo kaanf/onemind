@@ -1,0 +1,103 @@
+package com.onemind.backend.account.application
+
+import com.onemind.backend.account.infra.IdTokenVerifier
+import com.onemind.backend.account.infra.IdentityProvider
+import com.onemind.backend.account.infra.UserAccountRepository
+import com.onemind.backend.account.infra.VerifiedIdToken
+import com.onemind.backend.common.error.RateLimitedException
+import com.onemind.backend.common.ratelimit.RateLimiter
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Service
+import org.springframework.transaction.support.TransactionTemplate
+import java.net.InetAddress
+import java.security.MessageDigest
+import java.time.Clock
+import java.util.HexFormat
+
+/**
+ * Sign in with Apple or Google (ADR 0004, screen A1). The ID token is verified first, outside the
+ * transaction (it may fetch the provider's keys). The user is found by the provider's subject, else
+ * by the token's verified email (linking an existing account, also an email-code one), else created.
+ * A token without a verified email can only sign in to an identity that is already linked.
+ */
+@Service
+class IdTokenSignIn(
+    private val verifier: IdTokenVerifier,
+    private val users: UserAccountRepository,
+    private val sessions: SessionTokenService,
+    private val rateLimiter: RateLimiter,
+    private val transactions: TransactionTemplate,
+    private val clock: Clock,
+) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
+    /** [rawNonce] is the value the app generated; Apple's token carries its SHA-256 (hex). */
+    fun signInWithApple(
+        identityToken: String,
+        rawNonce: String,
+        displayName: String?,
+        deviceName: String?,
+        ip: InetAddress?,
+    ): SessionTokens {
+        limitIp(ip)
+        val token = verify(IdentityProvider.APPLE, identityToken) { it == sha256Hex(rawNonce) }
+        return signIn(IdentityProvider.APPLE, token, displayName?.trim()?.takeIf { it.isNotEmpty() }, deviceName)
+    }
+
+    /** Google puts the [nonce] in the token unchanged; it is checked only when the app sends one. */
+    fun signInWithGoogle(
+        idToken: String,
+        nonce: String?,
+        deviceName: String?,
+        ip: InetAddress?,
+    ): SessionTokens {
+        limitIp(ip)
+        val token = verify(IdentityProvider.GOOGLE, idToken) { nonce == null || it == nonce }
+        return signIn(IdentityProvider.GOOGLE, token, displayName = null, deviceName)
+    }
+
+    private fun verify(
+        provider: IdentityProvider,
+        rawToken: String,
+        nonceMatches: (String?) -> Boolean,
+    ): VerifiedIdToken {
+        val token = verifier.verify(provider, rawToken) ?: throw IdTokenInvalidException()
+        if (!nonceMatches(token.nonce)) {
+            log.info("Rejected an ID token: provider={}, reason=nonce", provider)
+            throw IdTokenInvalidException()
+        }
+        return token
+    }
+
+    private fun signIn(
+        provider: IdentityProvider,
+        token: VerifiedIdToken,
+        displayName: String?,
+        deviceName: String?,
+    ): SessionTokens =
+        transactions.execute {
+            val now = clock.instant()
+            val email = token.email?.trim()?.takeIf { token.emailVerified && it.isNotEmpty() }
+            val userId =
+                users.findUserIdByIdentity(provider, token.subject)
+                    ?: email?.let { users.findOrCreateByVerifiedEmail(it, now, displayName) }
+                    ?: throw EmailNotVerifiedException()
+            users.linkIdentity(userId, provider, token.subject, email, now)
+            log.info("Signed in with an ID token: provider={}, userId={}", provider, userId)
+            sessions.startSession(userId, deviceName, now)
+        } ?: error("transaction returned no tokens")
+
+    private fun limitIp(ip: InetAddress?) {
+        if (ip == null) return
+        rateLimiter.tryAcquire("auth-id-token:ip:${ip.hostAddress}", LIMIT_PER_IP, EmailSignIn.IP_LIMIT_WINDOW)?.let {
+            throw RateLimitedException(it)
+        }
+    }
+
+    private fun sha256Hex(value: String): String =
+        HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.toByteArray()))
+
+    companion object {
+        const val LIMIT_PER_IP = 30
+    }
+}
