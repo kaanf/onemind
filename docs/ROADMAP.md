@@ -57,7 +57,8 @@ Last updated: 2026-11-21.
       (light palette only; dark palette waits for P7)
 - [ ] App shell: navigation root, 4-tab bar (Today, Sales, Staff, Stock later), Koin + graph test
 - [ ] Variants `dev`/`prod` with BuildKonfig; Sentry in hosts
-- [ ] GitHub Actions: common tests + Android build on PR; iOS build on `dev`/`main` + nightly
+- [x] GitHub Actions: common tests + Android build on PR; iOS build on `dev`/`main` + nightly
+      (nightly/manual iOS runs start once `main` has the workflow, i.e. after the first release)
 
 ## Phase 3 — Auth (first vertical slice)
 
