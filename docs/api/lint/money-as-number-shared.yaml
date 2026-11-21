@@ -1,0 +1,14 @@
+# Second file for money-as-number.yaml: an array whose items are a $ref relative to this file.
+Amounts:
+  type: array
+  items:
+    $ref: '#/Num'
+Num:
+  type: number
+MinorAmounts:
+  type: array
+  items:
+    $ref: '#/Minor'
+Minor:
+  type: integer
+  format: int64

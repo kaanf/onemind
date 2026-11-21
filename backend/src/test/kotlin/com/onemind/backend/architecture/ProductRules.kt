@@ -135,10 +135,11 @@ object ProductRules {
             .because("the POS is read-only: we never write to Storyous (AGENTS.md rule 1)")
             .allowEmptyShould(true)
 
-    /** Splits `getTotalPrice`, `amount_minor` or `Payment$Companion` into lower-case words. */
+    /** Splits `getTotalPrice`, `amount_minor` or `Payment$Companion` into lower-case words; drops a mangled `-<hash>`. */
     fun tokens(name: String): List<String> =
         name
-            .split('_', '$', '-')
+            .substringBefore('-')
+            .split('_', '$')
             .flatMap { it.split(Regex("(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")) }
             .filter { it.isNotEmpty() }
             .map { it.lowercase() }

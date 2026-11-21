@@ -1,6 +1,6 @@
-// Redocly plugin for AGENTS.md rule 5: a money-named property (or the items of a money-named array)
-// is the Money object, int64 minor units or a decimal string (sub-minor prices, README#data-formats),
-// never a JSON number. Names are matched by whole words from money-words.json, exactly like backend
+// Redocly plugin for AGENTS.md rule 5: a money-named property or component (or the items or map
+// values of one) is the Money object, int64 minor units or a decimal string (sub-minor prices,
+// README#data-formats), never a JSON number. Names are matched by whole words from money-words.json, exactly like backend
 // architecture/ProductRules. Proven by money-as-number.yaml (CI, api job).
 import { readFileSync } from 'node:fs';
 
@@ -24,25 +24,32 @@ export const isMoneyName = (name) => {
 };
 
 function MoneyMinorUnits() {
-  const check = (raw, ctx, location) => {
-    const schema = ctx.resolve(raw).node;
+  // `from` is the file `raw` sits in, so a relative $ref inside another file resolves against that file.
+  const check = (raw, from, ctx, location) => {
+    const resolved = ctx.resolve(raw, from);
+    const schema = resolved.node;
     if (!schema || typeof schema !== 'object') return;
+    const source = resolved.location?.source.absoluteRef ?? from;
     if (schema.type === 'number') {
       ctx.report({ message: 'Money is the Money object, int64 minor units or a decimal string, never a JSON number (AGENTS.md rule 5).', location });
     } else if (schema.type === 'integer' && schema.format !== 'int64') {
       ctx.report({ message: 'Money in minor units is int64 (AGENTS.md rule 5).', location });
     } else if (schema.type === 'array' && schema.items) {
-      check(schema.items, ctx, location.child(['items']));
+      check(schema.items, source, ctx, location.child(['items']));
+    } else if (schema.additionalProperties && typeof schema.additionalProperties === 'object') {
+      check(schema.additionalProperties, source, ctx, location.child(['additionalProperties']));
+    }
+  };
+  const checkMoneyNamed = (schemas, ctx) => {
+    for (const [key, schema] of Object.entries(schemas)) {
+      if (isMoneyName(key)) check(schema, ctx.location.source.absoluteRef, ctx, ctx.location.child([key]));
     }
   };
   return {
-    SchemaProperties: {
-      enter(properties, ctx) {
-        for (const [key, schema] of Object.entries(properties)) {
-          if (isMoneyName(key)) check(schema, ctx, ctx.location.child([key]));
-        }
-      },
-    },
+    // Money-named properties, and money-named components (`Price`), which may be used under any
+    // property name or directly as a body.
+    SchemaProperties: { enter: checkMoneyNamed },
+    NamedSchemas: { enter: checkMoneyNamed },
   };
 }
 

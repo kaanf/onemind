@@ -24,6 +24,21 @@ paths:
                 $ref: '#/components/schemas/Fixture'
         '400':
           description: Bad request
+  /price:
+    get:
+      operationId: getPrice
+      summary: Price
+      description: A money-named component used directly as a body.
+      tags: [fixture]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Price'
+        '400':
+          description: Bad request
 tags:
   - name: fixture
     description: Fixture
@@ -38,6 +53,9 @@ components:
           format: int64
         currency:
           type: string
+    # Violation: a money-named component as a JSON number, whatever name or body it is used under.
+    Price:
+      type: number
     Fixture:
       type: object
       properties:
@@ -73,6 +91,13 @@ components:
           items:
             type: integer
             format: int32
+        totalsByDay:
+          type: object
+          additionalProperties:
+            type: number
+        # Items are a relative $ref inside the other file, resolved against that file.
+        crossFilePrices:
+          $ref: './money-as-number-shared.yaml#/Amounts'
         # Allowed: the Money object, int64 minor units, a sub-minor decimal string, ratios, counts and words that only contain a money token.
         revenue:
           $ref: '#/components/schemas/Money'
@@ -108,3 +133,12 @@ components:
             type: number
         costume:
           type: number
+        # Price is reported at its definition, not again here.
+        unitValue:
+          $ref: '#/components/schemas/Price'
+        revenueByVenue:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/Money'
+        sharedCosts:
+          $ref: './money-as-number-shared.yaml#/MinorAmounts'

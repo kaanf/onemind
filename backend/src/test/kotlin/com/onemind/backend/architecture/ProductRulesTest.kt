@@ -58,6 +58,7 @@ class ProductRulesTest {
         assertEquals(listOf("get", "total", "price"), ProductRules.tokens("getTotalPrice"))
         assertEquals(listOf("amount", "minor"), ProductRules.tokens("amount_minor"))
         assertEquals(listOf("bill", "row", "companion"), ProductRules.tokens("BillRow\$Companion"))
+        assertEquals(listOf("charge"), ProductRules.tokens("charge-NetTip4"))
         listOf(
             "totalPrice",
             "amountMinor",

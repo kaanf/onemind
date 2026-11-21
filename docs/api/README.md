@@ -86,7 +86,8 @@ is a plan; the source of truth for shapes is the OpenAPI spec once written.
 | Percentages, deltas | raw number, app formats | `12.4` |
 
 Never send money or quantities as JSON floats. The lint rule `onemind/money-minor-units`
-(`lint/money-plugin.js`) checks money-named properties and array items by whole words from
+(`lint/money-plugin.js`) checks money-named properties and components (`Price`), their array items
+and map values (`additionalProperties`), also across `$ref`'d files, by whole words from
 `lint/money-words.json`; a money name that isn't money ends in `Rate`, `Ratio`, `Percent`, `Pct`,
 `Share`, `Count` or `Quantity`. Responses that depend on local time include the venue `timeZone`.
 

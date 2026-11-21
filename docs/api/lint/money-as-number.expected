@@ -1,6 +1,7 @@
 #/components/schemas/Fixture/properties/amountMinor
 #/components/schemas/Fixture/properties/averageBill
 #/components/schemas/Fixture/properties/costsMinor/items
+#/components/schemas/Fixture/properties/crossFilePrices/items
 #/components/schemas/Fixture/properties/lossMinor
 #/components/schemas/Fixture/properties/net_revenue
 #/components/schemas/Fixture/properties/prices/items
@@ -9,3 +10,5 @@
 #/components/schemas/Fixture/properties/tip
 #/components/schemas/Fixture/properties/tips
 #/components/schemas/Fixture/properties/totalPrice
+#/components/schemas/Fixture/properties/totalsByDay/additionalProperties
+#/components/schemas/Price
