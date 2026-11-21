@@ -41,8 +41,8 @@ version in use.
 
 | Table | Purpose / key columns |
 |-------|------------------------|
-| `event_publication` | Spring Modulith event publication registry (DDL from Spring Modulith 2.x JDBC). Set `spring.modulith.events.jdbc.schema=platform` and disable its schema initialization (Flyway owns the DDL). A job purges completed publications older than 7 days. |
-| `scheduled_tasks` | db-scheduler task table (DDL from db-scheduler). |
+| `event_publication` | Spring Modulith event publication registry, v2 structure (DDL from Spring Modulith 2.2 JDBC, `V005`). `spring.modulith.events.jdbc.schema=platform`, schema initialization disabled (Flyway owns the DDL). db-scheduler jobs purge completed publications older than 7 days (hourly) and resubmit failed ones older than 10 minutes (every 5 minutes). |
+| `scheduled_tasks` | db-scheduler task table (DDL from db-scheduler 17.1, `V005`). `db-scheduler.table-name=platform.scheduled_tasks`. |
 | `idempotency_record` | `user_id`, `key`, `method`, `path`, `request_hash`, `status (IN_PROGRESS\|COMPLETED)`, `response_status`, `response_body jsonb`, `created_at`, `expires_at` (24 h). PK `(user_id, key)`. |
 
 ## `account`

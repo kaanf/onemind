@@ -15,6 +15,18 @@ spring:
     schemas: platform
   jooq:
     sql-dialect: postgres
+  modulith:
+    events:
+      jdbc:
+        # Flyway owns the DDL (V005).
+        schema: platform
+        schema-initialization:
+          enabled: false
+
+db-scheduler:
+  table-name: platform.scheduled_tasks
+  # Start polling only when the application is ready, not while beans are still being created.
+  delay-startup-until-context-ready: true
 
 management:
   endpoints:
