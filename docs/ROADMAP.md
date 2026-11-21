@@ -106,6 +106,7 @@ green run after it.
 - [ ] Gate follow-ups from the #39/#43 reviews: mobile Konsist reads `docs/api/lint/money-words.json`
       instead of a copy, one plural rule for not-money suffixes in all three gates; spec lint survives
       self-referencing schemas; `billNumber`-style ids not flagged; unreflectable classes fail the rule;
+      `mobile/AGENTS.md` documents the typealias-to-`Double` limit;
       `backend/AGENTS.md` names the hour helper in `BusinessDayCalendar`; `METRICS.md` says rollup
       business dates come from `BusinessDayCalendar`, not SQL date functions
 - [ ] End-to-end auth smoke test: real backend (Testcontainers) driven by a client generated from
