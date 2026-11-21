@@ -6,7 +6,8 @@ import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
 /**
  * jOOQ package rules from ADR 0013 (R1): each module uses only its own schema package (`common`
  * owns `platform`); data of another module comes through its `api` or events, never its tables.
- * Only `infra` packages touch jOOQ classes (R3 narrows this to `infra.persistence` with the C3 gates).
+ * Only `infra.persistence` packages touch jOOQ (`org.jooq..` and the generated classes; R3), also in
+ * `common`.
  * Roots are parameters so the rules can be tested against fixtures.
  */
 object DatabaseAccessRules {
@@ -39,10 +40,10 @@ object DatabaseAccessRules {
                 .that()
                 .resideInAPackage("$appRoot..")
                 .and()
-                .resideOutsideOfPackage("..infra..")
+                .resideOutsideOfPackage("..infra.persistence..")
                 .should()
                 .dependOnClassesThat()
-                .resideInAPackage("$dbRoot..")
-                .because("jOOQ types stay inside infra (ADR 0002)")
+                .resideInAnyPackage("$dbRoot..", "org.jooq..")
+                .because("jOOQ types stay inside infra.persistence (ADR 0013, R3)")
                 .allowEmptyShould(true)
 }

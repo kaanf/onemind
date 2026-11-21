@@ -251,7 +251,9 @@ Every ArchUnit rule gets a fixture that violates it and a test proving the rule 
   - Paths in docs: ADR 0004 implementation notes and `backend/AGENTS.md` ("Where it lives",
     "Architecture") follow the moves in the same PR.
   - `@ApplicationModule(allowedDependencies = …)` on every module.
-- **C3:** the ArchUnit and Modulith gates in §7, with fixture tests, mandatory in CI.
+- **C3 (done):** the gates in §7 live in `backend/src/test/.../architecture/` (`StructureRules`,
+  `DatabaseAccessRules`, `ModuleBoundaryTests`); fixtures in `com.onemind.archfixture` (outside the
+  application package, so component scanning never loads them) prove each rule catches its violation.
 - **Docs:** `backend/AGENTS.md` ("Architecture", "Rules", the AI rule on `LlmClient` and the
   hosting list of interfaces) follows this ADR in C2; ADR 0009 is kept for history, superseded.
   ADR 0008's "external services sit behind interfaces" now reads: `FileStorage` and `EmailSender`
