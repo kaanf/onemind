@@ -69,7 +69,12 @@ owner's other KMP project (crew-kmp).
 | Backend: build, unit + integration tests (Testcontainers), Spring Modulith boundary test, ktlint (detekt once 2.0 is stable) | every PR | yes |
 | API: spec lint + `oasdiff breaking` | PRs touching `docs/api/` | yes |
 | Mobile: common tests, Koin graph test, Android build | every PR | yes |
+| iOS framework compile + link for the simulator (Gradle, macOS runner) | PRs touching `mobile/` or `docs/api/` | yes |
 | iOS build (macOS runner) | merges to `dev` and `main`, nightly | no (quota: macOS minutes count many times against private-repo minutes; verify current GitHub pricing) |
+
+The checks above are jobs in `.github/workflows/ci.yml` (the full iOS build is `ios.yml`). The
+branch rules require one check, **CI result**, which fails when any job fails or is cancelled, or is
+skipped although its paths changed.
 
 - No coverage-percentage gate. Required tests by rule instead: a unit test per metric definition,
   a cross-venue access test per endpoint, a duplicate-delivery test per event listener, a test per

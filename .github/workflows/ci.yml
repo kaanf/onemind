@@ -1,6 +1,8 @@
-# CI gates from ADR 0012 §6 (backend, mobile) and ADR 0001 (API spec). The iOS build is in ios.yml.
-# On a PR each job runs only when its paths changed. A job skipped by its `if` reports success, so
-# the jobs stay usable as required checks (a workflow-level `paths` filter would leave them pending).
+# CI gates from ADR 0012 §6 (backend, mobile, iOS framework) and ADR 0001 (API spec). The full
+# xcodebuild of the iOS app is in ios.yml.
+# On a PR each job runs only when its paths changed (a workflow-level `paths` filter would leave
+# required checks pending). "CI result" is the only required check: it fails when any job fails or
+# is cancelled, or is skipped although its area changed, so a skipped job can't pass as green.
 name: CI
 
 on:
@@ -169,3 +171,90 @@ jobs:
           name: mobile-test-reports
           path: mobile/**/build/reports/
           retention-days: 7
+
+  # Compiles and links the shared framework for the simulator, which catches iOS-only Kotlin errors
+  # (iosMain, expect/actual, cinterop) on every mobile PR in a fraction of the full xcodebuild time.
+  ios-compile:
+    name: iOS framework compile
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.mobile != 'false' }}
+    runs-on: macos-26
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # core:api bundles the split spec with Redocly (npx) before generating models.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-provider: basic
+          cache-read-only: ${{ github.ref != 'refs/heads/dev' && github.ref != 'refs/heads/main' }}
+
+      - run: ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
+
+  # The single required check. Each job maps to the `changes` output that gates it; a job missing
+  # from `needs` or from the map fails this check, so new jobs can't slip past it.
+  ci-result:
+    name: CI result
+    needs: [changes, backend, api, mobile, ios-compile]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/workflows/ci.yml
+          sparse-checkout-cone-mode: false
+
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          area() {
+            case "$1" in
+              backend) echo backend ;;
+              api) echo api ;;
+              mobile | ios-compile) echo mobile ;;
+            esac
+          }
+          fail=0
+          error() { echo "::error title=CI result::$1"; fail=1; }
+
+          # yq is preinstalled on ubuntu runners.
+          jobs=$(yq '.jobs | keys | .[]' .github/workflows/ci.yml | grep -vx ci-result)
+          [ -n "$jobs" ] || error "No jobs found in ci.yml."
+          for job in $jobs; do
+            jq -e --arg j "$job" 'has($j)' <<<"$NEEDS" >/dev/null || error "$job is missing from ci-result needs."
+            [ "$job" = changes ] || [ -n "$(area "$job")" ] || error "$job has no area in ci-result."
+          done
+
+          result=$(jq -r '.changes.result' <<<"$NEEDS")
+          [ "$result" = success ] || error "changes: $result"
+
+          for job in $(jq -r 'keys[] | select(. != "changes")' <<<"$NEEDS"); do
+            result=$(jq -r --arg j "$job" '.[$j].result' <<<"$NEEDS")
+            changed=$(jq -r --arg a "$(area "$job")" '.changes.outputs[$a] // ""' <<<"$NEEDS")
+            echo "$job: $result ($(area "$job") changed: ${changed:-unknown})"
+            case "$result" in
+              success) ;;
+              skipped)
+                # On push and manual runs every job must run; on a PR only unchanged areas may skip.
+                if [ "$EVENT" != pull_request ] || [ "$changed" != false ]; then
+                  error "$job was skipped although its area changed."
+                fi
+                ;;
+              *) error "$job: $result" ;;
+            esac
+          done
+          exit "$fail"
