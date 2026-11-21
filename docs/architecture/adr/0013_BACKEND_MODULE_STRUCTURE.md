@@ -120,7 +120,9 @@ to `web`. Allowed dependencies inside a module, and nothing else:
 | `reporting` | – | `account::api`, `pos::api`, `pos::events`, `stock::api`, `stock::events` | Venue access; reads POS facts through the pos read API; refreshes rollups on `BillsSynced`; `possibleLoss` includes `stockCorrections` (METRICS), read through `stock::api` and refreshed on stock correction events. Without stock in the first release (P13) that part is an empty state, never 0. |
 | `stock` | – | `account::api`, `pos::api`, `pos::events` | Venue access; sold items and the product catalog for usage and recipes; deducts usage on `BillsSynced`. |
 
-`api` and `api/events` are named interfaces (`::api`, `::events`) in every module. Nothing depends
+Every module also lists `common` in `allowedDependencies`: it is open, but an explicit list replaces
+Spring Modulith's default, so it must be named. `api` and `api/events` are named interfaces (`::api`,
+`::events`) in every module. Nothing depends
 on `reporting`, and only `reporting` depends on `stock`, so the graph has no cycle (Spring Modulith
 checks that). `stock` must never need `reporting`: a number both show is computed in `stock` and
 read by `reporting`.
@@ -231,7 +233,9 @@ Every ArchUnit rule gets a fixture that violates it and a test proving the rule 
   - `account/infra/AuthJobs` → `application`.
   - `common/idempotency/infra` → `common/idempotency/infra/persistence`.
   - `EmailSignIn` (9 dependencies) split into `StartEmailSignIn` and `VerifyEmailSignIn`;
-    `IdTokenSignIn` (6) into `SignInWithApple` and `SignInWithGoogle` over a shared helper (R2).
+    `IdTokenSignIn` stays one class (done in C2): after the shared rate limit and hash moved out it
+    has 5 collaborators, serves one screen (A1), and Apple and Google differ only in the nonce check and
+    the display name, so a split would add two thin classes and a helper without removing code.
   - `SessionTokenService` split into use cases (start session as a helper of the sign-ins,
     `RefreshTokens`, `Logout`).
   - `VenueAccess`: interface plus `VenueAccessService` becomes one concrete facade class in

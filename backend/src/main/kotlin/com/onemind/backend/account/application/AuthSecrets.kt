@@ -52,7 +52,10 @@ class AuthSecrets(
 
     fun newRefreshToken(): String = Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32).also(random::nextBytes))
 
-    fun hashRefreshToken(token: String): String = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(token.toByteArray()))
+    fun hashRefreshToken(token: String): String = sha256Hex(token)
+
+    /** Lowercase hex SHA-256 of [value] (UTF-8), as Apple's nonce claim carries it. */
+    fun sha256Hex(value: String): String = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.toByteArray()))
 
     private companion object {
         const val HMAC = "HmacSHA256"

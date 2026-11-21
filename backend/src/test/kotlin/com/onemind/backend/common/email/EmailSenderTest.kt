@@ -5,7 +5,7 @@ import org.springframework.mail.SimpleMailMessage
 import org.springframework.mail.javamail.JavaMailSenderImpl
 import kotlin.test.assertEquals
 
-class SmtpEmailSenderTest {
+class EmailSenderTest {
     private class RecordingMailSender : JavaMailSenderImpl() {
         val sent = mutableListOf<SimpleMailMessage>()
 
@@ -18,7 +18,7 @@ class SmtpEmailSenderTest {
     fun `sends from the configured sender`() {
         val mail = RecordingMailSender()
 
-        SmtpEmailSender(mail, "OneMind <no-reply@onemind.app>").send(EmailMessage("owner@example.com", "Subject", "Text"))
+        EmailSender(mail, "OneMind <no-reply@onemind.app>").send(EmailMessage("owner@example.com", "Subject", "Text"))
 
         val message = mail.sent.single()
         assertEquals("OneMind <no-reply@onemind.app>", message.from)

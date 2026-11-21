@@ -13,20 +13,17 @@ data class EmailMessage(
 )
 
 /**
- * Port for sending emails (ADR 0009). The provider is chosen with hosting (ADR 0004/0008,
- * `docs/OPEN_QUESTIONS.md`); every candidate speaks SMTP, so changing it is configuration only.
+ * Sends emails over SMTP through Spring's [JavaMailSender] (`spring.mail.*`; Mailpit locally). The
+ * provider is chosen with hosting (ADR 0004/0008, `docs/OPEN_QUESTIONS.md`); every candidate speaks
+ * SMTP, so changing it is configuration only, and this is a concrete class (ADR 0013, R9). Tests
+ * replace the [JavaMailSender] bean.
  */
-interface EmailSender {
-    fun send(message: EmailMessage)
-}
-
-/** SMTP through Spring's [JavaMailSender] (`spring.mail.*`); Mailpit locally. */
 @Component
-class SmtpEmailSender(
+class EmailSender(
     private val mailSender: JavaMailSender,
     @param:Value("\${onemind.mail.from}") private val sender: String,
-) : EmailSender {
-    override fun send(message: EmailMessage) {
+) {
+    fun send(message: EmailMessage) {
         mailSender.send(
             // Not `from`: inside apply it would be the message's own (empty) sender.
             SimpleMailMessage().apply {
