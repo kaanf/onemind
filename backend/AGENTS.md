@@ -116,7 +116,12 @@ Rules:
 - **Errors:** expected business outcomes the caller must handle are **sealed return types**
   (`Matched | NeedsMatch | Unreadable`). Rule violations and unexpected failures are exceptions
   from the sealed `DomainException` hierarchy (stable error codes), mapped once to RFC 9457 Problem
-  Details in a `@ControllerAdvice`. No Arrow, no generic `Result` wrapper.
+  Details in `common/error/ApiExceptionHandler`. A module's exception extends one of the categories
+  in `common/error/DomainException.kt` (`InvalidRequestException` 400, `ForbiddenException` 403,
+  `NotFoundException` 404, `ConflictException` 409, `RuleViolationException` 422) with its own
+  `code`, an English `detail` without personal data and optional `params`. Filters that answer
+  before Spring MVC build their problem with `common/error/Problems`. No Arrow, no generic `Result`
+  wrapper.
 - **Transactions:** one per use case, in `application`. Never call Claude or Storyous inside a DB
   transaction.
 - **Concurrency:** Spring MVC on virtual threads with blocking jOOQ/JDBC. No coroutines, no

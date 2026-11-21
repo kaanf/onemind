@@ -10,4 +10,4 @@ properties:
   code:
     type: string
     description: Stable validation code (`SCREAMING_SNAKE`).
-    example: MUST_BE_POSITIVE
+    example: POSITIVE

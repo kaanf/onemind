@@ -98,12 +98,20 @@ RFC 9457 Problem Details with extension members:
   "detail": "This receipt was approved on 17 Nov and can't be approved again.",
   "params": { "approvedAt": "2026-11-17T14:05:00Z" },
   "traceId": "4bf92f3577b34da6",
-  "errors": [{ "field": "lines[2].quantity", "code": "MUST_BE_POSITIVE" }]
+  "errors": [{ "field": "lines[2].quantity", "code": "POSITIVE" }]
 }
 ```
 
 - `code` is stable and machine-readable; the app switches on it, never on `title`/`detail`.
-- `errors[]` lists field validation problems.
+- `type` is `https://api.onemind.app/problems/` + the code in kebab case; `title` is the code as a
+  sentence (`RECEIPT_ALREADY_APPROVED` → `Receipt already approved`).
+- `errors[]` lists field validation problems (`400` with code `VALIDATION_FAILED`). A field's `code`
+  is the Bean Validation constraint in `SCREAMING_SNAKE` (`@NotBlank` → `NOT_BLANK`, `@Positive` →
+  `POSITIVE`).
+- Codes that are not specific to a feature: `VALIDATION_FAILED`, `VERSION_CONFLICT`,
+  `INTERNAL_ERROR` (`500`, never with internal details) and the HTTP status name for requests that
+  fail before reaching a feature (`BAD_REQUEST` for malformed JSON or a missing parameter,
+  `NOT_FOUND` for an unknown path, `METHOD_NOT_ALLOWED`, `UNSUPPORTED_MEDIA_TYPE`, …).
 - Status codes: `400` malformed, `401` no/invalid token, `403` no access to the venue,
   `404` not found (also for resources in venues the user can't access, so they're not revealed),
   `409` conflict (version, state), `422` business rule violation, `426` app too old,

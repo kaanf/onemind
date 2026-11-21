@@ -37,7 +37,7 @@ Last updated: 2026-11-21.
 - [x] Module packages `account`, `pos`, `reporting`, `stock`, `common` + Spring Modulith boundary
       test (incl. jOOQ package rules)
 - [x] Spring Modulith event publication registry (JDBC, `platform` schema, purge job) + db-scheduler
-- [ ] Error handling: `DomainException` hierarchy + RFC 9457 `@ControllerAdvice` (`code`, `detail`,
+- [x] Error handling: `DomainException` hierarchy + RFC 9457 `@ControllerAdvice` (`code`, `detail`,
       `params`, `traceId`)
 - [x] Structured JSON logging + Micrometer Tracing (`traceId`, `X-Request-Id`)
 - [ ] Idempotency-Key filter + `platform.idempotency_record`
@@ -60,6 +60,8 @@ Last updated: 2026-11-21.
       `DELETE /me` (ADR 0004)
 - [ ] Mobile: A1 sign in, A2 email code, secure token storage, refresh on 401, update screen on 426
 - [ ] Tests for every auth rule; cross-venue access test helper
+- [ ] Security `AuthenticationEntryPoint` / `AccessDeniedHandler` answer `401`/`403` as RFC 9457
+      problems via `common/error/Problems` (until then Spring Security's own responses)
 
 ## Phase 4 — Storyous integration
 
