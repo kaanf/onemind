@@ -14,8 +14,9 @@ Last updated: 2026-11-21.
   `pos`, `reporting`), backend scaffold, local Docker (Colima) are in `dev`.
 - **Phase 1 is done.** Error handling, JSON logging + tracing, idempotency, event registry +
   db-scheduler and CI (backend build/test, spec lint, `oasdiff breaking`) are in `dev`.
-- **Current phase: 2 — Mobile scaffold.** Phase 3 backend auth runs in parallel (backend lane): JWT, refresh rotation and email code are
-  in `dev` (#22); Apple/Google and logout/`DELETE /me` follow.
+- **Current phase: 2 — Mobile scaffold.** Phase 3 backend auth is done in parallel (backend lane):
+  email code, JWT + refresh rotation (#22), Apple/Google (#27), logout and `DELETE /me` (#28). Next:
+  auth rule tests + cross-venue helper (backend), app shell (mobile).
 - **Blockers outside the code:** Storyous partnership / API credentials (P15, owner); design
   additions for the first-release Stock tab landing and location form (owner, only needed in
   phase 6); update the design canvas to the two darkened colour tokens (`textSecondary`,
@@ -63,7 +64,7 @@ Last updated: 2026-11-21.
 
 ## Phase 3 — Auth (first vertical slice)
 
-- [ ] Backend: email code (start/verify), Apple, Google, JWT access + rotating refresh, logout,
+- [x] Backend: email code (start/verify), Apple, Google, JWT access + rotating refresh, logout,
       `DELETE /me` (ADR 0004)
 - [ ] Mobile: A1 sign in, A2 email code, secure token storage, refresh on 401, update screen on 426
 - [ ] Tests for every auth rule; cross-venue access test helper
@@ -80,6 +81,7 @@ Last updated: 2026-11-21.
 - [ ] Reporting rollups refreshed from `BillsSynced`; rebuild job
 - [ ] Onboarding A3–A5 (adapted: no OAuth redirect; see `docs/integrations/STORYOUS.md`)
 - [ ] Until credentials exist: build and test against recorded fixtures
+- [ ] Purge job: delete organizations whose `deletion_due_at` has passed (set by `DELETE /me`, #28)
 
 ## Phase 5 — Dashboards
 
@@ -102,6 +104,10 @@ Last updated: 2026-11-21.
 - [ ] Czech translation
 - [ ] Hetzner VM: Caddy, backend, PostgreSQL, nightly off-site backups + restore test (ADR 0008)
 - [ ] Production Sentry, uptime monitor, transactional email provider
+- [ ] Prod config: set `APPLE_CLIENT_IDS` / `GOOGLE_CLIENT_IDS` (empty = provider off)
+- [ ] Apple token revocation on account deletion (`/auth/revoke`): app sends `authorizationCode`,
+      store the Apple refresh token per identity, `.p8` client-secret key; required before App Store
+      review (deferred by the owner; `docs/architecture/README.md` item 12)
 - [ ] Privacy policy, terms, GDPR review (account deletion, data retention)
 - [ ] App Store / Play listings, first release `dev` → `main` + tag
 
