@@ -136,8 +136,9 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
       (`modifiedSince`), initial 90-day import, `BillsSynced` event
 - [ ] Reporting rollups refreshed from `BillsSynced`; rebuild job
 - [ ] Later (P15): read-only Storyous client behind `PosProvider` (client credentials, token cache,
-      paging), built and tested against recorded fixtures that fail on any non-GET call; onboarding
-      A3–A5 (no OAuth redirect; see `docs/integrations/STORYOUS.md`)
+      paging), built and tested against recorded fixtures that fail on any non-GET call; drop
+      `allowEmptyShould(true)` from `ProductRules.posIsReadOnly` so the gate proves a non-empty
+      scope; onboarding A3–A5 (no OAuth redirect; see `docs/integrations/STORYOUS.md`)
 - [ ] Purge job: delete organizations whose `deletion_due_at` has passed (set by `DELETE /me`, #28)
 - [ ] Phase-end `REVIEW pr: audit`
 
