@@ -16,7 +16,7 @@ Last updated: 2026-11-21.
   db-scheduler and CI (backend build/test, spec lint, `oasdiff breaking`) are in `dev`.
 - **Current phase: 2 — Mobile scaffold.** Phase 3 backend auth is done in parallel (backend lane):
   email code, JWT + refresh rotation (#22), Apple/Google (#27), logout and `DELETE /me` (#28). Next:
-  auth rule tests + cross-venue helper (backend), app shell (mobile).
+  auth rule tests + `VenueAccess` cross-venue check (#30). Next: app shell (mobile).
 - **Blockers outside the code:** Storyous partnership / API credentials (P15, owner); design
   additions for the first-release Stock tab landing and location form (owner, only needed in
   phase 6); update the design canvas to the two darkened colour tokens (`textSecondary`,
@@ -67,7 +67,7 @@ Last updated: 2026-11-21.
 - [x] Backend: email code (start/verify), Apple, Google, JWT access + rotating refresh, logout,
       `DELETE /me` (ADR 0004)
 - [ ] Mobile: A1 sign in, A2 email code, secure token storage, refresh on 401, update screen on 426
-- [ ] Tests for every auth rule; cross-venue access test helper
+- [x] Tests for every auth rule; cross-venue access test helper
 - [x] Security `AuthenticationEntryPoint` / `AccessDeniedHandler` answer `401`/`403` as RFC 9457
       problems through the `handlerExceptionResolver` (until then Spring Security's own responses)
 - [x] The authenticated principal's name is the user's UUID (JWT `sub`): `IdempotencyFilter` scopes
