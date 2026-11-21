@@ -49,6 +49,31 @@ The backend issues and verifies **its own tokens** with Spring Security.
 - Emails are sent through a transactional email provider (chosen with hosting).
 - All auth events are logged (no codes or tokens in logs).
 
+## Implementation notes (2026-11-21)
+
+- **Libraries:** none beyond Spring Security; the resource-server starter brings Nimbus JOSE+JWT,
+  used to sign (`NimbusJwtEncoder`) and verify (`NimbusJwtDecoder`). Apple/Google tokens will use
+  `NimbusJwtDecoder.withJwkSetUri` with their JWKS. Email goes out through `spring-boot-starter-mail`
+  (SMTP) behind `EmailSender`; the provider is open (`docs/architecture/README.md`, item 11).
+- **Access token:** ES256 (P-256). The signing key is a private JWK with `kid` in `JWT_SIGNING_KEY`
+  (`./gradlew generateJwtKey`); required in `prod`, a temporary key per process otherwise. Claims:
+  `iss` `https://api.onemind.app`, `aud` `onemind-app`, `sub` user ID, `iat`, `exp`, `jti`.
+- **Key rotation:** generate a new key, set it as `JWT_SIGNING_KEY` and put the old key's public JWK
+  in `JWT_PREVIOUS_PUBLIC_KEY`; remove it after 15 minutes (the access-token lifetime). Refresh tokens
+  are not affected.
+- **Email codes:** HMAC-SHA256 of address and code with a pepper (`EMAIL_CODE_PEPPER`; required in
+  `prod`), so a database leak doesn't reveal codes (a plain hash of 6 digits is trivial to reverse).
+  Only the latest code of an address counts. Limits: 5 codes per address per hour, resend after
+  30 s (database); 10 starts and 30 verifications per IP per 10 minutes (in memory, one instance per
+  ADR 0008). The client IP comes from `X-Forwarded-For` only behind a private-network proxy
+  (`server.forward-headers-strategy: native`).
+- **Sending:** after the code's transaction commits, in the request; a failure is logged and the user
+  asks again after 30 s. Not through the event publication registry, which would store the plain
+  code in `platform.event_publication`.
+- **Refresh tokens:** 256 random bits, stored as SHA-256. A refresh rotates within the family; a
+  used, revoked or expired token answers `401 REFRESH_TOKEN_INVALID`, and a used one also revokes the
+  family. An hourly job deletes expired refresh tokens and codes older than a day.
+
 ## Alternatives considered
 
 - **Managed (Firebase Auth, Auth0, Supabase Auth, Clerk):** less code, but cost per user, vendor

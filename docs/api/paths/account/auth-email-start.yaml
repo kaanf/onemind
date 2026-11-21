@@ -1,0 +1,24 @@
+post:
+  tags:
+    - Auth
+  operationId: startEmailSignIn
+  summary: Send a sign-in code by email (A1)
+  description: |
+    Sends a 6-digit code, valid 10 minutes, to the address. Always `202`, whether or not an account
+    exists. A new code can be requested 30 s after the previous one; it replaces the previous code.
+    Rate-limited per email and per IP (`429`, codes `EMAIL_CODE_RESEND_TOO_SOON`, `RATE_LIMITED`;
+    `params.retryAfterSeconds` and `Retry-After`).
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/EmailCodeStartRequest.yaml
+  responses:
+    '202':
+      description: Code sent (or silently not, for an invalid mailbox).
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '429':
+      $ref: ../../components/responses/TooManyRequests.yaml

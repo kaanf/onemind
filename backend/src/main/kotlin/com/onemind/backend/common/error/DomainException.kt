@@ -1,5 +1,7 @@
 package com.onemind.backend.common.error
 
+import java.time.Duration
+
 /**
  * Rule violations and failures that end a request with an RFC 9457 problem (docs/api/README.md#errors).
  * Expected outcomes the caller must handle are sealed return types instead, not exceptions.
@@ -30,6 +32,14 @@ sealed class DomainException(
 
 /** `400`: the request is malformed or misses something required. */
 abstract class InvalidRequestException(
+    code: String,
+    detail: String,
+    params: Map<String, Any> = emptyMap(),
+    cause: Throwable? = null,
+) : DomainException(code, detail, params, cause)
+
+/** `401`: not signed in, or the credentials (token, refresh token) are not valid. */
+abstract class UnauthorizedException(
     code: String,
     detail: String,
     params: Map<String, Any> = emptyMap(),
@@ -67,6 +77,19 @@ abstract class RuleViolationException(
     params: Map<String, Any> = emptyMap(),
     cause: Throwable? = null,
 ) : DomainException(code, detail, params, cause)
+
+/** `429`: too many requests; the client may retry after [retryAfter] (`Retry-After`, `params.retryAfterSeconds`). */
+abstract class TooManyRequestsException(
+    code: String,
+    detail: String,
+    val retryAfter: Duration,
+    params: Map<String, Any> = emptyMap(),
+) : DomainException(code, detail, params + ("retryAfterSeconds" to retryAfter.toSeconds().coerceAtLeast(1)))
+
+/** A rate limit without a more specific code. */
+class RateLimitedException(
+    retryAfter: Duration,
+) : TooManyRequestsException("RATE_LIMITED", "Too many requests. Try again later.", retryAfter)
 
 /** The `version` sent with a PUT or command doesn't match the stored one (docs/api/README.md). */
 class VersionConflictException(

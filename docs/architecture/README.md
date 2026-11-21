@@ -87,6 +87,11 @@ flowchart LR
    the assistant is built.
 9. ~~Hosting, environments, CI/CD~~ → decided in [ADR 0008](adr/0008_HETZNER_HOSTING_ZERO_COST_START.md).
 10. ~~Auth~~ → decided in [ADR 0004](adr/0004_OWN_JWT_AUTH.md).
+11. Transactional email provider (sign-in codes): open until hosting is set up (phase 7). The backend
+    sends over plain SMTP behind `EmailSender`, so it is configuration only. Candidates with EU data
+    processing: **Scaleway TEM** (lean: 300/month free, then €0.25 per 1,000, no branding), Brevo
+    (300/day free, but a Brevo footer on the free plan), Lettermint. Resend keeps account data and logs
+    in the US, so it does not meet ADR 0008. Verify terms at signup.
 
 ## Database
 

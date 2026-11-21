@@ -9,8 +9,16 @@ servers:
   - url: /api/v1
 security:
   - bearerAuth: []
-tags: []
-paths: {}
+tags:
+  - name: Auth
+    description: Sign-in and tokens (ADR 0004).
+paths:
+  /auth/email/start:
+    $ref: ./paths/account/auth-email-start.yaml
+  /auth/email/verify:
+    $ref: ./paths/account/auth-email-verify.yaml
+  /auth/refresh:
+    $ref: ./paths/account/auth-refresh.yaml
 components:
   securitySchemes:
     bearerAuth:
@@ -25,6 +33,14 @@ components:
       $ref: ./components/schemas/FieldError.yaml
     Money:
       $ref: ./components/schemas/Money.yaml
+    AuthTokens:
+      $ref: ./components/schemas/AuthTokens.yaml
+    EmailCodeStartRequest:
+      $ref: ./components/schemas/EmailCodeStartRequest.yaml
+    EmailCodeVerifyRequest:
+      $ref: ./components/schemas/EmailCodeVerifyRequest.yaml
+    RefreshTokenRequest:
+      $ref: ./components/schemas/RefreshTokenRequest.yaml
   parameters:
     IdempotencyKey:
       $ref: ./components/parameters/IdempotencyKey.yaml

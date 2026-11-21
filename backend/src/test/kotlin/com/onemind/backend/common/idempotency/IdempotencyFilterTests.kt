@@ -69,8 +69,13 @@ class IdempotencyFilterTests {
 
         @PostMapping("/test/idempotent/upload")
         fun upload(
+            @RequestHeader("Idempotency-Key") key: UUID,
             @RequestPart file: MultipartFile,
         ) = mapOf("call" to calls.incrementAndGet(), "size" to file.size)
+
+        // Doesn't declare the header, like the sign-in endpoints whose responses hold tokens.
+        @PostMapping("/test/not-idempotent")
+        fun notIdempotent() = mapOf("call" to calls.incrementAndGet(), "secret" to UUID.randomUUID())
     }
 
     @TestConfiguration(proxyBeanMethods = false)
@@ -200,6 +205,20 @@ class IdempotencyFilterTests {
                 contentType = MediaType.APPLICATION_JSON
                 content = "{}"
             }.andExpectProblem(400, "BAD_REQUEST")
+    }
+
+    @Test
+    fun `endpoints that don't declare the header are not tracked`() {
+        val key = UUID.randomUUID()
+        repeat(2) {
+            mockMvc
+                .post("/test/not-idempotent") {
+                    with(user(userId.toString()))
+                    header(IdempotencyFilter.HEADER, key.toString())
+                }.andExpect { status { isOk() } }
+        }
+
+        assertEquals(0, jdbc.queryForObject<Int>("select count(*) from platform.idempotency_record where key = ?", key))
     }
 
     @Test

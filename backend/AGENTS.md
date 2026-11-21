@@ -88,13 +88,17 @@ Rules:
   `@ApplicationModuleListener` method in a class without `@Component`) must be `open`.
 - `domain/` is plain Kotlin: no Spring, no jOOQ. Unit-test it without Spring.
 - Controllers are thin: validate, call one use case, map to DTO.
+- Controllers implementing a generated interface are served under `/api/v1` by
+  `common/web/ApiPathConfig` (the generated paths don't include the server URL).
 - **Follow the API rules in `docs/api/README.md`** ([ADR 0010](../docs/architecture/adr/0010_API_DESIGN.md)):
   UUIDv7 IDs (never treated as secrets), minor-unit money, decimal-string quantities and rates,
   RFC 9457 errors with a stable `code` and English `detail`, no PATCH, `version` → `409`,
   `Idempotency-Key` on creating POSTs, `404` for other venues' resources.
-- `Idempotency-Key` is handled once, by `common/idempotency/IdempotencyFilter` (any POST that sends
-  the header, per user, `platform.idempotency_record`). An endpoint only declares the shared
-  `IdempotencyKey` header parameter in the spec; don't re-implement deduplication in controllers.
+- `Idempotency-Key` is handled once, by `common/idempotency/IdempotencyFilter` (per user,
+  `platform.idempotency_record`), for POSTs whose handler declares the header: an endpoint only adds
+  the shared `IdempotencyKey` header parameter in the spec; don't re-implement deduplication in
+  controllers. Never declare it on an endpoint whose response holds secrets (tokens): the response is
+  stored in plain text for 24 h.
 - **API changes start in `docs/api/openapi.yaml`.** Never hand-write a request/response DTO
   that the spec should generate. Never edit generated code (`build/generated`).
 - Inside `/api/v1` changes are additive only (see ADR 0001). CI fails on breaking spec changes.
@@ -149,6 +153,13 @@ Rules:
 - Apple/Google tokens verified against their JWKS with `iss`/`aud`/expiry (and nonce for Apple).
 - Account deletion endpoint is required (App Store).
 - Auth code changes need tests for each rule above.
+- Where it lives: access tokens `common/security/AccessTokenIssuer` + `JwtConfig` (keys, validation);
+  public endpoints and 401/403 problems `common/security/SecurityConfig`; email sign-in
+  `account/application/EmailSignIn`; refresh rotation `account/application/SessionTokenService`;
+  per-IP limits `common/ratelimit/RateLimiter`; email `common/email/EmailSender`. Values and env vars:
+  ADR 0004 "Implementation notes".
+- The authenticated principal's name is the user ID (`sub`); use it, never an email, to identify the
+  user.
 
 ## Live data and streaming ([ADR 0005](../docs/architecture/adr/0005_POLLING_AND_SSE.md))
 
@@ -225,13 +236,14 @@ Rules:
 Run from `backend/`. Docker is required for tests and jOOQ codegen (both use Testcontainers).
 
 ```bash
-docker compose -f ../infra/docker-compose.yml up -d   # local PostgreSQL 18 on localhost:5433
+docker compose -f ../infra/docker-compose.yml up -d   # local PostgreSQL 18 on localhost:5433, Mailpit (SMTP 1025, UI :8025)
 ./gradlew bootRun                                     # run the API on :8080 (health: /actuator/health)
 ./gradlew test                                        # tests (start PostgreSQL via Testcontainers)
 ./gradlew build                                       # compile + ktlint + test + jar
 ./gradlew bootTestRun                                 # run the app with a Testcontainers PostgreSQL (no compose needed)
 ./gradlew ktlintCheck                                 # style check (also part of build)
 ./gradlew ktlintFormat                                # fix style violations
+./gradlew generateJwtKey                              # print a new access-token signing key (JWT_SIGNING_KEY)
 ```
 
 Colima: if Testcontainers' Ryuk container fails with "error while creating mount source path

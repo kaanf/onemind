@@ -1,0 +1,27 @@
+post:
+  tags:
+    - Auth
+  operationId: refreshTokens
+  summary: Exchange a refresh token for new tokens
+  description: |
+    Rotates the refresh token. An unknown, expired, revoked or already used refresh token answers
+    `401` with code `REFRESH_TOKEN_INVALID`: the app signs in again. A used token also revokes every
+    token issued from the same sign-in (theft detection).
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/RefreshTokenRequest.yaml
+  responses:
+    '200':
+      description: New tokens.
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/AuthTokens.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml

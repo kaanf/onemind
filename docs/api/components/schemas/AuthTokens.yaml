@@ -1,0 +1,23 @@
+type: object
+description: |
+  Tokens after sign-in or refresh (ADR 0004). The access token is sent as `Authorization: Bearer`;
+  the refresh token is single-use: every refresh returns a new one, and presenting a used one signs
+  the device out.
+required:
+  - accessToken
+  - accessTokenExpiresAt
+  - refreshToken
+  - refreshTokenExpiresAt
+properties:
+  accessToken:
+    type: string
+    description: JWT, valid 15 minutes.
+  accessTokenExpiresAt:
+    type: string
+    format: date-time
+  refreshToken:
+    type: string
+    description: Opaque, valid 30 days, single-use.
+  refreshTokenExpiresAt:
+    type: string
+    format: date-time

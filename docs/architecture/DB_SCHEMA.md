@@ -53,7 +53,7 @@ version in use.
 | `app_user` | `id`, `email citext unique`, `email_verified_at`, `display_name`, `locale` | |
 | `user_identity` | `id`, `user_id → app_user`, `provider (APPLE\|GOOGLE\|EMAIL)`, `subject`, `email` | Unique `(provider, subject)`. Apple private-relay emails stored as given. |
 | `email_login_code` | `id`, `email`, `code_hash`, `expires_at`, `attempts`, `consumed_at`, `requested_ip` | 10 min, max 5 attempts (ADR 0004). Index `(email, created_at desc)`. Purged after 1 day. |
-| `refresh_token` | `id`, `user_id`, `family_id`, `token_hash unique`, `expires_at`, `used_at`, `revoked_at`, `replaced_by_id`, `device_name` | Rotation + reuse detection by family. |
+| `refresh_token` | `id`, `user_id`, `family_id`, `token_hash unique`, `expires_at`, `used_at`, `revoked_at`, `replaced_by_id`, `device_name` | Rotation + reuse detection by family. Expired rows are deleted hourly. |
 | `membership` | `id`, `organization_id`, `user_id`, `role (OWNER\|STAFF)` | Unique `(organization_id, user_id)`. First release: OWNER only. |
 | `venue` | `id`, `organization_id`, `name`, `address_line`, `city`, `time_zone` (default `Europe/Prague`), `currency char(3)`, `business_day_start time` (default `05:00`), `status (ACTIVE\|DISABLED)`, `version` | Created when the POS sync discovers a place. |
 | `followed_venue` | `user_id`, `venue_id` | PK `(user_id, venue_id)`. Venues shown in Today/Sales (A5). |

@@ -16,9 +16,13 @@ import org.springframework.http.MediaType
 import org.springframework.security.authentication.AnonymousAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.filter.OncePerRequestFilter
+import org.springframework.web.method.HandlerMethod
 import org.springframework.web.servlet.HandlerExceptionResolver
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping
 import org.springframework.web.util.ContentCachingResponseWrapper
+import org.springframework.web.util.ServletRequestPathUtils
 import java.io.BufferedReader
 import java.io.ByteArrayInputStream
 import java.nio.charset.Charset
@@ -32,8 +36,10 @@ import java.util.UUID
  * request with a key runs and its response is stored for 24 h; a retry with the same request gets
  * that response again, a different request with the key gets `422`, a retry while the first is
  * still running gets `409`. Responses with `5xx` (or an exception) are not stored, so the client can
- * retry with the same key. Whether an operation requires the key is declared in the API spec
- * (required `Idempotency-Key` header parameter), so a missing key is a `400` from Spring MVC.
+ * retry with the same key. Only operations that declare the `Idempotency-Key` header parameter in the
+ * API spec (and so in their generated handler method) are tracked; a header sent to any other
+ * endpoint is ignored, so responses with secrets (sign-in tokens) are never stored. A missing
+ * required key is a `400` from Spring MVC.
  *
  * Keys are scoped per user: until auth (ADR 0004) exists the user is the UUID in the authentication
  * name (the JWT `sub`); requests without such a user pass through untouched.
@@ -45,6 +51,7 @@ class IdempotencyFilter(
     private val records: IdempotencyRecordRepository,
     private val clock: Clock,
     @param:Qualifier("handlerExceptionResolver") private val exceptionResolver: HandlerExceptionResolver,
+    @param:Qualifier("requestMappingHandlerMapping") private val handlerMapping: RequestMappingHandlerMapping,
 ) : OncePerRequestFilter() {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -55,6 +62,7 @@ class IdempotencyFilter(
         response: HttpServletResponse,
         filterChain: FilterChain,
     ) {
+        if (!declaresKey(request)) return filterChain.doFilter(request, response)
         val userId = currentUserId() ?: return filterChain.doFilter(request, response)
         val key =
             parseKey(request.getHeader(HEADER))
@@ -135,6 +143,25 @@ class IdempotencyFilter(
         val body = request.inputStream.readAllBytes()
         digest.update(body)
         return BufferedBodyRequest(request, body) to digest.digest()
+    }
+
+    /** Whether the handler of this request takes the `Idempotency-Key` header (declared in the spec). */
+    private fun declaresKey(request: HttpServletRequest): Boolean {
+        // Handler lookup before the DispatcherServlet needs the parsed path, as the servlet would cache it.
+        val previousPath = request.getAttribute(ServletRequestPathUtils.PATH_ATTRIBUTE)
+        ServletRequestPathUtils.parseAndCache(request)
+        try {
+            val handler = runCatching { handlerMapping.getHandler(request)?.handler }.getOrNull() as? HandlerMethod ?: return false
+            return handler.methodParameters.any { parameter ->
+                parameter
+                    .getParameterAnnotation(
+                        RequestHeader::class.java,
+                    )?.let { HEADER.equals(it.name.ifEmpty { it.value }, ignoreCase = true) } ==
+                    true
+            }
+        } finally {
+            request.setAttribute(ServletRequestPathUtils.PATH_ATTRIBUTE, previousPath)
+        }
     }
 
     private fun currentUserId(): UUID? {
