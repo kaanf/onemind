@@ -126,7 +126,8 @@ Cross-platform page does not show (for example the Insights suggestion cards).
 ## Status and roadmap
 
 **Read [docs/ROADMAP.md](docs/ROADMAP.md) at the start of every session.** It shows the current
-phase, the next unchecked task and the blockers. Tick items there in the PR that completes them.
+phase, the next unchecked task and the blockers. Tick items there in the PR that completes them,
+unless you work on a lane: then the orchestrator ticks them (`docs/PARALLEL_WORK.md`).
 Architecture decisions are final unless an ADR changes them; anything still marked *Proposed* is a
 default, not a rule.
 
