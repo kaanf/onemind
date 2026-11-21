@@ -43,7 +43,7 @@ version in use.
 |-------|------------------------|
 | `event_publication` | Spring Modulith event publication registry, v2 structure (DDL from Spring Modulith 2.2 JDBC, `V005`). `spring.modulith.events.jdbc.schema=platform`, schema initialization disabled (Flyway owns the DDL). db-scheduler jobs purge completed publications older than 7 days (hourly) and resubmit failed ones older than 10 minutes (every 5 minutes). |
 | `scheduled_tasks` | db-scheduler task table (DDL from db-scheduler 17.1, `V005`). `db-scheduler.table-name=platform.scheduled_tasks`. |
-| `idempotency_record` | `user_id`, `key`, `method`, `path`, `request_hash`, `status (IN_PROGRESS\|COMPLETED)`, `response_status`, `response_body jsonb`, `created_at`, `expires_at` (24 h). PK `(user_id, key)`. |
+| `idempotency_record` | `user_id → account.app_user` (cascade), `key uuid`, `method`, `path`, `request_hash bytea` (SHA-256 of method, path, query and body; multipart: of the parts), `status (IN_PROGRESS\|COMPLETED)`, `response_status`, `response_headers jsonb` (`Content-Type`, `Location`), `response_body text` (not `jsonb`: replays send the original bytes), `created_at`, `expires_at` (24 h). PK `(user_id, key)`, index on `expires_at` (`V006`). An `IN_PROGRESS` row older than 5 minutes is taken over by a retry of the same request (crashed instance). A db-scheduler job deletes expired rows hourly. |
 
 ## `account`
 

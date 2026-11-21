@@ -129,6 +129,12 @@ RFC 9457 Problem Details with extension members:
   - missing key where required → `400`,
   - same key + different body → `422`,
   - same key while the first request is still running → `409`.
+  - Codes: `INVALID_IDEMPOTENCY_KEY` (`400`, not a UUID), `IDEMPOTENCY_KEY_REUSED` (`422`),
+    `IDEMPOTENT_REQUEST_IN_PROGRESS` (`409`); a missing required key is `BAD_REQUEST`.
+  - Keys are scoped per user. A replay repeats status, body, `Content-Type` and `Location`.
+    Responses with `5xx` are not stored, so the client can retry with the same key.
+  - An operation requires the key by declaring the shared `IdempotencyKey` header parameter in the
+    spec; the backend then applies these rules to it.
 
 ## Lists, filters, files, long-running work
 
