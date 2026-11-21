@@ -139,7 +139,7 @@ Rules (ADR 0013 §3; C3 turns most of them into ArchUnit/Modulith gates):
   first calls `account/api/VenueAccess.requireAccess(userId, venueId, role?)` with
   `CurrentUser.id()`: it loads the membership per request and throws `404 VENUE_NOT_FOUND` for a
   venue that isn't the user's, doesn't exist or is `DISABLED` and `403 VENUE_ROLE_REQUIRED` for a too-low role.
-  Pass no role (any member) or `MembershipRole.OWNER`; STAFF permissions wait for P2. Every
+  Pass no role (any member) or `VenueRole.OWNER`; STAFF permissions wait for P2. Every
   venue-scoped endpoint gets a cross-venue test: build a `testing/TenancyFixture` (two
   organizations, owner/staff/other owner/outsider) and call
   `fixture.expectNoCrossVenueAccess { venueId, token -> mockMvc.get(...) }`
@@ -182,10 +182,12 @@ Rules (ADR 0013 §3; C3 turns most of them into ArchUnit/Modulith gates):
 - Auth code changes need tests for each rule above.
 - Where it lives: access tokens `common/security/AccessTokenIssuer` + `JwtConfig` (keys, validation);
   public endpoints and 401/403 problems `common/security/SecurityConfig`; email sign-in
-  `account/application/EmailSignIn`; Apple/Google `account/application/IdTokenSignIn` +
-  `account/infra/client/IdTokenVerifier`; refresh rotation and logout
-  `account/application/SessionTokenService`; account deletion `account/application/AccountDeletion`;
-  per-IP limits `common/ratelimit/RateLimiter`; email `common/email/EmailSender`. Values and env vars:
+  `account/application/StartEmailSignIn` + `VerifyEmailSignIn`; Apple/Google
+  `account/application/IdTokenSignIn` + `account/infra/client/IdTokenVerifier`; sessions
+  `account/application/StartSession`, `RefreshTokens`, `Logout`; account deletion
+  `account/application/AccountDeletion`; per-IP limits `account/application/AuthRateLimits` (an
+  unparseable client address counts under one shared key, fail closed) over
+  `common/ratelimit/RateLimiter`; email `common/email/EmailSender`. Values and env vars:
   ADR 0004 "Implementation notes".
 - The authenticated principal's name is the user ID (`sub`); use it, never an email, to identify the
   user.
@@ -260,6 +262,10 @@ Rules (ADR 0013 §3; C3 turns most of them into ArchUnit/Modulith gates):
 - Integration tests with Testcontainers PostgreSQL for repositories and migrations.
 - API tests (`@SpringBootTest` + `WebTestClient`/`MockMvc`) for auth and tenancy.
 - Storyous client tests against recorded fixtures (no live calls in CI).
+- Email: `EmailSender` is concrete (R9). Tests that read sent mail register a `@Primary`
+  `JavaMailSender` that records messages (a `JavaMailSenderImpl` subclass overriding
+  `send(vararg SimpleMailMessage)`, see `account/AuthApiTests.RecordingMailSender`), so the real
+  sender runs; no mocking library needed.
 
 ## Commands
 

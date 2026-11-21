@@ -120,7 +120,9 @@ to `web`. Allowed dependencies inside a module, and nothing else:
 | `reporting` | – | `account::api`, `pos::api`, `pos::events`, `stock::api`, `stock::events` | Venue access; reads POS facts through the pos read API; refreshes rollups on `BillsSynced`; `possibleLoss` includes `stockCorrections` (METRICS), read through `stock::api` and refreshed on stock correction events. Without stock in the first release (P13) that part is an empty state, never 0. |
 | `stock` | – | `account::api`, `pos::api`, `pos::events` | Venue access; sold items and the product catalog for usage and recipes; deducts usage on `BillsSynced`. |
 
-`api` and `api/events` are named interfaces (`::api`, `::events`) in every module. Nothing depends
+Every module also lists `common` in `allowedDependencies`: it is open, but an explicit list replaces
+Spring Modulith's default, so it must be named. `api` and `api/events` are named interfaces (`::api`,
+`::events`) in every module. Nothing depends
 on `reporting`, and only `reporting` depends on `stock`, so the graph has no cycle (Spring Modulith
 checks that). `stock` must never need `reporting`: a number both show is computed in `stock` and
 read by `reporting`.

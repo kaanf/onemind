@@ -4,16 +4,11 @@ import com.onemind.backend.account.domain.IdentityProvider
 import com.onemind.backend.account.infra.client.IdTokenVerifier
 import com.onemind.backend.account.infra.client.VerifiedIdToken
 import com.onemind.backend.account.infra.persistence.UserAccountRepository
-import com.onemind.backend.common.error.RateLimitedException
-import com.onemind.backend.common.ratelimit.RateLimiter
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.support.TransactionTemplate
 import java.net.InetAddress
-import java.security.MessageDigest
 import java.time.Clock
-import java.time.Duration
-import java.util.HexFormat
 
 /**
  * Sign in with Apple or Google (ADR 0004, screen A1). The ID token is verified first, outside the
@@ -29,8 +24,9 @@ import java.util.HexFormat
 class IdTokenSignIn(
     private val verifier: IdTokenVerifier,
     private val users: UserAccountRepository,
-    private val sessions: SessionTokenService,
-    private val rateLimiter: RateLimiter,
+    private val startSession: StartSession,
+    private val rateLimits: AuthRateLimits,
+    private val secrets: AuthSecrets,
     private val transactions: TransactionTemplate,
     private val clock: Clock,
 ) {
@@ -44,8 +40,8 @@ class IdTokenSignIn(
         deviceName: String?,
         ip: InetAddress?,
     ): SessionTokens {
-        limitIp(ip)
-        val token = verify(IdentityProvider.APPLE, identityToken) { it == sha256Hex(rawNonce) }
+        rateLimits.limitIp("auth-id-token", ip, LIMIT_PER_IP)
+        val token = verify(IdentityProvider.APPLE, identityToken) { it == secrets.sha256Hex(rawNonce) }
         return signIn(IdentityProvider.APPLE, token, displayName?.trim()?.takeIf { it.isNotEmpty() }, deviceName)
     }
 
@@ -56,7 +52,7 @@ class IdTokenSignIn(
         deviceName: String?,
         ip: InetAddress?,
     ): SessionTokens {
-        limitIp(ip)
+        rateLimits.limitIp("auth-id-token", ip, LIMIT_PER_IP)
         val token = verify(IdentityProvider.GOOGLE, idToken) { nonce == null || it == nonce }
         return signIn(IdentityProvider.GOOGLE, token, displayName = null, deviceName)
     }
@@ -89,7 +85,7 @@ class IdTokenSignIn(
                     ?: throw EmailNotVerifiedException()
             users.linkIdentity(userId, provider, token.subject, email, now)
             log.info("Signed in with an ID token: provider={}, userId={}", provider, userId)
-            sessions.startSession(userId, deviceName, now)
+            startSession.start(userId, deviceName, now)
         } ?: error("transaction returned no tokens")
 
     private fun emailTrusted(
@@ -103,18 +99,7 @@ class IdTokenSignIn(
         return domain == "gmail.com" || token.hostedDomain?.lowercase() == domain
     }
 
-    private fun limitIp(ip: InetAddress?) {
-        if (ip == null) return
-        rateLimiter.tryAcquire("auth-id-token:ip:${ip.hostAddress}", LIMIT_PER_IP, IP_LIMIT_WINDOW)?.let {
-            throw RateLimitedException(it)
-        }
-    }
-
-    private fun sha256Hex(value: String): String =
-        HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.toByteArray()))
-
     companion object {
         const val LIMIT_PER_IP = 30
-        val IP_LIMIT_WINDOW: Duration = Duration.ofMinutes(10)
     }
 }

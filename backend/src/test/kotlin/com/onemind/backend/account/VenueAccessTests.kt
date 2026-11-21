@@ -1,8 +1,8 @@
 package com.onemind.backend.account
 
 import com.onemind.backend.TestcontainersConfiguration
-import com.onemind.backend.account.api.MembershipRole
 import com.onemind.backend.account.api.VenueAccess
+import com.onemind.backend.account.api.VenueRole
 import com.onemind.backend.common.security.AccessTokenIssuer
 import com.onemind.backend.common.security.CurrentUser
 import com.onemind.backend.testing.TenancyFixture
@@ -39,7 +39,7 @@ class VenueAccessTests {
         @GetMapping("/test/venues/{venueId}/owners")
         fun owners(
             @PathVariable venueId: UUID,
-        ) = mapOf("role" to venueAccess.requireAccess(CurrentUser.id(), venueId, MembershipRole.OWNER).name)
+        ) = mapOf("role" to venueAccess.requireAccess(CurrentUser.id(), venueId, VenueRole.OWNER).name)
     }
 
     @TestConfiguration(proxyBeanMethods = false)
