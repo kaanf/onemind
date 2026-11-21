@@ -2,11 +2,13 @@ package com.onemind.backend.account
 
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.JWSHeader
+import com.nimbusds.jose.crypto.MACSigner
 import com.nimbusds.jose.crypto.RSASSASigner
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.jwk.RSAKey
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator
 import com.nimbusds.jwt.JWTClaimsSet
+import com.nimbusds.jwt.PlainJWT
 import com.nimbusds.jwt.SignedJWT
 import com.onemind.backend.TestcontainersConfiguration
 import com.onemind.backend.account.application.IdTokenSignIn
@@ -61,6 +63,7 @@ class IdTokenSignInApiTests {
     private val json = JsonMapper.builder().build()
 
     private val email = "owner-${UUID.randomUUID()}@example.com"
+    private val gmail = "owner.${UUID.randomUUID()}@gmail.com"
     private val subject = "sub-${UUID.randomUUID()}"
     private val nonce = "nonce-${UUID.randomUUID()}"
     private val ip = "10.2.${IP_COUNTER.incrementAndGet() / 250}.${IP_COUNTER.get() % 250 + 1}"
@@ -133,14 +136,61 @@ class IdTokenSignInApiTests {
     // Google
 
     @Test
-    fun `google accepts both issuer spellings and links to the email-code account`() {
+    fun `google accepts both issuer spellings and links a gmail address to the email-code account`() {
         val existing =
-            jdbc.queryForObject<UUID>("insert into account.app_user (email, email_verified_at) values (?, now()) returning id", email)
+            jdbc.queryForObject<UUID>("insert into account.app_user (email, email_verified_at) values (?, now()) returning id", gmail)
 
         google(googleToken(issuer = "accounts.google.com")).andExpect { status { isOk() } }
         google(googleToken(issuer = "https://accounts.google.com")).andExpect { status { isOk() } }
 
         assertEquals(existing, identityUser("GOOGLE"))
+    }
+
+    @Test
+    fun `google links a workspace address only within the token's hosted domain`() {
+        val existing =
+            jdbc.queryForObject<UUID>("insert into account.app_user (email, email_verified_at) values (?, now()) returning id", email)
+
+        google(googleToken(email = email, hostedDomain = "other.com")).andExpectProblem(422, "EMAIL_NOT_VERIFIED")
+        google(googleToken(email = email, hostedDomain = "Example.com")).andExpect { status { isOk() } }
+
+        assertEquals(existing, identityUser("GOOGLE"))
+    }
+
+    @Test
+    fun `google never links or creates by an address google does not vouch for`() {
+        val existing =
+            jdbc.queryForObject<UUID>("insert into account.app_user (email, email_verified_at) values (?, now()) returning id", email)
+
+        google(googleToken(email = email)).andExpectProblem(422, "EMAIL_NOT_VERIFIED")
+
+        assertEquals(0, jdbc.queryForObject<Int>("select count(*) from account.user_identity where user_id = ?", existing))
+        assertEquals(0, jdbc.queryForObject<Int>("select count(*) from account.user_identity where subject = ?", subject))
+    }
+
+    @Test
+    fun `google signs in an already linked subject without a trusted email`() {
+        google(googleToken()).andExpect { status { isOk() } }
+        val userId = identityUser("GOOGLE")
+
+        google(googleToken(email = email)).andExpect { status { isOk() } }
+
+        assertEquals(userId, identityUser("GOOGLE"))
+    }
+
+    @Test
+    fun `unsigned, HMAC-signed and malformed tokens are rejected`() {
+        val claims = claims("https://appleid.apple.com", APPLE_CLIENT_ID, email, true, sha256Hex(nonce), NOW + Duration.ofMinutes(10))
+        val unsigned = PlainJWT(claims).serialize()
+        val hmac =
+            SignedJWT(JWSHeader.Builder(JWSAlgorithm.HS256).keyID(KEY.keyID).build(), claims)
+                .apply { sign(MACSigner(ByteArray(32) { 7 })) }
+                .serialize()
+        val noneWithSignature = unsigned.substringBeforeLast('.') + "." + appleToken().substringAfterLast('.')
+
+        listOf(unsigned, hmac, noneWithSignature, "a.b.c", appleToken().dropLast(4) + "AAAA").forEach {
+            apple(it).andExpectProblem(401, "ID_TOKEN_INVALID")
+        }
     }
 
     @Test
@@ -198,7 +248,9 @@ class IdTokenSignInApiTests {
     private fun googleToken(
         issuer: String = "https://accounts.google.com",
         tokenNonce: String? = null,
-    ) = idToken(issuer, GOOGLE_CLIENT_ID, email, true, tokenNonce, NOW + Duration.ofMinutes(10), KEY)
+        email: String = gmail,
+        hostedDomain: String? = null,
+    ) = idToken(issuer, GOOGLE_CLIENT_ID, email, true, tokenNonce, NOW + Duration.ofMinutes(10), KEY, hostedDomain)
 
     private fun idToken(
         issuer: String,
@@ -208,24 +260,36 @@ class IdTokenSignInApiTests {
         nonce: String?,
         expiresAt: Instant,
         key: RSAKey,
-    ): String {
-        val claims =
-            JWTClaimsSet
-                .Builder()
-                .issuer(issuer)
-                .audience(audience)
-                .subject(subject)
-                .issueTime(Date.from(NOW - Duration.ofMinutes(1)))
-                .expirationTime(Date.from(expiresAt))
-                .apply {
-                    email?.let { claim("email", it) }
-                    emailVerified?.let { claim("email_verified", it) }
-                    nonce?.let { claim("nonce", it) }
-                }.build()
-        return SignedJWT(JWSHeader.Builder(JWSAlgorithm.RS256).keyID(key.keyID).build(), claims)
-            .apply { sign(RSASSASigner(key)) }
+        hostedDomain: String? = null,
+    ): String =
+        SignedJWT(
+            JWSHeader.Builder(JWSAlgorithm.RS256).keyID(key.keyID).build(),
+            claims(issuer, audience, email, emailVerified, nonce, expiresAt, hostedDomain),
+        ).apply { sign(RSASSASigner(key)) }
             .serialize()
-    }
+
+    private fun claims(
+        issuer: String,
+        audience: String,
+        email: String?,
+        emailVerified: Any?,
+        nonce: String?,
+        expiresAt: Instant,
+        hostedDomain: String? = null,
+    ): JWTClaimsSet =
+        JWTClaimsSet
+            .Builder()
+            .issuer(issuer)
+            .audience(audience)
+            .subject(subject)
+            .issueTime(Date.from(NOW - Duration.ofMinutes(1)))
+            .expirationTime(Date.from(expiresAt))
+            .apply {
+                email?.let { claim("email", it) }
+                emailVerified?.let { claim("email_verified", it) }
+                nonce?.let { claim("nonce", it) }
+                hostedDomain?.let { claim("hd", it) }
+            }.build()
 
     private fun userIdByEmail(): UUID? = jdbc.queryForObject<UUID>("select id from account.app_user where email = ?", email)
 

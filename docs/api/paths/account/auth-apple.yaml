@@ -28,3 +28,5 @@ post:
       $ref: ../../components/responses/Unauthorized.yaml
     '422':
       $ref: ../../components/responses/UnprocessableEntity.yaml
+    '429':
+      $ref: ../../components/responses/TooManyRequests.yaml

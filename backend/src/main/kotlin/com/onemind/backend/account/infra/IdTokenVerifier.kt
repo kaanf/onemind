@@ -43,6 +43,8 @@ data class VerifiedIdToken(
     val email: String?,
     val emailVerified: Boolean,
     val nonce: String?,
+    /** Google's `hd`: the Workspace domain that manages the account, if any. */
+    val hostedDomain: String? = null,
 )
 
 /**
@@ -81,7 +83,13 @@ class IdTokenVerifier(
             }
         val subject = jwt.subject?.takeIf { it.isNotBlank() } ?: return null
         val emailVerified = jwt.claims["email_verified"].let { it == true || it == "true" }
-        return VerifiedIdToken(subject, jwt.getClaimAsString("email"), emailVerified, jwt.getClaimAsString("nonce"))
+        return VerifiedIdToken(
+            subject = subject,
+            email = jwt.getClaimAsString("email"),
+            emailVerified = emailVerified,
+            nonce = jwt.getClaimAsString("nonce"),
+            hostedDomain = jwt.getClaimAsString("hd"),
+        )
     }
 
     private fun decoder(

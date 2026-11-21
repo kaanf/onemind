@@ -12,13 +12,18 @@ import org.springframework.transaction.support.TransactionTemplate
 import java.net.InetAddress
 import java.security.MessageDigest
 import java.time.Clock
+import java.time.Duration
 import java.util.HexFormat
 
 /**
  * Sign in with Apple or Google (ADR 0004, screen A1). The ID token is verified first, outside the
  * transaction (it may fetch the provider's keys). The user is found by the provider's subject, else
  * by the token's verified email (linking an existing account, also an email-code one), else created.
- * A token without a verified email can only sign in to an identity that is already linked.
+ * A token without a trusted email can only sign in to an identity that is already linked.
+ *
+ * Google's `email_verified` is authoritative only for Gmail and Workspace (`hd`) accounts: another
+ * Google account can carry a verified-looking address it doesn't control, so its email never links
+ * or creates an account (pre-hijack protection).
  */
 @Service
 class IdTokenSignIn(
@@ -77,7 +82,7 @@ class IdTokenSignIn(
     ): SessionTokens =
         transactions.execute {
             val now = clock.instant()
-            val email = token.email?.trim()?.takeIf { token.emailVerified && it.isNotEmpty() }
+            val email = token.email?.trim()?.takeIf { it.isNotEmpty() && emailTrusted(provider, token, it) }
             val userId =
                 users.findUserIdByIdentity(provider, token.subject)
                     ?: email?.let { users.findOrCreateByVerifiedEmail(it, now, displayName) }
@@ -87,9 +92,20 @@ class IdTokenSignIn(
             sessions.startSession(userId, deviceName, now)
         } ?: error("transaction returned no tokens")
 
+    private fun emailTrusted(
+        provider: IdentityProvider,
+        token: VerifiedIdToken,
+        email: String,
+    ): Boolean {
+        if (!token.emailVerified) return false
+        if (provider != IdentityProvider.GOOGLE) return true
+        val domain = email.substringAfterLast('@').lowercase()
+        return domain == "gmail.com" || token.hostedDomain?.lowercase() == domain
+    }
+
     private fun limitIp(ip: InetAddress?) {
         if (ip == null) return
-        rateLimiter.tryAcquire("auth-id-token:ip:${ip.hostAddress}", LIMIT_PER_IP, EmailSignIn.IP_LIMIT_WINDOW)?.let {
+        rateLimiter.tryAcquire("auth-id-token:ip:${ip.hostAddress}", LIMIT_PER_IP, IP_LIMIT_WINDOW)?.let {
             throw RateLimitedException(it)
         }
     }
@@ -99,5 +115,6 @@ class IdTokenSignIn(
 
     companion object {
         const val LIMIT_PER_IP = 30
+        val IP_LIMIT_WINDOW: Duration = Duration.ofMinutes(10)
     }
 }
