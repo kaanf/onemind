@@ -150,7 +150,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\nif JAVA_HOME_21=$(/usr/libexec/java_home -v 21 2>/dev/null); then\n  export JAVA_HOME=\"$JAVA_HOME_21\"\nelse\n  echo \"JDK 21 was not found. Install JDK 21 for iOS builds.\"\n  exit 1\nfi\nexport PATH=\"$JAVA_HOME/bin:$PATH\"\ncd \"$SRCROOT/..\"\n./gradlew :composeApp:embedAndSignAppleFrameworkForXcode\n";
+			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\nif JAVA_HOME_21=$(/usr/libexec/java_home -v 21 2>/dev/null); then\n  export JAVA_HOME=\"$JAVA_HOME_21\"\nelse\n  echo \"JDK 21 was not found. Install JDK 21 for iOS builds.\"\n  exit 1\nfi\n# Node.js (npx) bundles the API spec for core:api; Xcode starts scripts with a minimal PATH.\nexport PATH=\"$JAVA_HOME/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"\ncd \"$SRCROOT/..\"\n./gradlew :composeApp:embedAndSignAppleFrameworkForXcode\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

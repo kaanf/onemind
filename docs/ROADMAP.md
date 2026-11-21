@@ -50,7 +50,7 @@ Last updated: 2026-11-21.
 - [x] Start from crew-kmp `build-logic` + version catalog (bump to current stable)
 - [x] Modules per ADR 0011: `core:{api,data,domain,presentation,designsystem}`,
       `feature:{auth,today,sales,staff}`, `composeApp`, `androidApp`, `iosApp`
-- [ ] `core:api` generation from `openapi.yaml` (models only)
+- [x] `core:api` generation from `openapi.yaml` (models only)
 - [ ] Design system: tokens, Inter / Inter Tight, components from `docs/design/DESIGN_SYSTEM.md`
 - [ ] App shell: navigation root, 4-tab bar (Today, Sales, Staff, Stock later), Koin + graph test
 - [ ] Variants `dev`/`prod` with BuildKonfig; Sentry in hosts
