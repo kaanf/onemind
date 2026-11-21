@@ -90,7 +90,7 @@ jobs:
   api:
     name: API spec lint and breaking changes
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.api != 'false' && false }} # TEMP forced skip
+    if: ${{ !cancelled() && needs.changes.outputs.api != 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
