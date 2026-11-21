@@ -17,8 +17,12 @@ outputs never collide:
 | **ci** | `onemind-ci/` | CI items of each phase, as assigned | `.github/` |
 | **mobile** | `onemind-mobile/` | Mobile items, in roadmap order, as assigned | `mobile/` |
 
-The owner starts each session with: "Read AGENTS.md, docs/ROADMAP.md and docs/PARALLEL_WORK.md.
-You are the **orchestrator**." or "… You are on the **<lane>** lane."
+Each worktree has a `CLAUDE.local.md` (listed in `.git/info/exclude`, never committed) that names its
+role and the start-up steps: read the three docs, then the orchestrator sends `HELLO` + `STATUS` and a
+lane sends a `REPORT`. Claude Code loads it on every start and after `/clear`, so the owner only types
+something like "başla". Without that file, the owner starts each session with: "Read AGENTS.md,
+docs/ROADMAP.md and docs/PARALLEL_WORK.md. You are the **orchestrator**." or "… You are on the
+**<lane>** lane."
 
 Create a worktree (from the main checkout):
 
