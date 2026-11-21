@@ -1,5 +1,6 @@
-# iOS build (ADR 0012 §6): merges to dev and main, nightly, and on demand; on PRs only when this
-# file changes, so edits to it are tested before merge. Not a required check.
+# Full iOS app build with xcodebuild (ADR 0012 §6): merges to dev and main, nightly, and on demand;
+# on PRs only when this file changes, so edits to it are tested before merge. Not a required check.
+# Mobile PRs compile and link the shared framework in ci.yml ("iOS framework compile") instead.
 # The repo is public, so macOS runner minutes are free.
 # GitHub runs `schedule` only from the default branch (main), so the nightly build starts once this
 # file is on main; it then builds dev.
