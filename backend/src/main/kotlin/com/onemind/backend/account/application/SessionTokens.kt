@@ -109,6 +109,20 @@ class SessionTokenService(
         }
     }
 
+    /**
+     * Signs a device out: revokes the family of [refreshToken]. An unknown token does nothing, so
+     * the app can repeat the call.
+     */
+    fun logout(refreshToken: String) {
+        transactions.executeWithoutResult {
+            refreshTokens.findFamilyId(secrets.hashRefreshToken(refreshToken))?.let { familyId ->
+                refreshTokens.lockFamily(familyId)
+                val revoked = refreshTokens.revokeFamily(familyId, clock.instant())
+                log.info("Signed out: familyId={}, revokedTokens={}", familyId, revoked)
+            }
+        }
+    }
+
     companion object {
         val REFRESH_TOKEN_TTL: Duration = Duration.ofDays(30)
     }

@@ -41,8 +41,8 @@ import java.util.UUID
  * endpoint is ignored, so responses with secrets (sign-in tokens) are never stored. A missing
  * required key is a `400` from Spring MVC.
  *
- * Keys are scoped per user: until auth (ADR 0004) exists the user is the UUID in the authentication
- * name (the JWT `sub`); requests without such a user pass through untouched.
+ * Keys are scoped per user: the UUID in the authentication name (the access token's `sub`, ADR 0004);
+ * requests without such a user pass through untouched.
  */
 @Component
 // After Spring Security's filter chain (order -100), which provides the authenticated user.

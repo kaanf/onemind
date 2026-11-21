@@ -156,7 +156,8 @@ Rules:
 - Where it lives: access tokens `common/security/AccessTokenIssuer` + `JwtConfig` (keys, validation);
   public endpoints and 401/403 problems `common/security/SecurityConfig`; email sign-in
   `account/application/EmailSignIn`; Apple/Google `account/application/IdTokenSignIn` +
-  `account/infra/IdTokenVerifier`; refresh rotation `account/application/SessionTokenService`;
+  `account/infra/IdTokenVerifier`; refresh rotation and logout
+  `account/application/SessionTokenService`; account deletion `account/application/AccountDeletion`;
   per-IP limits `common/ratelimit/RateLimiter`; email `common/email/EmailSender`. Values and env vars:
   ADR 0004 "Implementation notes".
 - The authenticated principal's name is the user ID (`sub`); use it, never an email, to identify the

@@ -85,6 +85,14 @@ The backend issues and verifies **its own tokens** with Spring Security.
   by provider subject, else by verified email (linking any existing account, private relay addresses
   included), else created; an unknown subject without a verified email is refused. 30 sign-ins per IP
   per 10 minutes. The JWKS being unreachable is a `500`, not `401`.
+- **Logout:** `POST /auth/logout` with the refresh token (no access token needed) revokes its
+  family; always `204`, also for an unknown or revoked token. The access token runs out by itself
+  (at most 15 minutes).
+- **Account deletion:** `DELETE /me` deletes `app_user` in one transaction; identities, refresh
+  tokens, memberships, followed venues and idempotency records cascade. Organizations whose only
+  owner this was get `deletion_due_at` = now + 30 days (rows locked first, so two owners deleting at
+  once can't both see the other as remaining owner). A still-valid access token of a deleted user
+  gets `401`. Revoking the user's Apple tokens is open (`docs/architecture/README.md`, item 12).
 - **Refresh tokens:** 256 random bits, stored as SHA-256. A refresh rotates within the family; a
   used, revoked or expired token answers `401 REFRESH_TOKEN_INVALID`, and a used one also revokes the
   family. An hourly job deletes expired refresh tokens and codes older than a day.

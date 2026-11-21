@@ -2,6 +2,8 @@ package com.onemind.backend.account.infra
 
 import com.onemind.db.account.tables.references.APP_USER
 import com.onemind.db.account.tables.references.EMAIL_LOGIN_CODE
+import com.onemind.db.account.tables.references.MEMBERSHIP
+import com.onemind.db.account.tables.references.ORGANIZATION
 import com.onemind.db.account.tables.references.REFRESH_TOKEN
 import com.onemind.db.account.tables.references.USER_IDENTITY
 import org.jooq.DSLContext
@@ -9,6 +11,8 @@ import org.jooq.Field
 import org.jooq.Record
 import org.jooq.impl.DSL.coalesce
 import org.jooq.impl.DSL.excluded
+import org.jooq.impl.DSL.notExists
+import org.jooq.impl.DSL.selectOne
 import org.jooq.postgres.extensions.types.Inet
 import org.springframework.stereotype.Repository
 import java.net.InetAddress
@@ -180,6 +184,57 @@ class UserAccountRepository(
             .set(i.CREATED_AT, now)
             .onConflictDoNothing()
             .execute()
+    }
+
+    /**
+     * Schedules for deletion at [dueAt] every organization of which [userId] is the only owner, and
+     * returns their IDs. The organizations are locked first, so two owners deleting their accounts at
+     * the same time can't both see the other as remaining owner. An earlier schedule is kept.
+     */
+    fun scheduleDeletionOfOrganizationsOwnedOnlyBy(
+        userId: UUID,
+        dueAt: Instant,
+        now: Instant,
+    ): List<UUID> {
+        val o = ORGANIZATION
+        val m = MEMBERSHIP
+        val owned =
+            dsl
+                .select(o.ID)
+                .from(o)
+                .join(m)
+                .on(m.ORGANIZATION_ID.eq(o.ID))
+                .where(m.USER_ID.eq(userId), m.ROLE.eq(OWNER))
+                .forUpdate()
+                .of(o)
+                .fetch(o.ID)
+                .filterNotNull()
+        if (owned.isEmpty()) return emptyList()
+        val other = MEMBERSHIP.`as`("other_owner")
+        return dsl
+            .update(o)
+            .set(o.DELETION_DUE_AT, coalesce(o.DELETION_DUE_AT, dueAt))
+            .set(o.UPDATED_AT, now)
+            .where(
+                o.ID.`in`(owned),
+                notExists(
+                    selectOne()
+                        .from(other)
+                        .where(other.ORGANIZATION_ID.eq(o.ID), other.ROLE.eq(OWNER), other.USER_ID.ne(userId)),
+                ),
+            ).returning(o.ID)
+            .fetch(o.ID)
+            .filterNotNull()
+    }
+
+    /** Deletes the user; identities, refresh tokens, memberships and followed venues cascade. */
+    fun delete(userId: UUID): Boolean {
+        val u = APP_USER
+        return dsl.deleteFrom(u).where(u.ID.eq(userId)).execute() > 0
+    }
+
+    private companion object {
+        const val OWNER = "OWNER"
     }
 }
 

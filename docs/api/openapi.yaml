@@ -12,6 +12,8 @@ security:
 tags:
   - name: Auth
     description: Sign-in and tokens (ADR 0004).
+  - name: Me
+    description: The signed-in user's own account.
 paths:
   /auth/email/start:
     $ref: ./paths/account/auth-email-start.yaml
@@ -23,6 +25,10 @@ paths:
     $ref: ./paths/account/auth-google.yaml
   /auth/refresh:
     $ref: ./paths/account/auth-refresh.yaml
+  /auth/logout:
+    $ref: ./paths/account/auth-logout.yaml
+  /me:
+    $ref: ./paths/account/me.yaml
 components:
   securitySchemes:
     bearerAuth:

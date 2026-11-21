@@ -92,6 +92,11 @@ flowchart LR
     processing: **Scaleway TEM** (lean: 300/month free, then €0.25 per 1,000, no branding), Brevo
     (300/day free, but a Brevo footer on the free plan), Lettermint. Resend keeps account data and logs
     in the US, so it does not meet ADR 0008. Verify terms at signup.
+12. Revoking Sign in with Apple on account deletion: Apple expects apps to revoke the user's Apple
+    tokens (REST `/auth/revoke`) when the account is deleted. That needs the authorization code from
+    the app at sign-in, an exchange for an Apple refresh token stored per identity, and a client
+    secret signed with an Apple `.p8` key (a new secret). `DELETE /me` currently deletes our side
+    only (the user can remove the app in Apple ID settings). Decide before App Store review.
 
 ## Database
 
