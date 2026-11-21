@@ -116,8 +116,9 @@ RFC 9457 Problem Details with extension members:
   `INTERNAL_ERROR` (`500`, never with internal details) and the HTTP status name for requests that
   fail before reaching a feature (`BAD_REQUEST` for malformed JSON or a missing parameter,
   `NOT_FOUND` for an unknown path, `METHOD_NOT_ALLOWED`, `UNSUPPORTED_MEDIA_TYPE`, …).
-- Status codes: `400` malformed, `401` no/invalid token, `403` no access to the venue,
-  `404` not found (also for resources in venues the user can't access, so they're not revealed),
+- Status codes: `400` malformed, `401` no/invalid token, `403` the user's role in the venue is too
+  low (`VENUE_ROLE_REQUIRED`, `params.role`), `404` not found (also a venue the user isn't a member
+  of, `VENUE_NOT_FOUND`, and resources in it, so they're not revealed),
   `409` conflict (version, state), `422` business rule violation, `426` app too old,
   `429` rate limited.
 

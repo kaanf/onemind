@@ -1,6 +1,10 @@
 package com.onemind.backend.account
 
 import com.onemind.backend.TestcontainersConfiguration
+import com.onemind.backend.account.application.EmailSignIn
+import com.onemind.backend.account.infra.AuthJobs
+import com.onemind.backend.account.infra.EmailLoginCodeRepository
+import com.onemind.backend.account.infra.RefreshTokenRepository
 import com.onemind.backend.common.email.EmailMessage
 import com.onemind.backend.common.email.EmailSender
 import org.junit.jupiter.api.Test
@@ -120,6 +124,12 @@ class AuthApiTests {
 
     @Autowired
     lateinit var jwtDecoder: JwtDecoder
+
+    @Autowired
+    lateinit var codes: EmailLoginCodeRepository
+
+    @Autowired
+    lateinit var refreshTokens: RefreshTokenRepository
 
     private val json = JsonMapper.builder().build()
 
@@ -270,6 +280,59 @@ class AuthApiTests {
         assertFalse(logged.contains(lastCode()))
     }
 
+    @Test
+    fun `start answers the same whether or not the account exists`() {
+        signIn()
+        clock.advance(Duration.ofSeconds(31))
+
+        val existing = start().andExpect { status { isAccepted() } }.andReturn().response
+        val unknown = start("new-$email").andExpect { status { isAccepted() } }.andReturn().response
+
+        assertEquals(existing.contentAsString, unknown.contentAsString)
+        assertEquals("", existing.contentAsString)
+    }
+
+    @Test
+    fun `an IP may try 30 codes in 10 minutes`() {
+        start()
+        repeat(EmailSignIn.VERIFY_LIMIT_PER_IP) { verify("000000").andExpect { status { is4xxClientError() } } }
+
+        verify(lastCode()).andExpectProblem(429, "RATE_LIMITED")
+        clock.advance(EmailSignIn.IP_LIMIT_WINDOW)
+        verify(lastCode()).andExpect { status { isUnprocessableEntity() } } // The code was burnt meanwhile.
+    }
+
+    @Test
+    fun `access and refresh tokens are never logged`(output: CapturedOutput) {
+        val first = signIn()
+        val second = refresh(first["refreshToken"].asString()).body()
+        logout(second["refreshToken"].asString())
+
+        val logged = output.out
+        listOf(first, second).forEach { tokens ->
+            assertFalse(logged.contains(tokens["accessToken"].asString()))
+            assertFalse(logged.contains(tokens["refreshToken"].asString()))
+        }
+    }
+
+    @Test
+    fun `the hourly purge deletes day-old codes and expired refresh tokens only`() {
+        val tokens = signIn()
+        val userId = userId(tokens)
+        val purgeAt = clock.now + Duration.ofDays(1) + Duration.ofSeconds(1)
+
+        AuthJobs.purge(codes, refreshTokens, clock.now)
+        assertEquals(1, count("select count(*) from account.email_login_code where email = ?", email))
+        assertEquals(1, count("select count(*) from account.refresh_token where user_id = ?", userId))
+
+        AuthJobs.purge(codes, refreshTokens, purgeAt)
+        assertEquals(0, count("select count(*) from account.email_login_code where email = ?", email))
+        assertEquals(1, count("select count(*) from account.refresh_token where user_id = ?", userId))
+
+        AuthJobs.purge(codes, refreshTokens, clock.now + Duration.ofDays(30) + Duration.ofSeconds(1))
+        assertEquals(0, count("select count(*) from account.refresh_token where user_id = ?", userId))
+    }
+
     // Refresh
 
     @Test
@@ -292,6 +355,27 @@ class AuthApiTests {
 
         refresh(first["refreshToken"].asString()).andExpectProblem(401, "REFRESH_TOKEN_INVALID")
         refresh(second["refreshToken"].asString()).andExpectProblem(401, "REFRESH_TOKEN_INVALID")
+    }
+
+    @Test
+    fun `concurrent refreshes with one token rotate once and revoke the session`() {
+        val token = signIn()["refreshToken"].asString()
+        val start = CountDownLatch(1)
+
+        val responses =
+            Executors.newFixedThreadPool(2).use { pool ->
+                List(2) {
+                    pool.submit<Pair<Int, String>> {
+                        start.await()
+                        refresh(token).andReturn().response.let { it.status to it.contentAsString }
+                    }
+                }.also { start.countDown() }
+                    .map { it.get(30, TimeUnit.SECONDS) }
+            }
+
+        assertEquals(listOf(200, 401), responses.map { it.first }.sorted())
+        val rotated = json.readTree(responses.first { it.first == 200 }.second)["refreshToken"].asString()
+        refresh(rotated).andExpectProblem(401, "REFRESH_TOKEN_INVALID")
     }
 
     @Test
@@ -518,6 +602,11 @@ class AuthApiTests {
             contentType = MediaType.APPLICATION_JSON
             content = json.writeValueAsString(mapOf("refreshToken" to token))
         }
+
+    private fun count(
+        sql: String,
+        vararg args: Any,
+    ): Int = jdbc.queryForObject<Int>(sql, *args) ?: 0
 
     private fun userId(tokens: JsonNode): UUID = UUID.fromString(jwtDecoder.decode(tokens["accessToken"].asString()).subject)
 
