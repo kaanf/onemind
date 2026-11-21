@@ -17,8 +17,8 @@ Last updated: 2026-11-21.
 - **Current phase: 2 — Mobile scaffold.** Phase 3 backend auth is done in parallel (backend lane):
   email code, JWT + refresh rotation (#22), Apple/Google (#27), logout and `DELETE /me` (#28),
   auth rule tests + `VenueAccess` cross-venue check (#30), 426 min-version check (#36). App shell is
-  done (#32). ADR 0013 audit (#40, #41) and ArchUnit gates (#42) are in `dev`. Next: product-rule
-  gates (#43) and the Konsist guard module (#39). Phase 4 runs on mock POS data (owner, 2026-11-21).
+  done (#32). ADR 0013 audit (#40, #41), ArchUnit gates (#42), product-rule gates (#43) and the
+  Konsist guard module (#39) are in `dev`. Phase 4 runs on mock POS data (owner, 2026-11-21).
 - **Blockers outside the code:** Storyous partnership / API credentials (P15, owner; not needed
   until the real client is connected); design
   additions for the first-release Stock tab landing and location form (owner, only needed in
@@ -85,8 +85,8 @@ green run after it.
 - [ ] Variants `dev`/`prod` with BuildKonfig; Sentry in hosts
 - [x] GitHub Actions: common tests + Android build on PR; iOS build on `dev`/`main` + nightly
       (nightly/manual iOS runs start once `main` has the workflow, i.e. after the first release)
-- [ ] `:core:konsist` guard module: ADR 0011 module rules, no `Float`/`Double` money, one clock seam
-      (Konsist 0.18.1). No mobile feature screen starts before this merges.
+- [x] `:core:konsist` guard module: ADR 0011 module rules, no `Float`/`Double` money, one clock seam
+      (Konsist 0.18.1). No mobile feature screen starts before this merges. (#39)
 - [ ] Phase-end `REVIEW pr: audit`
 
 ## Phase 3 — Auth (first vertical slice)
@@ -100,8 +100,15 @@ green run after it.
       (#40, #41)
 - [x] ArchUnit gates for ADR 0013 rules + Modulith `allowedDependencies`; `backend/AGENTS.md` names
       the reference module (#42)
-- [ ] Product-rule gates: no `Float`/`Double` money (backend + spec lint), single `BusinessDay` entry
+- [x] Product-rule gates: no `Float`/`Double` money (backend + spec lint), single `BusinessDay` entry
       point with midnight and Europe/Prague DST tests, POS client read-only (fixtures fail on non-GET)
+      (#43)
+- [ ] Gate follow-ups from the #39/#43 reviews: mobile Konsist reads `docs/api/lint/money-words.json`
+      instead of a copy, one plural rule for not-money suffixes in all three gates; spec lint survives
+      self-referencing schemas; `billNumber`-style ids not flagged; unreflectable classes fail the rule;
+      `mobile/AGENTS.md` documents the typealias-to-`Double` limit;
+      `backend/AGENTS.md` names the hour helper in `BusinessDayCalendar`; `METRICS.md` says rollup
+      business dates come from `BusinessDayCalendar`, not SQL date functions
 - [ ] End-to-end auth smoke test: real backend (Testcontainers) driven by a client generated from
       `openapi.yaml`: email code, refresh rotation, 401 refresh, 426
 - [ ] Phase-end `REVIEW pr: audit`
