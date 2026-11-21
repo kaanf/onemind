@@ -45,6 +45,8 @@ dependencies {
     implementation(libs.kotlin.reflect)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.spring.modulith.api)
+    implementation(libs.spring.modulith.starter.jdbc)
+    implementation(libs.db.scheduler.spring.boot.starter)
     runtimeOnly(libs.postgresql)
     // Versions come from the Spring Boot BOM, so codegen matches the runtime jOOQ and Flyway.
     jooqCodegen(libs.postgresql)

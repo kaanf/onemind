@@ -79,8 +79,13 @@ Rules:
   classes.
 - Async work between modules uses domain events via the Spring Modulith event publication registry
   (`@ApplicationModuleListener`). Delivery is at least once: **every listener must be
-  idempotent**, with a test that delivers the same event twice.
-- Background jobs use **db-scheduler**. Jobs must be idempotent and safe to retry.
+  idempotent**, with a test that delivers the same event twice. Failed publications are resubmitted
+  by a job (`common/events/EventPublicationJobs`), so a listener may see the same event again later.
+- Background jobs use **db-scheduler**. Jobs must be idempotent and safe to retry. Register a job
+  as a task bean (`Tasks.recurring(...)` / `Tasks.oneTime(...)`) and keep its body in a plain
+  method you can test without the scheduler.
+- Kotlin classes are final: a class proxied only because of a method annotation (for example an
+  `@ApplicationModuleListener` method in a class without `@Component`) must be `open`.
 - `domain/` is plain Kotlin: no Spring, no jOOQ. Unit-test it without Spring.
 - Controllers are thin: validate, call one use case, map to DTO.
 - **Follow the API rules in `docs/api/README.md`** ([ADR 0010](../docs/architecture/adr/0010_API_DESIGN.md)):

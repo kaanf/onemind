@@ -87,7 +87,8 @@ One deployable, split into modules by business capability:
 
 - **db-scheduler** (`db-scheduler-spring-boot-4-starter`), PostgreSQL-backed: recurring POS sync,
   rollup refresh, nightly jobs, one-off receipt extraction tasks, with retries and persistence.
-- Pin a version verified at setup (16.12.0 had a packaging issue).
+- Pin a version verified at setup (16.12.0 had a packaging issue). Set up with 17.1.0; the scheduler
+  starts only when the application context is ready (`delay-startup-until-context-ready`).
 
 ### 7. Errors and validation
 
