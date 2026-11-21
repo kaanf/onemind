@@ -228,12 +228,17 @@ class IdempotencyFilterTests {
             requestHash: ByteArray = hash,
         ) = records.claim(userId, key, "POST", "/x", requestHash, at, IdempotencyFilter.TTL, IdempotencyFilter.LOCK_TIMEOUT)
 
-        assertIs<IdempotencyClaim.Acquired>(claim(now))
+        val abandoned = assertIs<IdempotencyClaim.Acquired>(claim(now))
         assertIs<IdempotencyClaim.InProgress>(claim(now.plusSeconds(60)))
         assertIs<IdempotencyClaim.Mismatch>(claim(now.plusSeconds(600), byteArrayOf(2)))
-        assertIs<IdempotencyClaim.Acquired>(claim(now.plusSeconds(600)))
+        val takeover = assertIs<IdempotencyClaim.Acquired>(claim(now.plusSeconds(600)))
 
-        records.complete(userId, key, 201, mapOf("Content-Type" to "application/json"), """{"id": 1}""")
+        // The superseded request finishing late changes nothing: the takeover still runs.
+        records.complete(userId, key, abandoned.claimId, 500, emptyMap(), null)
+        records.release(userId, key, abandoned.claimId)
+        assertIs<IdempotencyClaim.InProgress>(claim(now.plusSeconds(660)))
+
+        records.complete(userId, key, takeover.claimId, 201, mapOf("Content-Type" to "application/json"), """{"id": 1}""")
         val replay = assertIs<IdempotencyClaim.Replay>(claim(now.plusSeconds(3600)))
         assertEquals(201, replay.status)
         assertEquals(mapOf("Content-Type" to "application/json"), replay.headers)

@@ -13,8 +13,13 @@ import java.util.UUID
 
 /** What a request with an `Idempotency-Key` may do, decided by [IdempotencyRecordRepository.claim]. */
 sealed interface IdempotencyClaim {
-    /** The key is new (or its record expired or was abandoned): run the request. */
-    data object Acquired : IdempotencyClaim
+    /**
+     * The key is new (or its record expired or was abandoned): run the request, then [complete] or
+     * [release] with [claimId]. A request whose claim was taken over can no longer change the record.
+     */
+    data class Acquired(
+        val claimId: UUID,
+    ) : IdempotencyClaim
 
     /** The first request with this key is still running. */
     data object InProgress : IdempotencyClaim
@@ -51,6 +56,7 @@ class IdempotencyRecordRepository(
         lockTimeout: Duration,
     ): IdempotencyClaim {
         val r = IDEMPOTENCY_RECORD
+        val claimId = UUID.randomUUID()
         val acquired =
             dsl
                 .insertInto(r)
@@ -59,6 +65,7 @@ class IdempotencyRecordRepository(
                 .set(r.METHOD, method)
                 .set(r.PATH, path)
                 .set(r.REQUEST_HASH, requestHash)
+                .set(r.CLAIM_ID, claimId)
                 .set(r.STATUS, IN_PROGRESS)
                 .set(r.CREATED_AT, now)
                 .set(r.EXPIRES_AT, now + ttl)
@@ -67,6 +74,7 @@ class IdempotencyRecordRepository(
                 .set(r.METHOD, excluded(r.METHOD))
                 .set(r.PATH, excluded(r.PATH))
                 .set(r.REQUEST_HASH, excluded(r.REQUEST_HASH))
+                .set(r.CLAIM_ID, excluded(r.CLAIM_ID))
                 .set(r.STATUS, IN_PROGRESS)
                 .setNull(r.RESPONSE_STATUS)
                 .setNull(r.RESPONSE_HEADERS)
@@ -84,7 +92,7 @@ class IdempotencyRecordRepository(
                         ),
                 ).returning(r.KEY)
                 .fetchOne() != null
-        if (acquired) return IdempotencyClaim.Acquired
+        if (acquired) return IdempotencyClaim.Acquired(claimId)
 
         // Gone between the two statements (released by a failed request): the client retries.
         val existing =
@@ -113,6 +121,7 @@ class IdempotencyRecordRepository(
     fun complete(
         userId: UUID,
         key: UUID,
+        claimId: UUID,
         status: Int,
         headers: Map<String, String>,
         body: String?,
@@ -124,7 +133,7 @@ class IdempotencyRecordRepository(
             .set(r.RESPONSE_STATUS, status)
             .set(r.RESPONSE_HEADERS, JSONB.valueOf(json.writeValueAsString(headers)))
             .set(r.RESPONSE_BODY, body)
-            .where(r.USER_ID.eq(userId), r.KEY.eq(key), r.STATUS.eq(IN_PROGRESS))
+            .where(r.USER_ID.eq(userId), r.KEY.eq(key), r.CLAIM_ID.eq(claimId), r.STATUS.eq(IN_PROGRESS))
             .execute()
     }
 
@@ -132,9 +141,13 @@ class IdempotencyRecordRepository(
     fun release(
         userId: UUID,
         key: UUID,
+        claimId: UUID,
     ) {
         val r = IDEMPOTENCY_RECORD
-        dsl.deleteFrom(r).where(r.USER_ID.eq(userId), r.KEY.eq(key), r.STATUS.eq(IN_PROGRESS)).execute()
+        dsl
+            .deleteFrom(r)
+            .where(r.USER_ID.eq(userId), r.KEY.eq(key), r.CLAIM_ID.eq(claimId), r.STATUS.eq(IN_PROGRESS))
+            .execute()
     }
 
     fun deleteExpired(now: Instant): Int {

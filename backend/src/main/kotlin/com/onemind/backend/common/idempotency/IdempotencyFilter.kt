@@ -63,7 +63,7 @@ class IdempotencyFilter(
         val claim =
             records.claim(userId, key, request.method, request.requestURI, hash, clock.instant(), TTL, LOCK_TIMEOUT)
         when (claim) {
-            IdempotencyClaim.Acquired -> proceed(hashedRequest, response, filterChain, userId, key)
+            is IdempotencyClaim.Acquired -> proceed(hashedRequest, response, filterChain, userId, key, claim.claimId)
             IdempotencyClaim.InProgress -> fail(request, response, IdempotentRequestInProgressException())
             IdempotencyClaim.Mismatch -> fail(request, response, IdempotencyKeyReusedException())
             is IdempotencyClaim.Replay -> replay(response, claim)
@@ -76,22 +76,23 @@ class IdempotencyFilter(
         filterChain: FilterChain,
         userId: UUID,
         key: UUID,
+        claimId: UUID,
     ) {
         val cached = ContentCachingResponseWrapper(response)
         try {
             filterChain.doFilter(request, cached)
         } catch (e: Throwable) {
-            records.release(userId, key)
+            records.release(userId, key, claimId)
             throw e
         }
         try {
             val body = cached.contentAsByteArray
             if (cached.status >= 500 || !isStorable(body, cached.contentType)) {
-                records.release(userId, key)
+                records.release(userId, key, claimId)
             } else {
                 val headers =
                     REPLAYED_HEADERS.mapNotNull { name -> cached.getHeader(name)?.let { name to it } }.toMap()
-                records.complete(userId, key, cached.status, headers, body.takeIf { it.isNotEmpty() }?.toString(Charsets.UTF_8))
+                records.complete(userId, key, claimId, cached.status, headers, body.takeIf { it.isNotEmpty() }?.toString(Charsets.UTF_8))
             }
         } catch (e: Exception) {
             // The request itself succeeded; its response is sent. A retry after the lock timeout runs it again.

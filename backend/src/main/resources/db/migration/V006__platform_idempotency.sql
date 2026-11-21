@@ -7,6 +7,8 @@ create table platform.idempotency_record (
     path             text        not null,
     -- SHA-256 of method, path, query and body: a retry must send the same request.
     request_hash     bytea       not null,
+    -- New for every claim (first request or takeover): only that request may complete or release it.
+    claim_id         uuid        not null,
     status           text        not null check (status in ('IN_PROGRESS', 'COMPLETED')),
     response_status  int,
     -- Replayed headers only (Content-Type, Location), as {"name": "value"}.
