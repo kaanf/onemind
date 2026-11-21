@@ -11,7 +11,9 @@ Last updated: 2026-11-21.
 
 - **Phase 0 is done.** Product/design docs, ADRs 0001–0012, DB schema (`platform`, `account`,
   `pos`, `reporting`), backend scaffold, local Docker (Colima) are in `dev`.
-- **Current phase: 1 — Backend infrastructure.**
+- **Phase 1 is done.** Error handling, JSON logging + tracing, idempotency, event registry +
+  db-scheduler and CI (backend build/test, spec lint, `oasdiff breaking`) are in `dev`.
+- **Current phase: 2 — Mobile scaffold.**
 - **Blockers outside the code:** Storyous partnership / API credentials (P15, owner); design
   additions for the first-release Stock tab landing and location form (owner, only needed in
   phase 6).
@@ -25,7 +27,7 @@ Last updated: 2026-11-21.
 - [x] Backend scaffold (Spring Boot 4.2, Java 25), `infra/docker-compose.yml` (PostgreSQL 18 on 5433)
 - [x] GitHub repo, `dev`/`main` branches, Docker via Colima
 
-## Phase 1 — Backend infrastructure ⏭️
+## Phase 1 — Backend infrastructure ✅
 
 - [x] Version catalog (`gradle/libs.versions.toml`), ktlint (detekt deferred until 2.0 is stable)
 - [x] OpenAPI spec skeleton (`docs/api/openapi.yaml`, split files, 3.0.3) + `kotlin-spring` codegen
@@ -43,7 +45,7 @@ Last updated: 2026-11-21.
 - [x] Idempotency-Key filter + `platform.idempotency_record`
 - [x] GitHub Actions: backend build/test, spec lint + `oasdiff breaking`
 
-## Phase 2 — Mobile scaffold
+## Phase 2 — Mobile scaffold ⏭️
 
 - [x] Start from crew-kmp `build-logic` + version catalog (bump to current stable)
 - [x] Modules per ADR 0011: `core:{api,data,domain,presentation,designsystem}`,
