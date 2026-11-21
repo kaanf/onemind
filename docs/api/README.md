@@ -156,7 +156,8 @@ RFC 9457 Problem Details with extension members:
 
 - `Authorization: Bearer <access JWT>` (15 min); refresh token rotation via `/auth/refresh`
   ([ADR 0004](../architecture/adr/0004_OWN_JWT_AUTH.md)).
-- Email code start always answers `202`. `DELETE /me` deletes the account.
+- Email code start always answers `202`. `POST /auth/logout` (refresh token in the body) always
+  answers `204`. `DELETE /me` deletes the account immediately (`204`).
 - Auth codes: `EMAIL_CODE_RESEND_TOO_SOON` and `RATE_LIMITED` (`429`, with `Retry-After` and
   `params.retryAfterSeconds`), `EMAIL_CODE_INVALID` (`params.attemptsLeft`), `EMAIL_CODE_EXPIRED`,
   `EMAIL_CODE_ATTEMPTS_EXCEEDED` (`422`), `REFRESH_TOKEN_INVALID` (`401`: sign in again). Apple/Google:

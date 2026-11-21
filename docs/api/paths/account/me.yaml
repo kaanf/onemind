@@ -1,0 +1,17 @@
+delete:
+  tags:
+    - Me
+  operationId: deleteMe
+  summary: Delete my account
+  description: |
+    Deletes the signed-in user immediately with their personal data, sign-in methods (Apple,
+    Google, email), refresh tokens on every device and memberships (App Store 5.1.1(v), GDPR art. 17;
+    `docs/architecture/DB_SCHEMA.md`). An organization whose last owner this was is scheduled for
+    deletion in 30 days. Access tokens already issued stop working for this user's data because
+    access is loaded from memberships per request. Repeating the call answers `401`: the user no
+    longer exists.
+  responses:
+    '204':
+      description: Account deleted.
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml

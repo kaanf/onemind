@@ -28,6 +28,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoder
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.ResultActionsDsl
+import org.springframework.test.web.servlet.delete
 import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
 import org.springframework.web.bind.annotation.GetMapping
@@ -41,6 +42,9 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -319,6 +323,120 @@ class AuthApiTests {
         refresh("not-a-token").andExpectProblem(401, "REFRESH_TOKEN_INVALID")
     }
 
+    // Logout
+
+    @Test
+    fun `logout revokes every token of the session, also the rotated ones`() {
+        val first = signIn()
+        val second = refresh(first["refreshToken"].asString()).body()
+
+        logout(second["refreshToken"].asString()).andExpect { status { isNoContent() } }
+
+        refresh(second["refreshToken"].asString()).andExpectProblem(401, "REFRESH_TOKEN_INVALID")
+        assertEquals(
+            0,
+            jdbc.queryForObject<Int>(
+                "select count(*) from account.refresh_token where user_id = ? and revoked_at is null",
+                userId(first),
+            ),
+        )
+    }
+
+    @Test
+    fun `logout signs out only that device`() {
+        val phone = signIn()
+        clock.advance(Duration.ofSeconds(31))
+        val tablet = signIn()
+
+        logout(phone["refreshToken"].asString()).andExpect { status { isNoContent() } }
+
+        refresh(tablet["refreshToken"].asString()).andExpect { status { isOk() } }
+    }
+
+    @Test
+    fun `logout is 204 for an unknown or already revoked token`() {
+        val tokens = signIn()
+
+        logout(tokens["refreshToken"].asString()).andExpect { status { isNoContent() } }
+        logout(tokens["refreshToken"].asString()).andExpect { status { isNoContent() } }
+        logout("unknown-token").andExpect { status { isNoContent() } }
+    }
+
+    // Account deletion
+
+    @Test
+    fun `deleting the account needs an access token`() {
+        mockMvc.delete("/api/v1/me").andExpectProblem(401, "UNAUTHORIZED")
+    }
+
+    @Test
+    fun `deleting the account removes the user, identities and every session`() {
+        val tokens = signIn()
+        val userId = userId(tokens)
+
+        mockMvc.delete("/api/v1/me") { bearer(tokens["accessToken"].asString()) }.andExpect { status { isNoContent() } }
+
+        assertEquals(0, jdbc.queryForObject<Int>("select count(*) from account.app_user where id = ?", userId))
+        assertEquals(0, jdbc.queryForObject<Int>("select count(*) from account.user_identity where user_id = ?", userId))
+        assertEquals(0, jdbc.queryForObject<Int>("select count(*) from account.refresh_token where user_id = ?", userId))
+        refresh(tokens["refreshToken"].asString()).andExpectProblem(401, "REFRESH_TOKEN_INVALID")
+        // The access token is still signed and unexpired, but its user is gone.
+        mockMvc.delete("/api/v1/me") { bearer(tokens["accessToken"].asString()) }.andExpectProblem(401, "UNAUTHORIZED")
+    }
+
+    @Test
+    fun `signing in again after deletion creates a new account`() {
+        val before = userId(signIn())
+        mockMvc.delete("/api/v1/me") { bearer(token(before.toString())) }.andExpect { status { isNoContent() } }
+        clock.advance(Duration.ofSeconds(31))
+
+        assertNotEquals(before, userId(signIn()))
+    }
+
+    @Test
+    fun `an organization is scheduled for deletion in 30 days only when its last owner leaves`() {
+        val userId = userId(signIn())
+        val otherUser = jdbc.queryForObject<UUID>("insert into account.app_user (email) values (?) returning id", "co-$email")!!
+        val soleOwned = organization(userId to "OWNER")
+        val coOwned = organization(userId to "OWNER", otherUser to "OWNER")
+        val staffOnly = organization(userId to "STAFF", otherUser to "OWNER")
+
+        mockMvc.delete("/api/v1/me") { bearer(token(userId.toString())) }.andExpect { status { isNoContent() } }
+
+        assertEquals(clock.now + Duration.ofDays(30), deletionDueAt(soleOwned))
+        assertEquals(null, deletionDueAt(coOwned))
+        assertEquals(null, deletionDueAt(staffOnly))
+        assertEquals(0, jdbc.queryForObject<Int>("select count(*) from account.membership where user_id = ?", userId))
+    }
+
+    @Test
+    fun `co-owners of several organizations can delete their accounts at the same time`() {
+        val owners =
+            List(2) { i ->
+                jdbc.queryForObject<UUID>("insert into account.app_user (email) values (?) returning id", "owner$i-$email")!!
+            }
+        val shared = List(2) { organization(owners[0] to "OWNER", owners[1] to "OWNER") }
+        val start = CountDownLatch(1)
+
+        val statuses =
+            Executors.newFixedThreadPool(2).use { pool ->
+                owners
+                    .map { owner ->
+                        pool.submit<Int> {
+                            start.await()
+                            mockMvc
+                                .delete("/api/v1/me") { bearer(token(owner.toString())) }
+                                .andReturn()
+                                .response.status
+                        }
+                    }.also { start.countDown() }
+                    .map { it.get(30, TimeUnit.SECONDS) }
+            }
+
+        assertEquals(listOf(204, 204), statuses)
+        shared.forEach { assertEquals(clock.now + Duration.ofDays(30), deletionDueAt(it)) }
+    }
+
     // Access tokens
 
     @Test
@@ -394,6 +512,25 @@ class AuthApiTests {
             contentType = MediaType.APPLICATION_JSON
             content = json.writeValueAsString(mapOf("refreshToken" to token))
         }
+
+    private fun logout(token: String) =
+        mockMvc.post("/api/v1/auth/logout") {
+            contentType = MediaType.APPLICATION_JSON
+            content = json.writeValueAsString(mapOf("refreshToken" to token))
+        }
+
+    private fun userId(tokens: JsonNode): UUID = UUID.fromString(jwtDecoder.decode(tokens["accessToken"].asString()).subject)
+
+    private fun organization(vararg members: Pair<UUID, String>): UUID {
+        val id = jdbc.queryForObject<UUID>("insert into account.organization (name) values ('Bar') returning id")!!
+        members.forEach { (user, role) ->
+            jdbc.update("insert into account.membership (organization_id, user_id, role) values (?, ?, ?)", id, user, role)
+        }
+        return id
+    }
+
+    private fun deletionDueAt(organizationId: UUID): Instant? =
+        jdbc.queryForObject<Instant>("select deletion_due_at from account.organization where id = ?", organizationId)
 
     private fun signIn(address: String = email): JsonNode {
         start(address).andExpect { status { isAccepted() } }

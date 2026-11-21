@@ -222,6 +222,21 @@ class IdempotencyFilterTests {
     }
 
     @Test
+    fun `a token of a deleted user is a 401, not a database error`() {
+        val before = controller.calls.get()
+
+        mockMvc
+            .post("/test/idempotent") {
+                with(user(UUID.randomUUID().toString()))
+                header(IdempotencyFilter.HEADER, UUID.randomUUID().toString())
+                contentType = MediaType.APPLICATION_JSON
+                content = "{}"
+            }.andExpectProblem(401, "UNAUTHORIZED")
+
+        assertEquals(before, controller.calls.get())
+    }
+
+    @Test
     fun `requests without a user are not tracked`() {
         val key = UUID.randomUUID()
         val before = controller.calls.get()

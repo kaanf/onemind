@@ -52,6 +52,11 @@ class AuthController(
     override fun refreshTokens(refreshTokenRequest: RefreshTokenRequest): ResponseEntity<AuthTokens> =
         ResponseEntity.ok(sessionTokens.refresh(refreshTokenRequest.refreshToken).toDto())
 
+    override fun logout(refreshTokenRequest: RefreshTokenRequest): ResponseEntity<Unit> {
+        sessionTokens.logout(refreshTokenRequest.refreshToken)
+        return ResponseEntity.noContent().build()
+    }
+
     private fun clientIp(): InetAddress? = runCatching { InetAddress.ofLiteral(request.remoteAddr) }.getOrNull()
 
     private fun SessionTokens.toDto() =

@@ -49,7 +49,7 @@ version in use.
 
 | Table | Key columns | Notes |
 |-------|-------------|-------|
-| `organization` | `id`, `name`, `version` | The customer business. |
+| `organization` | `id`, `name`, `version`, `deletion_due_at` | The customer business. `deletion_due_at` is set when its last owner deletes their account (see below). |
 | `app_user` | `id`, `email citext unique`, `email_verified_at`, `display_name`, `locale` | |
 | `user_identity` | `id`, `user_id → app_user`, `provider (APPLE\|GOOGLE\|EMAIL)`, `subject`, `email` | Unique `(provider, subject)`. Apple private-relay emails stored as given. |
 | `email_login_code` | `id`, `email`, `code_hash`, `expires_at`, `attempts`, `consumed_at`, `requested_ip` | 10 min, max 5 attempts (ADR 0004). Index `(email, created_at desc)`. Purged after 1 day. |
@@ -65,7 +65,13 @@ Account deletion (`DELETE /me`, App Store 5.1.1(v), GDPR art. 17):
 - If the user was the **last owner** of an organization, the organization is marked for deletion
   and all its data (venues, POS read model incl. staff names, reporting, stock) is deleted by a
   background job after **30 days** (inside GDPR's one-month window). During those 30 days an
-  accidental deletion can be reversed through support. Legal wording to be confirmed.
+  accidental deletion can be reversed through support. Legal wording to be confirmed. The mark is
+  `organization.deletion_due_at` (V007); the purge job comes with the organization data (phase 4).
+  A support reversal clears `deletion_due_at` (and restores an owner membership) before it passes.
+- History and audit tables that record who did something (stock movements, counts, receipts,
+  corrections) reference `app_user` with **`on delete set null`, never `cascade`**: deleting a user
+  must not delete stock history (product rule 4). Only the user's own data (identities, tokens,
+  memberships, followed venues, idempotency records) cascades.
 
 ## `pos` (read model of the POS, written only by the sync)
 

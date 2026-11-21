@@ -1,0 +1,22 @@
+post:
+  tags:
+    - Auth
+  operationId: logout
+  summary: Sign out this device
+  description: |
+    Revokes every refresh token issued from the same sign-in as this one (ADR 0004). Always `204`,
+    also for an unknown, expired or already revoked token, so the app can sign out offline-first and
+    retry. Needs no access token: the refresh token is the proof. The current access token stays
+    valid until it expires (at most 15 minutes); the app drops it.
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/RefreshTokenRequest.yaml
+  responses:
+    '204':
+      description: Signed out.
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
