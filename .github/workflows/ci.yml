@@ -1,6 +1,6 @@
-# CI gates from ADR 0012 §6 (backend) and ADR 0001 (API spec). Mobile jobs come with phase 2.
-# Both jobs always report a result, so they can be required checks; the API steps skip themselves
-# when a PR does not touch the spec.
+# CI gates from ADR 0012 §6 (backend, mobile) and ADR 0001 (API spec). The iOS build is in ios.yml.
+# On a PR each job runs only when its paths changed. A job skipped by its `if` reports success, so
+# the jobs stay usable as required checks (a workflow-level `paths` filter would leave them pending).
 name: CI
 
 on:
@@ -18,8 +18,43 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.diff.outputs.backend }}
+      api: ${{ steps.diff.outputs.api }}
+      mobile: ${{ steps.diff.outputs.mobile }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      # On a PR, HEAD is the merge commit and HEAD^1 the base branch, so this diff is the PR's change.
+      # Pushes and manual runs check everything. The spec feeds backend and mobile codegen; the root
+      # .editorconfig feeds both ktlint setups.
+      - id: diff
+        run: |
+          changed() {
+            if [ "${{ github.event_name }}" != "pull_request" ] ||
+               ! git diff --quiet HEAD^1 HEAD -- "$@" .github/workflows/ci.yml; then
+              echo true
+            else
+              echo false
+            fi
+          }
+          {
+            echo "backend=$(changed backend docs/api .editorconfig)"
+            echo "api=$(changed docs/api)"
+            echo "mobile=$(changed mobile docs/api .editorconfig)"
+          } | tee -a "$GITHUB_OUTPUT"
+
+  # `!= 'false'` instead of `== 'true'`: if `changes` fails, the jobs run rather than skip as green.
   backend:
     name: Backend build and test
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.backend != 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
@@ -52,6 +87,8 @@ jobs:
 
   api:
     name: API spec lint and breaking changes
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.api != 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -60,28 +97,12 @@ jobs:
       OASDIFF_SHA256: 71a85930728f367a2086077b7ae1411319421549d18473a3e8258b6451520433
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 2
 
-      # On a PR, HEAD is the merge commit and HEAD^1 the base branch, so this diff is the PR's change.
-      - name: Check for spec changes
-        id: changes
-        run: |
-          if [ "${{ github.event_name }}" != "pull_request" ] ||
-             ! git diff --quiet HEAD^1 HEAD -- docs/api .github/workflows/ci.yml; then
-            echo "spec=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "spec=false" >> "$GITHUB_OUTPUT"
-            echo "No changes under docs/api; spec checks skipped."
-          fi
-
-      - if: steps.changes.outputs.spec == 'true'
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
 
       - name: Lint spec (Redocly)
-        if: steps.changes.outputs.spec == 'true'
         run: >-
           npx --yes @redocly/cli@${REDOCLY_CLI_VERSION} lint
           --config docs/api/redocly.yaml --format github-actions docs/api/openapi.yaml
@@ -91,7 +112,6 @@ jobs:
       # them). docs/api/oasdiff-levels.txt allows new response enum values (v1 permits them) and
       # makes removed ones errors, so an enum value rename fails.
       - name: Check breaking changes against main (oasdiff)
-        if: steps.changes.outputs.spec == 'true'
         run: |
           git fetch --no-tags --depth=1 origin main
           if ! git cat-file -e FETCH_HEAD:docs/api/openapi.yaml 2>/dev/null; then
@@ -111,3 +131,41 @@ jobs:
           "$RUNNER_TEMP/oasdiff" breaking --fail-on WARN --format githubactions \
             --severity-levels docs/api/oasdiff-levels.txt \
             "$base/docs/api/openapi.yaml" docs/api/openapi.yaml
+
+  mobile:
+    name: Mobile tests and Android build
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.mobile != 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # core:api bundles the split spec with Redocly (npx) before generating models.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-provider: basic
+          cache-read-only: ${{ github.ref != 'refs/heads/dev' && github.ref != 'refs/heads/main' }}
+
+      # testAndroidHostTest runs every module's commonTest on the JVM. The Android SDK is preinstalled
+      # on ubuntu runners (ANDROID_HOME).
+      - run: ./gradlew ktlintCheck testAndroidHostTest :androidApp:assembleDebug
+
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mobile-test-reports
+          path: mobile/**/build/reports/
+          retention-days: 7
