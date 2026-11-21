@@ -88,7 +88,8 @@ jobs:
 
       # ADR 0001: compare against the released contract on main. Skipped until main has a spec.
       # Fails on warnings too (oasdiff rates removed request fields/params as warnings; v1 forbids
-      # them). docs/api/oasdiff-levels.txt downgrades new response enum values, which v1 allows.
+      # them). docs/api/oasdiff-levels.txt allows new response enum values (v1 permits them) and
+      # makes removed ones errors, so an enum value rename fails.
       - name: Check breaking changes against main (oasdiff)
         if: steps.changes.outputs.spec == 'true'
         run: |
