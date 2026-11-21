@@ -15,7 +15,7 @@ Last updated: 2026-11-21.
 - **Phase 1 is done.** Error handling, JSON logging + tracing, idempotency, event registry +
   db-scheduler and CI (backend build/test, spec lint, `oasdiff breaking`) are in `dev`.
 - **Current phase: 2 — Mobile scaffold.** Phase 3 backend auth is done in parallel (backend lane):
-  email code, JWT + refresh rotation (#22), Apple/Google (#27), logout and `DELETE /me` (#28). Next:
+  email code, JWT + refresh rotation (#22), Apple/Google (#27), logout and `DELETE /me` (#28),
   auth rule tests + `VenueAccess` cross-venue check (#30). Next: app shell (mobile).
 - **Blockers outside the code:** Storyous partnership / API credentials (P15, owner); design
   additions for the first-release Stock tab landing and location form (owner, only needed in
