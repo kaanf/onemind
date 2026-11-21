@@ -1,4 +1,7 @@
-description: App version below the minimum supported version.
+description: |
+  `APP_UPGRADE_REQUIRED`: the app (`X-App-Version` on `X-Platform`) is older than the minimum
+  supported version; `params.platform` and `params.minimumVersion` say which. The app shows its update
+  screen. Checked before authentication on every `/api/v1` operation.
 content:
   application/problem+json:
     schema:

@@ -38,6 +38,7 @@ class ApiExceptionHandler(
                 is ConflictException -> HttpStatus.CONFLICT
                 is RuleViolationException -> HttpStatus.UNPROCESSABLE_CONTENT
                 is TooManyRequestsException -> HttpStatus.TOO_MANY_REQUESTS
+                is UpgradeRequiredException -> HttpStatus.UPGRADE_REQUIRED
             }
         // Code only: detail and params may carry business data.
         log.info("Request failed with {} {}", status.value(), e.code)
