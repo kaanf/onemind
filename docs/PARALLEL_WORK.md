@@ -12,10 +12,11 @@ outputs never collide:
 
 | Session | Folder | Work | Owns |
 |---------|--------|------|------|
-| **orchestrator** | `onemind-orchestrator/` | Assigns items, collects reports, asks the owner, merges, keeps `ROADMAP.md` | `docs/ROADMAP.md`, this file |
+| **orchestrator** | `onemind-orchestrator/` | Assigns items, collects reports, asks the owner, merges, keeps `ROADMAP.md` | `docs/ROADMAP.md`, this file, `.claude/skills/` |
 | **backend** | `onemind/` (main checkout) | Backend items, in roadmap order, as assigned | `backend/` (except CI config), migrations `V006`+ |
 | **ci** | `onemind-ci/` | CI items of each phase, as assigned | `.github/` |
 | **mobile** | `onemind-mobile/` | Mobile items, in roadmap order, as assigned | `mobile/` |
+| **reviewer** | `onemind-review/` | Reviews every lane PR before the owner is asked to merge; audits on request | nothing (read-only, PR comments) |
 
 Each worktree has a `CLAUDE.local.md` (listed in `.git/info/exclude`, never committed) that names its
 role and the start-up steps: read the three docs, then the orchestrator sends `HELLO` + `STATUS` and a
@@ -32,7 +33,9 @@ git worktree add -b <type>/<name> ../onemind-<lane> origin/dev
 git branch --unset-upstream <type>/<name>   # never let `git push` target dev
 ```
 
-The orchestrator's worktree starts detached: `git worktree add --detach ../onemind-orchestrator origin/dev`.
+The orchestrator's and the reviewer's worktrees start detached (the reviewer never commits and checks
+out PR heads): `git worktree add --detach ../onemind-orchestrator origin/dev`, and the same for
+`../onemind-review`.
 Remove a worktree when the lane is finished: `git worktree remove ../onemind-<lane>`.
 
 ## Orchestrator
@@ -44,6 +47,9 @@ Remove a worktree when the lane is finished: `git worktree remove ../onemind-<la
   report to that name.
 - **Assigns** the next roadmap item to each idle lane (one item per lane at a time), and orders work
   that crosses lanes (for example an `openapi.yaml` change before mobile `core:api` uses it).
+- **Sends every ready lane PR to the reviewer** (`REVIEW`), relays blockers and should-fix items
+  to the owning lane, and asks the owner to merge only after a `clean` verdict (or with the open
+  items listed). The reviewer uses the `onemind-review` skill (`.claude/skills/`).
 - **Asks the owner** for every decision and every merge, in one Turkish message per topic. A lane's
   PR is merged only after the owner says yes for that PR.
 - **Merges** approved PRs (squash). When another open PR is based on the merged branch, it first
@@ -78,6 +84,10 @@ reason: <what was merged>
 APPROVED
 pr: #<n>          # the owner said yes; the orchestrator merges
 
+REVIEW            # to the reviewer
+pr: #<n> | audit
+focus: <optional: areas or risks to look at>
+
 STATUS            # asks for a REPORT
 ```
 
@@ -92,8 +102,25 @@ summary: <2–5 lines: what changed, deviations from docs, follow-ups>
 needs: <decision or approval needed from the owner, or "nothing">
 ```
 
+Reviewer → orchestrator:
+
+```
+REVIEW-RESULT
+pr: #<n> | audit
+verdict: clean | fix-needed | blocked
+checks: <passed / failed / skipped>
+blockers: <count, one line each>
+should-fix: <count, one line each>
+notes: <structure / risk observations>
+```
+
+For `pr: audit`, the verdict rates the whole codebase (`clean`: nothing above nit; `fix-needed`:
+should-fix items; `blocked`: a product rule is broken in `dev`), and the reviewer sends the full
+English audit report in the same message for the orchestrator to turn into roadmap items.
+
 A lane sends `REPORT state: ready` when its PR is open and its checks pass, `state: blocked` as soon
-as it needs a decision, and answers every `STATUS` and `REBASE` with a `REPORT`.
+as it needs a decision, and answers every `STATUS` and `REBASE` with a `REPORT`. The reviewer reports
+`state: working` with `pr: #<n>` (or `audit`) while a review runs, and `idle` otherwise.
 
 ## Rules
 
