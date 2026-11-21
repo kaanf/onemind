@@ -1,8 +1,5 @@
 package com.onemind.konsist
 
-import com.onemind.konsist.MobileScopes.isData
-import com.onemind.konsist.MobileScopes.isDomain
-import com.onemind.konsist.MobileScopes.isPresentation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -11,21 +8,26 @@ import kotlin.test.assertTrue
 class ScopeTest {
     @Test
     fun featuresAreFound() {
-        assertEquals(listOf("auth", "sales", "staff", "today"), MobileScopes.features)
+        assertEquals(listOf("auth", "sales", "staff", "today"), SourceFiles.features)
+    }
+
+    @Test
+    fun everyAppFileHasALayerAndAPackageRule() {
+        val unclassified = SourceFiles.app.filter { it.layer == null || it.expectedPackage == null }
+        assertTrue(unclassified.isEmpty(), "Add the module to SourceFiles.classify:\n" + unclassified.joinToString("\n"))
     }
 
     @Test
     fun appScopeContainsEveryLayer() {
-        val files = MobileScopes.app.files
-        assertTrue(files.any { it.path.endsWith("/composeapp/navigation/NavigationRoot.kt") }, "composeApp")
-        assertTrue(files.any { it.isDomain() }, "domain")
-        assertTrue(files.any { it.isData() }, "data")
-        assertTrue(files.any { it.isPresentation() }, "presentation")
-        assertTrue(files.none { it.path.contains("/build/") || it.path.contains("/core/konsist/") }, "no build output or guards")
+        val layers = SourceFiles.app.mapNotNull { it.layer }.toSet()
+        assertEquals(Layer.entries.toSet(), layers)
+        assertTrue(SourceFiles.app.any { it.relativePath == Guards.CLOCK_SEAM }, "clock seam moved: update Guards.CLOCK_SEAM")
+        assertTrue(SourceFiles.app.none { "/build/" in it.relativePath || it.relativePath.startsWith("core/konsist/") })
     }
 
     @Test
     fun apiScopeContainsGeneratedModels() {
-        assertTrue(MobileScopes.apiModels.classes().any { it.name == "Problem" }, "core:api models")
+        assertTrue(SourceFiles.apiModels.any { file -> file.file.classes().any { it.name == "Problem" } }, "core:api models")
+        assertTrue(SourceFiles.apiModels.all { it.layer == Layer.Api })
     }
 }

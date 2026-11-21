@@ -22,4 +22,5 @@ tasks.test {
         },
     )
     inputs.dir(rootProject.layout.projectDirectory.dir("core/api/build/generated/openapi"))
+    inputs.dir("src/test/fixtures")
 }
