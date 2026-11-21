@@ -34,8 +34,8 @@ green run after it.
 - [x] Merge safety and coordination: orchestrator verifies checks itself, PLAN message, `critical
       areas` line, guard files, autonomy tier, batched owner questions, public-repo rule (#35)
 - [x] Fork PR workflows need approval for all outside contributors (applied 2026-11-21)
-- [ ] `CI result` aggregator job (fails on failure, cancel or unexpected skip); iOS framework link job
-      on mobile PRs feeds it (ci)
+- [x] `CI result` aggregator job (fails on failure, cancel or unexpected skip); iOS framework link job
+      on mobile PRs feeds it (#33)
 - [ ] Rulesets: `dev` PR + `CI result` + squash only; `main` PR + `CI result` + merge commit only; no
       force push or deletion (orchestrator, after the aggregator merges)
 - [ ] Label PRs touching guard files `guard-files` and comment the list (ci)
@@ -96,7 +96,7 @@ green run after it.
       `DELETE /me` (ADR 0004)
 - [ ] Mobile: A1 sign in, A2 email code, secure token storage, refresh on 401, update screen on 426
 - [x] Backend: minimum app version (`X-App-Version` / `X-Platform`) → `426 Upgrade Required` (#36)
-- [ ] ADR 0013 "Backend module internal structure" (replaces ADR 0009)
+- [x] ADR 0013 "Backend module internal structure" (replaces ADR 0009) (#34)
 - [ ] Audit existing backend code against ADR 0013 and fix deviations (before the gates, no baseline)
 - [ ] ArchUnit gates for ADR 0013 rules + Modulith `allowedDependencies`; `backend/AGENTS.md` names
       the reference module
