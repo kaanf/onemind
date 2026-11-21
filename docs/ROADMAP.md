@@ -2,9 +2,10 @@
 
 Where the project is and what comes next. Agents: read this after `AGENTS.md` at the start of a
 session, pick the first unchecked item of the current phase (unless the owner says otherwise), and
-tick items here in the same PR that completes them.
+tick items here in the same PR that completes them. When several sessions run in parallel, each
+works on its own lane: see [PARALLEL_WORK.md](PARALLEL_WORK.md).
 
-Last updated: 2026-11-20.
+Last updated: 2026-11-21.
 
 ## Status
 
