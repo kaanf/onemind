@@ -1,7 +1,7 @@
 # 0013 · Backend module internal structure
 
-- **Status:** Proposed
-- **Date:** 2026-11-21
+- **Status:** Accepted
+- **Date:** 2026-11-21 (accepted 2026-11-21)
 - **Deciders:** Kaan
 - **Supersedes:** [0009](0009_BACKEND_MODULAR_MONOLITH.md)
 
@@ -84,7 +84,7 @@ to `web`. Allowed dependencies inside a module, and nothing else:
   `Quantity`, IDs, `DomainException`).
 - Other modules see only `api` and `api/events` (named interfaces), never `application`, `domain`
   or `infra` classes.
-- `web` calls `application` use cases and may use `domain` types (`Money`, a calculated figure) to
+- `web` calls `application` use cases and may use `domain` types (a calculated figure) and `common` value types (`Money`) to
   map them to and from generated DTOs (R5), so use cases don't need extra application-level copies
   of domain results. It never touches `infra` or `api/events`.
 - Wiring that belongs to a use case lives next to it in `application`: db-scheduler task beans (the
@@ -101,14 +101,14 @@ to `web`. Allowed dependencies inside a module, and nothing else:
 | ID | Rule |
 |----|------|
 | **R1** | A module touches only its own schema's generated jOOQ classes (`com.onemind.db.<own schema>`; `common` owns `platform`). Data of another module comes through that module's `api` or its events. No cross-schema joins in code. |
-| **R2** | Use-case classes, not growing `*Service` classes. A use case covers one screen or job. A Spring bean in `application` with more than **5 constructor dependencies** must be split (data classes, results and exceptions there aren't use cases). |
+| **R2** | Use-case classes, not growing `*Service` classes. A use case covers one screen or job. A Spring bean in `application` with more than **5 collaborators** in its constructor must be split. `Clock` and `TransactionTemplate` don't count (a fixed allowlist in the gate); data classes, results and exceptions in `application` aren't use cases. |
 | **R3** | `DSLContext` and other jOOQ types (`org.jooq..`, `com.onemind.db..`) are used only in `infra/persistence`. |
 | **R4** | jOOQ `Record` types never leave `infra/persistence`: repositories return domain types, plain Kotlin values or plain data classes declared in `infra/persistence`. |
 | **R5** | Generated OpenAPI models and interfaces (`com.onemind.api.v1..`) never leave `web` (a module's `web` or `common/web`). |
 | **R6** | `domain` imports no Spring, jOOQ or Jackson. |
 | **R7** | Transactions (`@Transactional`, `TransactionTemplate`) only in `application`. One per use case; no Claude or Storyous call inside one. |
 | **R8** | The module graph is explicit: every module declares `@ApplicationModule(allowedDependencies = …)` (§4). Changing it changes this ADR. |
-| **R9** | No interface without a second implementation. **Exception:** `PosProvider` (Storyous now, other POS systems later). Test doubles don't count as a second implementation. Sealed interfaces for result types (`IdempotencyClaim`) are not ports and are fine. |
+| **R9** | No interface without a second implementation. **Exceptions:** `PosProvider` (a mock/fixture implementation now, the real Storyous client later, other POS systems after that), `ReceiptExtractor` and `LlmClient` (tests need a fake that makes no network calls). `EmailSender` and `FileStorage` are concrete classes; switching provider is configuration. Test doubles alone don't count as a second implementation. Sealed interfaces for result types (`IdempotencyClaim`) are not ports and are fine. |
 
 ### 4. Module graph (R8)
 
@@ -125,7 +125,7 @@ on `reporting`, and only `reporting` depends on `stock`, so the graph has no cyc
 checks that). `stock` must never need `reporting`: a number both show is computed in `stock` and
 read by `reporting`.
 
-**Deviation from the brief ("reporting and stock only on `pos::events`"):** both also need venue
+**Why more than `pos::events` (owner decision, 2026-11-21):** both also need venue
 access (`account::api`, AGENTS.md rule 7), `reporting` needs stock corrections for `possibleLoss`,
 and both need POS facts that an event can't carry reasonably (bill lines for a business day are thousands of rows, and the event payload is stored in
 `platform.event_publication`). So they read through the pos read API below. Events stay small
@@ -182,14 +182,14 @@ already grouped by hour and product). The SQL stays inside `pos`.
 |------|------------|-----|
 | Direction (§2) | ArchUnit | The table in §2 as a rule per business module (`account`, `pos`, `reporting`, `stock`); `common` is exempt from it but not from R3–R7. |
 | R1 | ArchUnit | `DatabaseAccessRules`: each module only its own `com.onemind.db.<schema>` package; the `reporting → pos` exception is removed. |
-| R2 | ArchUnit + reviewer | Gate: Spring beans (`@Service`/`@Component`) in `application` have at most 5 constructor parameters and no name ending in `Service`. Reviewer: "one screen or job per class". |
+| R2 | ArchUnit + reviewer | Gate: Spring beans (`@Service`/`@Component`) in `application` have at most 5 constructor parameters not on the allowlist (`Clock`, `TransactionTemplate`), and no name ending in `Service`. Reviewer: "one screen or job per class". |
 | R3 | ArchUnit | `org.jooq..` and `com.onemind.db..` accessed only from `..infra.persistence..`. |
 | R4 | ArchUnit (partial) + reviewer | Gate: public methods in `infra.persistence` don't return `org.jooq.Record` subtypes or `Result`. Reviewer: records hidden inside generic return types. |
 | R5 | ArchUnit | `com.onemind.api.v1..` accessed only from `..web..`. |
 | R6 | ArchUnit | `..domain..` depends on no `org.springframework..`, `org.jooq..`, `tools.jackson..` or `com.fasterxml.jackson..`. |
 | R7 | ArchUnit | `@Transactional` and `TransactionTemplate` used only in `..application..` of business modules and outside `infra`/`web` in `common`. |
 | R8 | Spring Modulith | `ApplicationModules.verify()` with `allowedDependencies` and named interfaces `api` and `events`. |
-| R9 | Reviewer | Not checkable mechanically (a second implementation can arrive later); the reviewer lane checks every new interface. |
+| R9 | Reviewer (+ ArchUnit allowlist) | Gate: interfaces outside sealed result types exist only for `PosProvider`, `ReceiptExtractor` and `LlmClient`. Reviewer: a new exception needs a second implementation or a decision here. |
 
 Notes for the C3 rules:
 
@@ -236,8 +236,8 @@ Every ArchUnit rule gets a fixture that violates it and a test proving the rule 
     `RefreshTokens`, `Logout`).
   - `VenueAccess`: interface plus `VenueAccessService` becomes one concrete facade class in
     `account/api` (R9).
-  - `EmailSender` (one SMTP implementation, a test fake) becomes a concrete class, unless the owner
-    keeps it as an exception (see open points).
+  - `EmailSender` (one SMTP implementation, a test fake) becomes a concrete class in
+    `common/email` (R9); tests replace the bean instead of implementing an interface.
   - `common/money/CurrencyConverter` (a jOOQ converter, R3) → `common/money/infra/persistence`,
     with its class name updated in the jOOQ codegen config in `build.gradle.kts`.
   - `common/error/ApiExceptionHandler` and `Problems` (they use the generated `FieldError`, R5) →
@@ -248,23 +248,27 @@ Every ArchUnit rule gets a fixture that violates it and a test proving the rule 
     "Architecture") follow the moves in the same PR.
   - `@ApplicationModule(allowedDependencies = …)` on every module.
 - **C3:** the ArchUnit and Modulith gates in §7, with fixture tests, mandatory in CI.
-- **Docs:** after approval, `backend/AGENTS.md` ("Architecture", "Rules") and
-  `docs/architecture/README.md` describe this structure; ADR 0009 is kept for history and marked
-  superseded. ADR 0008's "external services sit behind interfaces" now reads "behind an adapter in
-  `infra/client`; an interface only with a second implementation (R9)".
-- New work in Phases 4–6 starts in this structure: the Storyous client in `pos/infra/client`
-  behind `PosProvider`, sync use cases in `pos/application`, the pos read facade in `pos/api`.
+- **Docs:** `backend/AGENTS.md` ("Architecture", "Rules", the AI rule on `LlmClient` and the
+  hosting list of interfaces) follows this ADR in C2; ADR 0009 is kept for history, superseded.
+  ADR 0008's "external services sit behind interfaces" now reads: `FileStorage` and `EmailSender`
+  are concrete adapters in `infra/client` (provider switch by configuration); `ReceiptExtractor`
+  (ADR 0007) and `LlmClient` stay interfaces (R9).
+- New work in Phases 4–6 starts in this structure: sync use cases in `pos/application`, the pos read
+  facade in `pos/api`, and `PosProvider` in `pos`. **Owner decision (2026-11-21):** the real
+  Storyous API is not connected for now. Phase 4 builds `PosProvider` with a mock/fixture
+  implementation (recorded or generated POS data) in `pos/infra/client`; the real Storyous client
+  comes later as a second implementation behind the same interface, which is what justifies the
+  interface under R9.
 
-### Open points for the owner
+### Owner decisions (2026-11-21)
 
-1. **Module graph:** `reporting` and `stock` also depend on `account::api` (venue access) and
-   `pos::api` (read facade), not only on `pos::events` (§4). Confirm.
-2. **R9 and existing ports:** `EmailSender` has one production implementation. ADR 0008 lists it and
-   `FileStorage` as swappable interfaces, ADR 0007 puts receipt extraction behind
-   `ReceiptExtractor`, and the AI rules in `backend/AGENTS.md` require an `LlmClient` interface for
-   the assistant "so the model/provider can change". Under R9 they all become concrete adapters
-   until a second implementation exists (the email provider switch is SMTP configuration,
-   `docs/architecture/README.md` item 11; the Sonnet retry in ADR 0007 is the same client with
-   another model). Confirm, or name some of them as exceptions next to `PosProvider`.
-3. **R2 threshold:** "more than 5 constructor dependencies" counts `Clock` and
-   `TransactionTemplate`, which almost every use case needs. Keep 5, or count only collaborators?
+1. **Module graph:** confirmed as in §4. `reporting` and `stock` depend on `account::api` and
+   `pos::api`; `reporting` also on `stock::api` and `stock::events` (`possibleLoss`; an empty state,
+   never 0, if stock isn't in the first release).
+2. **R9:** interfaces only for `PosProvider`, `ReceiptExtractor` and `LlmClient`. `EmailSender` and
+   `FileStorage` become concrete classes; the provider switch is configuration. Sealed result types
+   stay allowed.
+3. **R2:** at most 5 collaborators, counted on Spring beans in `application` only; `Clock` and
+   `TransactionTemplate` are exempt through a fixed allowlist in the gate.
+4. **POS data:** mock data only for now; `PosProvider` gets a mock/fixture implementation, the real
+   Storyous client later behind the same interface.
