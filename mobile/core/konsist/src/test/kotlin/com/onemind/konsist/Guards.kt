@@ -79,11 +79,11 @@ object Guards {
      * inferred types are caught in domain and data by [moneyHasNoFloatingPointValues].
      */
     fun moneyIsNotFloatingPoint(files: List<SourceFile>): List<String> =
-        files
-            .flatMap { file -> typedDeclarations(file.file) }
-            .filter { (_, name, type) ->
-                MoneyNames.isMoney(name) && floatingPoint.containsMatchIn(type)
-            }.map { (location, name, type) -> "$location $name: $type" }
+        files.flatMap { file ->
+            typedDeclarations(file.file)
+                .filter { (_, name, type) -> MoneyNames.isMoney(name) && floatingPoint.containsMatchIn(type) }
+                .map { (location, name, type) -> "$file:${location.split(':').takeLast(2).joinToString(":")} $name: $type" }
+        }
 
     /**
      * In domain and data, a line that names money has no floating-point literal (`0.21`, `100.0`,
@@ -173,37 +173,44 @@ object Guards {
  * numbers by contract (`docs/api/README.md`), and sizes are drawing values.
  */
 object MoneyNames {
-    private val moneyTokens =
+    // Same lists as the backend (docs/api/lint/money-words.json, PR #43): singular words, and a plural
+    // s/es also matches (`prices`, `losses`, `salesByHour`).
+    private val moneyWords =
         setOf(
+            "money",
             "amount",
             "price",
             "total",
+            "subtotal",
             "revenue",
+            "sales",
             "cost",
             "tip",
-            "tips",
             "discount",
-            "discounts",
             "loss",
-            "losses",
             "payment",
-            "payments",
-            "money",
-            "minor",
             "refund",
-            "refunds",
             "bill",
             "net",
             "gross",
+            "minor",
         )
-    private val nonMoneySuffixes =
-        setOf("rate", "ratio", "percent", "pct", "share", "count", "quantity", "height", "width", "fraction")
+    private val notMoneySuffixes = setOf("rate", "ratio", "percent", "pct", "share", "count", "quantity")
+
+    // UI-only (not in the backend list): drawing values such as `totalHeight` or `revenueFraction`.
+    private val drawingSuffixes = setOf("height", "width", "fraction")
+
     private val tokenBoundary = Regex("""_+|(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|(?<=[A-Za-z])(?=[0-9])""")
 
     fun tokens(name: String): List<String> = name.split(tokenBoundary).filter { it.isNotEmpty() }.map { it.lowercase() }
 
     fun isMoney(name: String): Boolean {
         val tokens = tokens(name)
-        return tokens.any { it in moneyTokens } && tokens.last() !in nonMoneySuffixes
+        val last = tokens.last()
+        return tokens.any { it.isWordIn(moneyWords) } && !last.isWordIn(notMoneySuffixes) && !last.isWordIn(drawingSuffixes)
     }
+
+    /** The token is one of [words], or its plural with `s` / `es`. */
+    private fun String.isWordIn(words: Set<String>) =
+        this in words || (endsWith("s") && dropLast(1) in words) || (endsWith("es") && dropLast(2) in words)
 }

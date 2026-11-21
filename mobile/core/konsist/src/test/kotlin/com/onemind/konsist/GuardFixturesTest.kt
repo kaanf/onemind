@@ -40,6 +40,10 @@ class GuardFixturesTest {
             "MoneyNames.kt:7:1 possibleLoss: Double",
             "MoneyNames.kt:9:1 averageBill: Float",
             "ChartTotal.kt:5:5 revenue: Double",
+            "PluralMoney.kt:5:5 prices: List<Double>",
+            "PluralMoney.kt:6:5 amounts: List<Double>",
+            "PluralMoney.kt:7:5 subtotal: Double",
+            "PluralMoney.kt:8:5 salesByHour: List<Double>",
         )
 
     @Test
@@ -65,10 +69,36 @@ class GuardFixturesTest {
 
     @Test
     fun moneyNamesMatchWholeTokens() {
-        listOf("amount", "paidRevenue", "possibleLoss", "averageBill", "tips", "amountMinor", "net_total", "PRICE").forEach {
+        listOf(
+            "amount",
+            "paidRevenue",
+            "possibleLoss",
+            "averageBill",
+            "tips",
+            "amountMinor",
+            "net_total",
+            "PRICE",
+            "prices",
+            "losses",
+            "subtotal",
+            "salesByHour",
+        ).forEach {
             assertTrue(MoneyNames.isMoney(it), it)
         }
-        listOf("tooltipWidth", "multiplier", "totalHeight", "cardRate", "discountPct", "tipsShare", "guestCount", "network").forEach {
+        listOf(
+            "tooltipWidth",
+            "multiplier",
+            "totalHeight",
+            "cardRate",
+            "discountPct",
+            "tipsShare",
+            "guestCount",
+            "network",
+            "tipRates",
+            "guestCounts",
+            "wholesaler",
+            "revenueFraction",
+        ).forEach {
             assertTrue(!MoneyNames.isMoney(it), it)
         }
     }

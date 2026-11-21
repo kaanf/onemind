@@ -159,10 +159,13 @@ with `./gradlew :core:konsist:test` in CI and checks:
   `composeApp`, Ktor, Koin, Android/androidx or Compose; presentation imports no data;
 - generated `core:api` models are imported only in data layers;
 - money-named declarations are never `Float`/`Double`, in every layer (product rule 5). Money names
-  are whole camelCase/snake tokens (`amount`, `price`, `total`, `revenue`, `cost`, `tip(s)`,
-  `discount`, `loss`, `payment`, `money`, `minor`, `refund`, `bill`, `net`, `gross`); names ending in
-  `Rate`/`Ratio`/`Percent`/`Pct`/`Share`/`Count`/`Quantity`/`Height`/`Width`/`Fraction` are not money.
-  Percentages and drawing values may stay floating point. In domain and data, a line naming money
+  are whole camelCase/snake tokens from the backend's list (`docs/api/lint/money-words.json`:
+  `money`, `amount`, `price`, `total`, `subtotal`, `revenue`, `sales`, `cost`, `tip`, `discount`,
+  `loss`, `payment`, `refund`, `bill`, `net`, `gross`, `minor`), a plural `s`/`es` also matches
+  (`prices`, `salesByHour`). Names ending in `Rate`/`Ratio`/`Percent`/`Pct`/`Share`/`Count`/`Quantity`
+  are not money (same as the backend); `Height`/`Width`/`Fraction` are mobile-only suffixes for
+  drawing values. Keep the lists equal to the backend's. Percentages and drawing values may stay
+  floating point. In domain and data, a line naming money
   also has no floating-point literal or `toDouble()`/`toFloat()`;
 - no system clock outside the clock seam (`CoreDataModule.kt`) and no device time zone anywhere
   (product rule 6);
