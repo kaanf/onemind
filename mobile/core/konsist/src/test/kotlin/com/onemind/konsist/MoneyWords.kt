@@ -9,8 +9,9 @@ import java.io.File
 
 /**
  * The money word lists shared with the backend (`docs/api/lint/money-words.json`, product rule 5).
- * Entries are read as data, so a new word or suffix needs no Kotlin change. An array key this class
- * doesn't know fails the guards, so a new kind of list can't be ignored silently on mobile.
+ * Entries are read as data, so a new word or suffix needs no Kotlin change. A key this class doesn't
+ * know fails the guards unless it holds a string (a note like `comment`), so a new kind of list,
+ * object or flag can't be ignored silently on mobile.
  */
 data class MoneyWords(
     val moneyWords: Set<String>,
@@ -27,8 +28,8 @@ data class MoneyWords(
 
         fun parse(json: String): MoneyWords {
             val root = Json.parseToJsonElement(json).jsonObject
-            val unknown = root.filter { (key, value) -> value is JsonArray && key !in knownArrays }.keys
-            require(unknown.isEmpty()) { "money-words.json has lists the mobile guard doesn't read: $unknown" }
+            val unknown = root.filter { (key, value) -> key !in knownArrays && !(value is JsonPrimitive && value.isString) }.keys
+            require(unknown.isEmpty()) { "money-words.json has keys the mobile guard doesn't read: $unknown" }
             return MoneyWords(root.words("moneyWords"), root.words("notMoneySuffixes"))
         }
 

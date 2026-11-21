@@ -15,15 +15,15 @@ class MoneyWordsTest {
 
     @Test
     fun aWordOnlyInTheFileIsMoney() {
-        assertTrue(MoneyNames.isMoney("voucherTotal", fixture))
-        assertTrue(MoneyNames.isMoney("vouchers", fixture))
-        assertTrue(!MoneyNames.isMoney("voucher"), "'voucher' is not in the repo's list")
+        assertTrue(MoneyNames.isMoney("zzqmoneyTotal", fixture))
+        assertTrue(MoneyNames.isMoney("zzqmoneys", fixture))
+        assertTrue(!MoneyNames.isMoney("zzqmoney"), "'zzqmoney' is not in the repo's list")
     }
 
     @Test
     fun aSuffixOnlyInTheFileExcludes() {
-        assertTrue(!MoneyNames.isMoney("amountTier", fixture))
-        assertTrue(MoneyNames.isMoney("amountTier"), "'tier' is not a suffix in the repo's list")
+        assertTrue(!MoneyNames.isMoney("amountZzqsuffix", fixture))
+        assertTrue(MoneyNames.isMoney("amountZzqsuffix"), "'zzqsuffix' is not a suffix in the repo's list")
     }
 
     @Test
@@ -39,7 +39,18 @@ class MoneyWordsTest {
     fun anUnknownListFails() {
         val json = """{"moneyWords": ["amount"], "notMoneySuffixes": ["rate"], "notMoneyLastWords": ["id"]}"""
         assertFailsWith<IllegalArgumentException> { MoneyWords.parse(json) }
+        val nested = """{"moneyWords": ["amount"], "notMoneySuffixes": ["rate"], "more": {"suffixes": ["id"]}}"""
+        assertFailsWith<IllegalArgumentException> { MoneyWords.parse(nested) }
+        val flag = """{"moneyWords": ["amount"], "notMoneySuffixes": ["rate"], "strict": true}"""
+        assertFailsWith<IllegalArgumentException> { MoneyWords.parse(flag) }
     }
+
+    @Test
+    fun aStringNoteIsAllowed() =
+        assertEquals(
+            setOf("rate"),
+            MoneyWords.parse("""{"comment": "x", "moneyWords": ["amount"], "notMoneySuffixes": ["rate"]}""").notMoneySuffixes,
+        )
 
     @Test
     fun aMissingOrEmptyListFails() {
@@ -48,7 +59,7 @@ class MoneyWordsTest {
     }
 
     @Test
-    fun theFixtureParses() = assertEquals(setOf("amount", "total", "voucher"), fixture.moneyWords)
+    fun theFixtureParses() = assertEquals(setOf("amount", "total", "zzqmoney"), fixture.moneyWords)
 
     private fun String.capitalize() = replaceFirstChar { it.uppercase() }
 }

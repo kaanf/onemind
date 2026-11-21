@@ -1,5 +1,5 @@
 {
-  "comment": "Fixture: the real lists plus one word and one suffix that only exist here, to prove the guard reads entries from the file.",
-  "moneyWords": ["amount", "total", "voucher"],
-  "notMoneySuffixes": ["rate", "tier"]
+  "comment": "Fixture, not the shared list: two real money words, one real suffix, plus a synthetic word (zzqmoney) and suffix (zzqsuffix) that exist only here, to prove the guard reads entries from the file.",
+  "moneyWords": ["amount", "total", "zzqmoney"],
+  "notMoneySuffixes": ["rate", "zzqsuffix"]
 }
