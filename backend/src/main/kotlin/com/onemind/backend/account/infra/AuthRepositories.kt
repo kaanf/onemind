@@ -205,6 +205,8 @@ class UserAccountRepository(
                 .join(m)
                 .on(m.ORGANIZATION_ID.eq(o.ID))
                 .where(m.USER_ID.eq(userId), m.ROLE.eq(OWNER))
+                // A fixed lock order: co-owners of several organizations deleting at once can't deadlock.
+                .orderBy(o.ID)
                 .forUpdate()
                 .of(o)
                 .fetch(o.ID)

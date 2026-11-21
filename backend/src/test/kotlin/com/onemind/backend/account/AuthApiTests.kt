@@ -42,6 +42,9 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -404,6 +407,34 @@ class AuthApiTests {
         assertEquals(null, deletionDueAt(coOwned))
         assertEquals(null, deletionDueAt(staffOnly))
         assertEquals(0, jdbc.queryForObject<Int>("select count(*) from account.membership where user_id = ?", userId))
+    }
+
+    @Test
+    fun `co-owners of several organizations can delete their accounts at the same time`() {
+        val owners =
+            List(2) { i ->
+                jdbc.queryForObject<UUID>("insert into account.app_user (email) values (?) returning id", "owner$i-$email")!!
+            }
+        val shared = List(2) { organization(owners[0] to "OWNER", owners[1] to "OWNER") }
+        val start = CountDownLatch(1)
+
+        val statuses =
+            Executors.newFixedThreadPool(2).use { pool ->
+                owners
+                    .map { owner ->
+                        pool.submit<Int> {
+                            start.await()
+                            mockMvc
+                                .delete("/api/v1/me") { bearer(token(owner.toString())) }
+                                .andReturn()
+                                .response.status
+                        }
+                    }.also { start.countDown() }
+                    .map { it.get(30, TimeUnit.SECONDS) }
+            }
+
+        assertEquals(listOf(204, 204), statuses)
+        shared.forEach { assertEquals(clock.now + Duration.ofDays(30), deletionDueAt(it)) }
     }
 
     // Access tokens

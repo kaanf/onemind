@@ -2,6 +2,7 @@ package com.onemind.backend.common.idempotency
 
 import com.onemind.backend.common.idempotency.infra.IdempotencyClaim
 import com.onemind.backend.common.idempotency.infra.IdempotencyRecordRepository
+import com.onemind.backend.common.security.AuthenticationRequiredException
 import jakarta.servlet.FilterChain
 import jakarta.servlet.ReadListener
 import jakarta.servlet.ServletInputStream
@@ -11,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.core.annotation.Order
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.security.authentication.AnonymousAuthenticationToken
@@ -69,7 +71,12 @@ class IdempotencyFilter(
                 ?: return fail(request, response, InvalidIdempotencyKeyException())
         val (hashedRequest, hash) = hash(request)
         val claim =
-            records.claim(userId, key, request.method, request.requestURI, hash, clock.instant(), TTL, LOCK_TIMEOUT)
+            try {
+                records.claim(userId, key, request.method, request.requestURI, hash, clock.instant(), TTL, LOCK_TIMEOUT)
+            } catch (_: DataIntegrityViolationException) {
+                // The record references app_user: a still-valid access token of a deleted account.
+                return fail(request, response, AuthenticationRequiredException())
+            }
         when (claim) {
             is IdempotencyClaim.Acquired -> proceed(hashedRequest, response, filterChain, userId, key, claim.claimId)
             IdempotencyClaim.InProgress -> fail(request, response, IdempotentRequestInProgressException())

@@ -67,6 +67,11 @@ Account deletion (`DELETE /me`, App Store 5.1.1(v), GDPR art. 17):
   background job after **30 days** (inside GDPR's one-month window). During those 30 days an
   accidental deletion can be reversed through support. Legal wording to be confirmed. The mark is
   `organization.deletion_due_at` (V007); the purge job comes with the organization data (phase 4).
+  A support reversal clears `deletion_due_at` (and restores an owner membership) before it passes.
+- History and audit tables that record who did something (stock movements, counts, receipts,
+  corrections) reference `app_user` with **`on delete set null`, never `cascade`**: deleting a user
+  must not delete stock history (product rule 4). Only the user's own data (identities, tokens,
+  memberships, followed venues, idempotency records) cascades.
 
 ## `pos` (read model of the POS, written only by the sync)
 
