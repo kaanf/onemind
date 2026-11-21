@@ -36,8 +36,8 @@ green run after it.
 - [x] Fork PR workflows need approval for all outside contributors (applied 2026-11-21)
 - [x] `CI result` aggregator job (fails on failure, cancel or unexpected skip); iOS framework link job
       on mobile PRs feeds it (#33)
-- [ ] Rulesets: `dev` PR + `CI result` + squash only; `main` PR + `CI result` + merge commit only; no
-      force push or deletion (orchestrator, after the aggregator merges)
+- [x] Rulesets: `dev` PR + `CI result` + squash only; `main` PR + `CI result` + merge commit only; no
+      force push or deletion (applied 2026-11-21)
 - [ ] Label PRs touching guard files `guard-files` and comment the list (ci)
 - [ ] `permissions.deny` snippets for each lane's `.claude/settings.local.json` (orchestrator)
 - [ ] detekt 2.0 as a non-blocking report job with baseline, backend and mobile; one PR, half a day;
