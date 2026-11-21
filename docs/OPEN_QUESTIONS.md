@@ -20,6 +20,7 @@ reference the question ID in a code comment / PR. When a question is answered, m
 | P14 | Stock: our own system with Storyous read-only (current plan), and how to position it against Storyous Inventory. |
 | P15 | Storyous partnership outcome (owner is handling it): access model, extra data (open bills, voids, attendance), terms. |
 | P12 | Can the table layout be edited in the app, or only taken from the POS? |
+| P16 | A venue disabled in Storyous: should its owner still see its history (sales, later stock) read-only, and should *All venues* include it? Today `VenueAccess` answers 404 for a `DISABLED` venue, even for its owner (#30); relaxing it is a one-line change. Decide before phase 5. |
 
 ## Metrics
 
