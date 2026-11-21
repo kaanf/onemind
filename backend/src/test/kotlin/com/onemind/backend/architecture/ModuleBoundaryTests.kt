@@ -62,4 +62,14 @@ class ModuleBoundaryTests {
 
         StructureRules.all().forEach { it.check(classes) }
     }
+
+    @Test
+    fun `code keeps product rules 1, 5 and 6 (read-only POS, no float money, injected Clock)`() {
+        val classes =
+            ClassFileImporter()
+                .withImportOption(ImportOption.DoNotIncludeTests())
+                .importPackages("com.onemind.backend")
+
+        ProductRules.all().forEach { it.check(classes) }
+    }
 }

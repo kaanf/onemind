@@ -84,7 +84,8 @@ is a plan; the source of truth for shapes is the OpenAPI spec once written.
 | Business day | local date | `"2026-11-06"` |
 | Percentages, deltas | raw number, app formats | `12.4` |
 
-Never send money or quantities as JSON floats. Responses that depend on local time include the
+Never send money or quantities as JSON floats (money fields are checked by name in `redocly.yaml`,
+`rule/money-*`). Responses that depend on local time include the
 venue `timeZone`.
 
 ## Text and localisation

@@ -1,0 +1,78 @@
+# Proves rule/money-minor-units in redocly.yaml bites (run by CI, expected to fail with exactly 5 money problems).
+# Not referenced from openapi.yaml, so the normal spec lint never reads it.
+openapi: 3.0.3
+info:
+  title: Money lint fixture
+  version: 0.0.0
+servers:
+  - url: https://example.invalid/api/v1
+security: []
+paths:
+  /fixture:
+    get:
+      operationId: getFixture
+      summary: Fixture
+      description: Fixture
+      tags: [fixture]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Fixture'
+        '400':
+          description: Bad request
+tags:
+  - name: fixture
+    description: Fixture
+components:
+  schemas:
+    Money:
+      type: object
+      required: [amountMinor, currency]
+      properties:
+        amountMinor:
+          type: integer
+          format: int64
+        currency:
+          type: string
+    Fixture:
+      type: object
+      properties:
+        # Violations: money as a JSON number, or an integer that isn't int64.
+        totalPrice:
+          type: number
+          format: double
+        amountMinor:
+          type: number
+        net_revenue:
+          type: number
+          format: float
+        tip:
+          type: integer
+          format: int32
+        lossMinor:
+          type: integer
+        # Allowed: the Money object, int64 minor units, a sub-minor decimal string, ratios, counts and words that only contain a money token.
+        revenue:
+          $ref: '#/components/schemas/Money'
+        costMinor:
+          type: integer
+          format: int64
+        costPerServing:
+          type: string
+          example: '0.6000'
+        discountRate:
+          type: string
+        discountPercent:
+          type: number
+        tipShare:
+          type: number
+        totalCount:
+          type: integer
+          format: int32
+        multiple:
+          type: number
+        costume:
+          type: number

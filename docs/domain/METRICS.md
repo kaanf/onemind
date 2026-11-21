@@ -13,6 +13,8 @@ Items marked **(?)** need confirmation; see `../OPEN_QUESTIONS.md`.
 - All times are in the venue's time zone (`Europe/Prague`). Store timestamps in UTC; convert at
   aggregation time. Handle DST days (23/25 h).
 - "Today" = current business day. "Last Friday" = the business day exactly 7 days earlier.
+- Implemented once, in `backend/…/common/time/BusinessDayCalendar` (cut-off is a parameter until M1
+  is decided); reading the system clock anywhere else fails the build (`architecture/ProductRules`).
 
 ## Periods and comparisons
 
