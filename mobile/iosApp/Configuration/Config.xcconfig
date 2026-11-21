@@ -1,0 +1,10 @@
+PRODUCT_NAME=OneMind
+PRODUCT_BUNDLE_IDENTIFIER=com.onemind.app
+
+CURRENT_PROJECT_VERSION=1
+MARKETING_VERSION=0.1.0
+
+// Strips debug-only local-network exceptions from the release Info.plist.
+INFOPLIST_PREPROCESS = YES
+
+DEVELOPMENT_TEAM=SGWP227GBQ

@@ -34,4 +34,22 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-// Modules (ADR 0011) are added with the next roadmap item.
+include(":core:api")
+include(":core:data")
+include(":core:domain")
+include(":core:presentation")
+include(":core:designsystem")
+include(":feature:auth:domain")
+include(":feature:auth:data")
+include(":feature:auth:presentation")
+include(":feature:today:domain")
+include(":feature:today:data")
+include(":feature:today:presentation")
+include(":feature:sales:domain")
+include(":feature:sales:data")
+include(":feature:sales:presentation")
+include(":feature:staff:domain")
+include(":feature:staff:data")
+include(":feature:staff:presentation")
+include(":composeApp")
+include(":androidApp")
