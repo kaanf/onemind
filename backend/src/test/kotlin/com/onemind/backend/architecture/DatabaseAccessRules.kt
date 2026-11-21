@@ -34,7 +34,6 @@ object DatabaseAccessRules {
                 .dependOnClassesThat()
                 .resideInAnyPackage(*(schemas - allowed).map { "$dbRoot.$it.." }.toTypedArray())
                 .because("module $module owns only its schema (ADR 0013, R1)")
-                .allowEmptyShould(true)
         } +
             noClasses()
                 .that()
@@ -45,5 +44,4 @@ object DatabaseAccessRules {
                 .dependOnClassesThat()
                 .resideInAnyPackage("$dbRoot..", "org.jooq..")
                 .because("jOOQ types stay inside infra.persistence (ADR 0013, R3)")
-                .allowEmptyShould(true)
 }

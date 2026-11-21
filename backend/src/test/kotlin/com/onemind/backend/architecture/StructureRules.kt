@@ -130,7 +130,6 @@ object StructureRules {
             .should()
             .resideInAnyPackage(*BUSINESS_MODULES.flatMap { layerPackages(appRoot, it) }.toTypedArray())
             .because("classes outside the ADR 0013 §2 packages would escape the direction rules")
-            .allowEmptyShould(true)
 
     /** R2: application beans are use cases with at most 5 collaborators, not `*Service` classes. */
     fun collaborators(appRoot: String): ArchRule =
@@ -140,7 +139,6 @@ object StructureRules {
             .and(springBeans)
             .should(beSmallUseCases())
             .because("use cases stay small (ADR 0013, R2)")
-            .allowEmptyShould(true)
 
     /** R4: no public signature in persistence exposes a jOOQ `Record` or `Result`. */
     fun noJooqResultsOutsidePersistence(appRoot: String): ArchRule =
@@ -155,7 +153,6 @@ object StructureRules {
             .resideInAnyPackage(*persistencePackages(appRoot).toTypedArray())
             .should(notExposeJooqResults())
             .because("jOOQ records never leave infra.persistence (ADR 0013, R4)")
-            .allowEmptyShould(true)
 
     /** R5: generated OpenAPI types only in `web` packages (a module's or `common.web`). */
     fun openApiOnlyInWeb(
@@ -171,7 +168,6 @@ object StructureRules {
             .dependOnClassesThat()
             .resideInAPackage("$apiRoot..")
             .because("generated OpenAPI models never leave web (ADR 0013, R5)")
-            .allowEmptyShould(true)
 
     /** R6: domain is pure Kotlin. */
     fun pureDomain(
@@ -185,7 +181,6 @@ object StructureRules {
             .dependOnClassesThat()
             .resideInAnyPackage("org.springframework..", "org.jooq..", "$dbRoot..", "tools.jackson..", "com.fasterxml.jackson..")
             .because("domain imports no Spring, jOOQ or Jackson (ADR 0013, R6)")
-            .allowEmptyShould(true)
 
     /** R7: transactions only in `application` of business modules; in `common` never in infra or web. */
     fun transactionsOnlyInApplication(appRoot: String): List<ArchRule> =
@@ -196,14 +191,12 @@ object StructureRules {
                 .and()
                 .resideOutsideOfPackages(*modulePackages(appRoot, "application").toTypedArray())
                 .should(notUseTransactions())
-                .because("transactions are opened in application (ADR 0013, R7)")
-                .allowEmptyShould(true),
+                .because("transactions are opened in application (ADR 0013, R7)"),
             classes()
                 .that()
                 .resideInAnyPackage("$appRoot.common.*.infra..", "$appRoot.common.web..")
                 .should(notUseTransactions())
-                .because("common opens transactions at an area's root, not in infra or web (ADR 0013, R7)")
-                .allowEmptyShould(true),
+                .because("common opens transactions at an area's root, not in infra or web (ADR 0013, R7)"),
         )
 
     /** R9: interfaces only when sealed (result types) or on the allowlist. */
@@ -220,7 +213,6 @@ object StructureRules {
             .doNotHaveSimpleName("package-info")
             .should(beSealedOrAllowlisted(appRoot))
             .because("no interface without a second implementation (ADR 0013, R9)")
-            .allowEmptyShould(true)
 
     /** jOOQ's home: each business module's `infra.persistence` and each `common` area's. */
     fun persistencePackages(appRoot: String) = modulePackages(appRoot, "infra.persistence") + "$appRoot.common.*.infra.persistence.."

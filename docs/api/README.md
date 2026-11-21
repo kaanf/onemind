@@ -89,7 +89,9 @@ Never send money or quantities as JSON floats. The lint rule `onemind/money-mino
 (`lint/money-plugin.js`) checks money-named properties and components (`Price`), their array items
 and map values (`additionalProperties`), also across `$ref`'d files, by whole words from
 `lint/money-words.json`; a money name that isn't money ends in `Rate`, `Ratio`, `Percent`, `Pct`,
-`Share`, `Count` or `Quantity`. Responses that depend on local time include the venue `timeZone`.
+`Share`, `Count`, `Quantity`, `Number`, `Id` or `Index` (singular or plural: `tipRates`, `billIds`).
+The `Id` exclusion is safe because IDs are strings (UUIDv7), never JSON numbers.
+Responses that depend on local time include the venue `timeZone`.
 
 ## Text and localisation
 

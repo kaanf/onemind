@@ -59,6 +59,9 @@ data class PaymentSplit(
     val tipShare: Double,
     val discountRate: Double,
     val totalCount: Double,
+    val tipRates: List<Double>,
+    val priceIndex: Double,
+    val billNumber: Double,
 )
 
 data class Occupancy(

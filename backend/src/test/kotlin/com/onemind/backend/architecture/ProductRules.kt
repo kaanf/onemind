@@ -6,6 +6,7 @@ import com.tngtech.archunit.core.domain.JavaClass
 import com.tngtech.archunit.core.domain.JavaCodeUnit
 import com.tngtech.archunit.core.domain.JavaFieldAccess
 import com.tngtech.archunit.core.domain.JavaModifier
+import com.tngtech.archunit.core.domain.JavaStaticInitializer
 import com.tngtech.archunit.core.domain.JavaType
 import com.tngtech.archunit.lang.ArchCondition
 import com.tngtech.archunit.lang.ArchRule
@@ -45,8 +46,11 @@ object ProductRules {
             "minor",
         )
 
-    /** A name whose last word is one of these is a ratio or a count, not money (`discountRate`, `totalCount`). */
-    val NOT_MONEY_SUFFIXES = setOf("rate", "ratio", "percent", "pct", "share", "count", "quantity")
+    /**
+     * A name whose last word is one of these (singular or plural) is a ratio, a count or an identifier,
+     * not money (`discountRate`, `tipRates`, `totalCount`, `billNumber`).
+     */
+    val NOT_MONEY_SUFFIXES = setOf("rate", "ratio", "percent", "pct", "share", "count", "quantity", "number", "id", "index")
 
     private val FLOATING_TYPES = setOf("float", "double", "java.lang.Float", "java.lang.Double")
 
@@ -102,7 +106,6 @@ object ProductRules {
             .resideInAPackage("$appRoot..")
             .should(notHoldMoneyAsFloatingPoint())
             .because("money is integer minor units or BigDecimal, never Float/Double (AGENTS.md rule 5)")
-            .allowEmptyShould(true)
 
     /** Rule 6: "now" comes from the injected `Clock`; only [CLOCK_SOURCE] reads the system clock or zone. */
     fun noSystemTime(appRoot: String): ArchRule =
@@ -113,7 +116,6 @@ object ProductRules {
             .doNotHaveFullyQualifiedName("$appRoot.$CLOCK_SOURCE")
             .should(notReadSystemTime())
             .because("inject Clock and use common/time/BusinessDayCalendar (AGENTS.md rule 6)")
-            .allowEmptyShould(true)
 
     /** Rule 6: an instant becomes a local date or time only in [TIME_PACKAGE], so business days have one entry point. */
     fun localDatesOnlyInCommonTime(appRoot: String): ArchRule =
@@ -124,15 +126,17 @@ object ProductRules {
             .resideOutsideOfPackage("$appRoot.$TIME_PACKAGE..")
             .should(notConvertInstantsToLocalTime())
             .because("business days come from common/time/BusinessDayCalendar, never a calendar date (AGENTS.md rule 6)")
-            .allowEmptyShould(true)
 
     /** Rule 1: nothing in the `pos` module can send a mutating HTTP request. */
     fun posIsReadOnly(appRoot: String): ArchRule =
         classes()
             .that()
             .resideInAPackage("$appRoot.pos..")
+            .and()
+            .doNotHaveSimpleName("package-info")
             .should(notSendMutatingHttp())
             .because("the POS is read-only: we never write to Storyous (AGENTS.md rule 1)")
+            // pos has no code yet (PosProvider lands in phase 4); drop this once it has.
             .allowEmptyShould(true)
 
     /** Splits `getTotalPrice`, `amount_minor` or `Payment$Companion` into lower-case words; drops a mangled `-<hash>`. */
@@ -146,15 +150,16 @@ object ProductRules {
 
     fun isMoneyName(name: String): Boolean {
         val words = tokens(name)
-        return words.isNotEmpty() && words.last() !in NOT_MONEY_SUFFIXES && words.any { it.isMoneyWord() }
+        return words.isNotEmpty() && !words.last().isIn(NOT_MONEY_SUFFIXES) && words.any { it.isIn(MONEY_WORDS) }
     }
 
-    private fun String.isMoneyWord() =
-        this in MONEY_WORDS ||
-            (endsWith("s") && dropLast(1) in MONEY_WORDS) ||
-            (endsWith("es") && dropLast(2) in MONEY_WORDS)
+    /** The word or its plural (`s`/`es`): `tips`, `losses`, `tipRates`. */
+    private fun String.isIn(words: Set<String>) =
+        this in words ||
+            (endsWith("s") && dropLast(1) in words) ||
+            (endsWith("es") && dropLast(2) in words)
 
-    private fun isNotMoneyName(name: String) = tokens(name).lastOrNull() in NOT_MONEY_SUFFIXES
+    private fun isNotMoneyName(name: String) = tokens(name).lastOrNull()?.isIn(NOT_MONEY_SUFFIXES) == true
 
     private fun isMutatingRestTemplateCall(name: String) =
         name.startsWith("post") || name.startsWith("patch") || name in setOf("put", "delete", "exchange", "execute")
@@ -179,10 +184,15 @@ object ProductRules {
                     .filter { m -> m.returnType.isFloating() || m.parameterTypes.any { it.isFloating() } }
                     .forEach { violated("${it.fullName} takes or returns") }
                 item.codeUnits
-                    .filter { it.isOwnCode() }
+                    .filter { it.isOwnCode() && it !is JavaStaticInitializer }
                     .forEach { unit ->
-                        unit.namedParameters().filter { (name, floating) -> floating && inMoneyContext(name) }.forEach { (name) ->
-                            violated("${unit.fullName} parameter $name is")
+                        val parameters = parameterNamesOf { unit.reflect() }
+                        if (parameters == null) {
+                            violated("${unit.fullName} can't be reflected to check its parameters for")
+                        } else {
+                            parameters.filter { (name, floating) -> floating && inMoneyContext(name) }.forEach { (name) ->
+                                violated("${unit.fullName} parameter $name is")
+                            }
                         }
                     }
                 item.codeUnitCallsFromSelf
@@ -214,9 +224,12 @@ object ProductRules {
     private fun JavaCodeUnit.isOwnCode() =
         JavaModifier.SYNTHETIC !in modifiers && !name.matches(Regex("component\\d+|copy(-.+)?(\\\$default)?"))
 
-    /** Parameter names (from `-java-parameters`) and whether each is a `Float`/`Double`. */
-    private fun JavaCodeUnit.namedParameters(): List<Pair<String, Boolean>> {
-        val executable = runCatching { reflect() as? Executable }.getOrNull() ?: return emptyList()
+    /**
+     * Parameter names (from `-java-parameters`) and whether each is a `Float`/`Double`; null when [reflect]
+     * fails, so the rule reports the code unit instead of passing it unchecked.
+     */
+    fun parameterNamesOf(reflect: () -> Any): List<Pair<String, Boolean>>? {
+        val executable = runCatching { reflect() as? Executable }.getOrNull() ?: return null
         return executable.parameters
             .filter { it.isNamePresent && !it.isSynthetic && !it.isImplicit }
             .map { p ->

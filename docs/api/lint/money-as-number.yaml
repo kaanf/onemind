@@ -56,6 +56,15 @@ components:
     # Violation: a money-named component as a JSON number, whatever name or body it is used under.
     Price:
       type: number
+    # Self-referencing array and map: the rule stops instead of recursing forever.
+    Tree:
+      type: array
+      items:
+        $ref: '#/components/schemas/Tree'
+    MapTree:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/MapTree'
     Fixture:
       type: object
       properties:
@@ -142,3 +151,23 @@ components:
             $ref: '#/components/schemas/Money'
         sharedCosts:
           $ref: './money-as-number-shared.yaml#/MinorAmounts'
+        priceTree:
+          $ref: '#/components/schemas/Tree'
+        costTree:
+          $ref: '#/components/schemas/MapTree'
+        # Identifiers and plural not-money suffixes are not money.
+        billNumber:
+          type: integer
+          format: int32
+        paymentIds:
+          type: array
+          items:
+            type: number
+        priceIndex:
+          type: number
+        tipRates:
+          type: number
+        discountPercents:
+          type: array
+          items:
+            type: number

@@ -15,6 +15,9 @@ Items marked **(?)** need confirmation; see `../OPEN_QUESTIONS.md`.
 - "Today" = current business day. "Last Friday" = the business day exactly 7 days earlier.
 - Implemented once, in `backend/…/common/time/BusinessDayCalendar` (cut-off is a parameter until M1
   is decided); reading the system clock anywhere else fails the build (`architecture/ProductRules`).
+- Rollups store the business date (and local hour) computed by `BusinessDayCalendar` in Kotlin as
+  columns. SQL date functions (`date_trunc`, `AT TIME ZONE`, `::date`) never decide a business day or
+  an hour bucket.
 
 ## Periods and comparisons
 

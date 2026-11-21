@@ -68,7 +68,10 @@ Inside each business module (ADR 0013 §2):
 The direction (`web`/`api` → `application` → `domain` ← `infra`) and rules R1–R9 of ADR 0013 are
 build gates in `architecture/` (`ModuleBoundaryTests` runs them on the code; `StructureRulesTest` and
 `DatabaseAccessRulesTest` prove each one against fixtures). Product rules 1, 5 and 6 are gated the
-same way (`ProductRules`, `ProductRulesTest`). A red gate names the rule; read it in
+same way (`ProductRules`, `ProductRulesTest`). On the real code no rule may pass on an empty scope
+(only `posIsReadOnly` allows it until `pos` has code), and `ModuleBoundaryTests` checks the import
+holds an anchor class per module and layer; add one when a new module or layer gets code. A red gate
+names the rule; read it in
 ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. What the gates don't check:
 
 - Cross-module foreign keys only to `account.venue` and `account.app_user` (R1, database level).
@@ -118,14 +121,17 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
 - **Money:** `Money(amountMinor: Long, currency: Currency)`; sub-minor prices `BigDecimal`. Rounding
   rules in one place. Gated (`architecture/ProductRules`, rule 5): no `Float`/`Double` in a
   money-named class, field, method or parameter (whole words from `docs/api/lint/money-words.json`,
-  plurals too; names ending in `Rate`/`Ratio`/`Percent`/`Pct`/`Share`/`Count`/`Quantity` are not
-  money), no `BigDecimal` from a `Double`. Parameter names come from `javaParameters` in
-  `build.gradle.kts`. Not caught: a `Double` money value under a name without a money word.
+  plurals too; names ending in `Rate`/`Ratio`/`Percent`/`Pct`/`Share`/`Count`/`Quantity`/`Number`/
+  `Id`/`Index`, singular or plural, are not money), no `BigDecimal` from a `Double`. Parameter names
+  come from `javaParameters` in `build.gradle.kts`; a method or constructor the rule can't reflect
+  fails it. Not caught: a `Double` money value under a name without a money word.
 - **Time:** store `Instant` (UTC, `timestamptz`). Business days only via
   `common/time/BusinessDayCalendar` (venue `ZoneId` + `businessDayStart`). Gated (rule 6): only
   `common/time/ClockConfig` reads the system clock; elsewhere inject `Clock` (`Instant.now(clock)`).
   Only `common/time` turns an instant into a local date, time or hour (`atZone`, `LocalDate.ofInstant`,
-  `toLocalDate`, `hour` on zoned values); `atOffset` for API mapping is fine.
+  `toLocalDate`, `hour` on zoned values); `atOffset` for API mapping is fine. Code that needs a local
+  hour or time of day (hourly charts) gets it from a `BusinessDayCalendar` helper (e.g. `localHour`),
+  added with its first use; never relax the gate or add an exception for it.
 - **Tenancy:** every venue-scoped repository method takes a `VenueId`. Every venue-scoped use case
   first calls `account/api/VenueAccess.requireAccess(userId, venueId, role?)` with
   `CurrentUser.id()`: it loads the membership per request and throws `404 VENUE_NOT_FOUND` for a
