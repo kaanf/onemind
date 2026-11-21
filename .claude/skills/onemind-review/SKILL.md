@@ -10,7 +10,9 @@ Input: a PR number (or "audit" for a whole-codebase review). Output: findings on
 
 ## 1. Understand the change
 
-- `gh pr view <n> --json title,body,files,baseRefName,headRefName` and `gh pr diff <n>`.
+- `gh pr view <n> --json title,body,files,baseRefName,headRefName,statusCheckRollup` and
+  `gh pr diff <n>`. Note which checks passed, failed or were skipped; a lane's `REPORT ready` claims
+  they passed.
 - Check out the head detached (`git fetch && git switch --detach origin/<head>`).
 - Read the roadmap item the PR claims, and the docs the touched area points to (AGENTS.md
   "Where to look" table): METRICS.md, MODEL.md, STOCK.md, DESIGN_SYSTEM.md, docs/api, the ADRs.
@@ -21,6 +23,9 @@ Run the built-in `/code-review` on the PR (level `high`) for bugs, then read the
 what it can miss: concurrency, transactions, time zones, null/empty data, error paths.
 
 ## 3. OneMind rules (each one is a blocker if broken)
+
+Rules 1–7 are AGENTS.md "Product rules that must never be broken"; rule 8 is from its "Cross-cutting
+rules". Keep this list in sync with AGENTS.md.
 
 1. POS read-only: no mutating Storyous call anywhere.
 2. No invented numbers: every figure traces to POS data, user input or a documented calculation;
@@ -59,13 +64,15 @@ are not confident about, or mark it as a question.
 
 ```
 REVIEW-RESULT
-pr: #<n>
+pr: #<n> | audit
 verdict: clean | fix-needed | blocked
+checks: <passed / failed / skipped, from statusCheckRollup>
 blockers: <count, one line each>
 should-fix: <count, one line each>
 notes: <structure / risk observations in 1–3 lines>
 ```
 
-For an **audit**, skip the PR comment: write the report as a Turkish summary to the orchestrator
-(structure, risks ranked, spaghetti/duplication hotspots, test gaps) and keep a fuller English
-version in your reply so the orchestrator can turn it into roadmap items.
+For an **audit**, skip the PR comment. Send the full English report to the orchestrator with
+`SendMessage` (structure, risks ranked, spaghetti/duplication hotspots, test gaps): your chat replies
+never reach other sessions. Use `pr: audit` in the `REVIEW-RESULT`. The orchestrator turns it into
+roadmap items and gives the owner the Turkish summary.
