@@ -2,8 +2,9 @@ package com.onemind.backend.common.idempotency
 
 import com.onemind.backend.common.idempotency.infra.violatesUserReference
 import org.junit.jupiter.api.Test
+import org.postgresql.util.PSQLException
+import org.postgresql.util.ServerErrorMessage
 import org.springframework.dao.DataIntegrityViolationException
-import java.sql.SQLException
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -22,11 +23,19 @@ class UserReferenceViolationTest {
         assertFalse(violatesUserReference(DataIntegrityViolationException("no SQL cause")))
     }
 
+    @Test
+    fun `the constraint is read from the server's fields, not the message language`() {
+        assertTrue(violatesUserReference(wrapped("23503", "idempotency_record_user_id_fkey", message = "viola la restricción")))
+        assertFalse(violatesUserReference(wrapped("23503", "other_fkey", message = "idempotency_record_user_id_fkey")))
+    }
+
     private fun wrapped(
         sqlState: String,
         constraint: String,
+        message: String = "insert or update on table violates constraint",
     ) = DataIntegrityViolationException(
         "translated",
-        SQLException("ERROR: insert or update on table \"idempotency_record\" violates constraint \"$constraint\"", sqlState),
+        // Fields as the server sends them: S severity, C SQLSTATE, M message, n constraint.
+        PSQLException(ServerErrorMessage("SERROR\u0000C$sqlState\u0000M$message\u0000n$constraint\u0000")),
     )
 }

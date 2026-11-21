@@ -118,7 +118,7 @@ RFC 9457 Problem Details with extension members:
   `NOT_FOUND` for an unknown path, `METHOD_NOT_ALLOWED`, `UNSUPPORTED_MEDIA_TYPE`, …).
 - Status codes: `400` malformed, `401` no/invalid token, `403` the user's role in the venue is too
   low (`VENUE_ROLE_REQUIRED`, `params.role`), `404` not found (also a venue the user isn't a member
-  of, `VENUE_NOT_FOUND`, and resources in it, so they're not revealed),
+  of or that is disabled, `VENUE_NOT_FOUND`, and resources in it, so they're not revealed),
   `409` conflict (version, state), `422` business rule violation, `426` app too old,
   `429` rate limited.
 
@@ -164,8 +164,9 @@ RFC 9457 Problem Details with extension members:
   `EMAIL_CODE_ATTEMPTS_EXCEEDED` (`422`), `REFRESH_TOKEN_INVALID` (`401`: sign in again). Apple/Google:
   `ID_TOKEN_INVALID` (`401`: signature, issuer, audience, expiry or nonce), `EMAIL_NOT_VERIFIED`
   (`422`: a new Apple/Google account without a verified email; use an email code). A missing or
-  invalid access token is `401 UNAUTHORIZED` with `WWW-Authenticate: Bearer`; no access is
-  `403 FORBIDDEN`.
+  invalid access token is `401 UNAUTHORIZED` with `WWW-Authenticate: Bearer`; `403 FORBIDDEN` is
+  only Spring Security denying a request. Venue access is `404 VENUE_NOT_FOUND` (not a member, unknown
+  or disabled venue) or `403 VENUE_ROLE_REQUIRED` (role too low).
 - Live read endpoints return `ETag` and `dataAsOf`; clients send `If-None-Match` → `304`
   ([ADR 0005](../architecture/adr/0005_POLLING_AND_SSE.md)).
 - Count line writes accept a client `countedAt` and require `Idempotency-Key`

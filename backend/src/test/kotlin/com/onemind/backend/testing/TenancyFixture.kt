@@ -32,6 +32,11 @@ class TenancyFixture(
         jdbc.update("update account.organization set deletion_due_at = now() + interval '30 days' where id = ?", organization)
     }
 
+    /** Disables [venue], as when the POS no longer reports it. */
+    fun disable(venue: UUID) {
+        jdbc.update("update account.venue set status = 'DISABLED' where id = ?", venue)
+    }
+
     private fun organization(name: String): UUID =
         requireNotNull(jdbc.queryForObject<UUID>("insert into account.organization (name) values (?) returning id", name))
 

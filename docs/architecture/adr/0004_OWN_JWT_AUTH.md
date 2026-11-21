@@ -94,8 +94,8 @@ The backend issues and verifies **its own tokens** with Spring Security.
   once can't both see the other as remaining owner). A still-valid access token of a deleted user
   gets `401`. Revoking the user's Apple tokens is open (`docs/architecture/README.md`, item 12).
 - **Venue access:** `account/api/VenueAccess` reads the membership of the venue's organization on
-  every call (never from the token); no membership, an unknown venue or an organization scheduled
-  for deletion is `404 VENUE_NOT_FOUND`, a too-low role `403 VENUE_ROLE_REQUIRED`. Only OWNER/any
+  every call (never from the token); no membership, an unknown or `DISABLED` venue or an organization
+  scheduled for deletion is `404 VENUE_NOT_FOUND`, a too-low role `403 VENUE_ROLE_REQUIRED`. Only OWNER/any
   member is distinguished until STAFF permissions are decided (`docs/OPEN_QUESTIONS.md` P2).
 - **Refresh tokens:** 256 random bits, stored as SHA-256. A refresh rotates within the family; a
   used, revoked or expired token answers `401 REFRESH_TOKEN_INVALID`, and a used one also revokes the

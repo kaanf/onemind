@@ -119,12 +119,14 @@ Rules:
 - **Tenancy:** every venue-scoped repository method takes a `VenueId`. Every venue-scoped use case
   first calls `account/api/VenueAccess.requireAccess(userId, venueId, role?)` with
   `CurrentUser.id()`: it loads the membership per request and throws `404 VENUE_NOT_FOUND` for a
-  venue that isn't the user's (or doesn't exist) and `403 VENUE_ROLE_REQUIRED` for a too-low role.
+  venue that isn't the user's, doesn't exist or is `DISABLED` and `403 VENUE_ROLE_REQUIRED` for a too-low role.
   Pass no role (any member) or `MembershipRole.OWNER`; STAFF permissions wait for P2. Every
   venue-scoped endpoint gets a cross-venue test: build a `testing/TenancyFixture` (two
   organizations, owner/staff/other owner/outsider) and call
   `fixture.expectNoCrossVenueAccess { venueId, token -> mockMvc.get(...) }`
-  (example: `account/VenueAccessTests`).
+  (example: `account/VenueAccessTests`). The helper checks status codes only: once venue data exists
+  (phase 4/5), add a data-leak check (an "All venues" aggregate and list endpoints must not include
+  other organizations' venues) to the fixture.
 - Null-safety: no `!!` in production code.
 - **Errors:** expected business outcomes the caller must handle are **sealed return types**
   (`Matched | NeedsMatch | Unreadable`). Rule violations and unexpected failures are exceptions

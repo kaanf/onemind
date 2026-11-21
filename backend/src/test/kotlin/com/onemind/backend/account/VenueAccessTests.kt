@@ -89,6 +89,16 @@ class VenueAccessTests {
     }
 
     @Test
+    fun `a disabled venue is not accessible, also to its owner`() {
+        tenancy.disable(tenancy.venueA)
+
+        members(tenancy.venueA, tenancy.ownerA).andExpect {
+            status { isNotFound() }
+            jsonPath("$.code") { value("VENUE_NOT_FOUND") }
+        }
+    }
+
+    @Test
     fun `access needs a signed-in user`() {
         mockMvc.get("/test/venues/${tenancy.venueA}/members").andExpect { status { isUnauthorized() } }
     }

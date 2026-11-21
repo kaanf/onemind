@@ -13,7 +13,7 @@ class VenueAccessRepository(
 ) {
     /**
      * The user's membership role in the organization of [venueId], or `null` if there is none, the venue
-     * doesn't exist or its organization is scheduled for deletion.
+     * doesn't exist, is disabled or its organization is scheduled for deletion.
      */
     fun roleAt(
         userId: UUID,
@@ -29,7 +29,11 @@ class VenueAccessRepository(
             .on(o.ID.eq(v.ORGANIZATION_ID))
             .join(m)
             .on(m.ORGANIZATION_ID.eq(o.ID))
-            .where(v.ID.eq(venueId), m.USER_ID.eq(userId), o.DELETION_DUE_AT.isNull)
+            .where(v.ID.eq(venueId), v.STATUS.eq(ACTIVE), m.USER_ID.eq(userId), o.DELETION_DUE_AT.isNull)
             .fetchOne(m.ROLE)
+    }
+
+    private companion object {
+        const val ACTIVE = "ACTIVE"
     }
 }

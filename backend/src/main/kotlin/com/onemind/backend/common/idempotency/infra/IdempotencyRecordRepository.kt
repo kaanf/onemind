@@ -5,11 +5,11 @@ import com.onemind.db.platform.tables.references.IDEMPOTENCY_RECORD
 import org.jooq.DSLContext
 import org.jooq.JSONB
 import org.jooq.impl.DSL.excluded
+import org.postgresql.util.PSQLException
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Repository
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.readValue
-import java.sql.SQLException
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
@@ -174,14 +174,15 @@ class IdempotencyRecordRepository(
 
 /**
  * Whether [e] is the record's foreign key to `account.app_user` (SQLSTATE 23503 on that constraint),
- * as opposed to any other integrity error, which stays a server error.
+ * as opposed to any other integrity error, which stays a server error. Reads the server's structured
+ * error fields, so it doesn't depend on the language of PostgreSQL's messages.
  */
 internal fun violatesUserReference(e: Throwable): Boolean =
     generateSequence(e) { it.cause }
-        .filterIsInstance<SQLException>()
+        .filterIsInstance<PSQLException>()
         .any {
             it.sqlState == FOREIGN_KEY_VIOLATION &&
-                it.message.orEmpty().contains("\"${IDEMPOTENCY_RECORD__IDEMPOTENCY_RECORD_USER_ID_FKEY.name}\"")
+                it.serverErrorMessage?.constraint == IDEMPOTENCY_RECORD__IDEMPOTENCY_RECORD_USER_ID_FKEY.name
         }
 
 private const val FOREIGN_KEY_VIOLATION = "23503"
