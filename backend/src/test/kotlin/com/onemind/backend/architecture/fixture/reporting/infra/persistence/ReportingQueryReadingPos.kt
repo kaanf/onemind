@@ -1,0 +1,7 @@
+package com.onemind.backend.architecture.fixture.reporting.infra.persistence
+
+import com.onemind.db.pos.tables.references.BILL
+
+class ReportingQueryReadingPos {
+    fun table() = BILL
+}

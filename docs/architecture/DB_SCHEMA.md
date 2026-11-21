@@ -4,7 +4,7 @@
 > after open questions P13/P14. Flyway migrations are written from this file; keep both in sync.
 
 Follows [ADR 0002](adr/0002_POSTGRES_FLYWAY_JOOQ.md) (PostgreSQL + Flyway + jOOQ),
-[ADR 0009](adr/0009_BACKEND_MODULAR_MONOLITH.md) (schema per module) and
+[ADR 0013](adr/0013_BACKEND_MODULE_STRUCTURE.md) (schema per module, no cross-schema reads) and
 [ADR 0010](adr/0010_API_DESIGN.md) (UUIDv7, money). Field sources: `docs/integrations/STORYOUS.md`.
 
 ## Conventions

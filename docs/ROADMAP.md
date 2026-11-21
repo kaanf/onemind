@@ -17,9 +17,8 @@ Last updated: 2026-11-21.
 - **Current phase: 2 — Mobile scaffold.** Phase 3 backend auth is done in parallel (backend lane):
   email code, JWT + refresh rotation (#22), Apple/Google (#27), logout and `DELETE /me` (#28),
   auth rule tests + `VenueAccess` cross-venue check (#30), 426 min-version check (#36). App shell is
-  done (#32). Next: the guardrails below (Konsist, ADR 0013 audit and gates); new backend feature
-  work pauses until the ADR 0013 gates land (until 2026-11-24 at the latest). Phase 4 runs on mock
-  POS data (owner, 2026-11-21).
+  done (#32). ADR 0013 audit (#40, #41) and ArchUnit gates (#42) are in `dev`. Next: product-rule
+  gates (#43) and the Konsist guard module (#39). Phase 4 runs on mock POS data (owner, 2026-11-21).
 - **Blockers outside the code:** Storyous partnership / API credentials (P15, owner; not needed
   until the real client is connected); design
   additions for the first-release Stock tab landing and location form (owner, only needed in
@@ -34,10 +33,10 @@ green run after it.
 - [x] Merge safety and coordination: orchestrator verifies checks itself, PLAN message, `critical
       areas` line, guard files, autonomy tier, batched owner questions, public-repo rule (#35)
 - [x] Fork PR workflows need approval for all outside contributors (applied 2026-11-21)
-- [ ] `CI result` aggregator job (fails on failure, cancel or unexpected skip); iOS framework link job
-      on mobile PRs feeds it (ci)
-- [ ] Rulesets: `dev` PR + `CI result` + squash only; `main` PR + `CI result` + merge commit only; no
-      force push or deletion (orchestrator, after the aggregator merges)
+- [x] `CI result` aggregator job (fails on failure, cancel or unexpected skip); iOS framework link job
+      on mobile PRs feeds it (#33)
+- [x] Rulesets: `dev` PR + `CI result` + squash only; `main` PR + `CI result` + merge commit only; no
+      force push or deletion (applied 2026-11-21)
 - [ ] Label PRs touching guard files `guard-files` and comment the list (ci)
 - [ ] `permissions.deny` snippets for each lane's `.claude/settings.local.json` (orchestrator)
 - [ ] detekt 2.0 as a non-blocking report job with baseline, backend and mobile; one PR, half a day;
@@ -96,10 +95,11 @@ green run after it.
       `DELETE /me` (ADR 0004)
 - [ ] Mobile: A1 sign in, A2 email code, secure token storage, refresh on 401, update screen on 426
 - [x] Backend: minimum app version (`X-App-Version` / `X-Platform`) → `426 Upgrade Required` (#36)
-- [ ] ADR 0013 "Backend module internal structure" (replaces ADR 0009)
-- [ ] Audit existing backend code against ADR 0013 and fix deviations (before the gates, no baseline)
-- [ ] ArchUnit gates for ADR 0013 rules + Modulith `allowedDependencies`; `backend/AGENTS.md` names
-      the reference module
+- [x] ADR 0013 "Backend module internal structure" (replaces ADR 0009) (#34)
+- [x] Audit existing backend code against ADR 0013 and fix deviations (before the gates, no baseline)
+      (#40, #41)
+- [x] ArchUnit gates for ADR 0013 rules + Modulith `allowedDependencies`; `backend/AGENTS.md` names
+      the reference module (#42)
 - [ ] Product-rule gates: no `Float`/`Double` money (backend + spec lint), single `BusinessDay` entry
       point with midnight and Europe/Prague DST tests, POS client read-only (fixtures fail on non-GET)
 - [ ] End-to-end auth smoke test: real backend (Testcontainers) driven by a client generated from

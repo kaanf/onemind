@@ -120,7 +120,9 @@ to `web`. Allowed dependencies inside a module, and nothing else:
 | `reporting` | – | `account::api`, `pos::api`, `pos::events`, `stock::api`, `stock::events` | Venue access; reads POS facts through the pos read API; refreshes rollups on `BillsSynced`; `possibleLoss` includes `stockCorrections` (METRICS), read through `stock::api` and refreshed on stock correction events. Without stock in the first release (P13) that part is an empty state, never 0. |
 | `stock` | – | `account::api`, `pos::api`, `pos::events` | Venue access; sold items and the product catalog for usage and recipes; deducts usage on `BillsSynced`. |
 
-`api` and `api/events` are named interfaces (`::api`, `::events`) in every module. Nothing depends
+Every module also lists `common` in `allowedDependencies`: it is open, but an explicit list replaces
+Spring Modulith's default, so it must be named. `api` and `api/events` are named interfaces (`::api`,
+`::events`) in every module. Nothing depends
 on `reporting`, and only `reporting` depends on `stock`, so the graph has no cycle (Spring Modulith
 checks that). `stock` must never need `reporting`: a number both show is computed in `stock` and
 read by `reporting`.
@@ -180,7 +182,7 @@ already grouped by hour and product). The SQL stays inside `pos`.
 
 | Rule | Gate in C3 | How |
 |------|------------|-----|
-| Direction (§2) | ArchUnit | The table in §2 as a rule per business module (`account`, `pos`, `reporting`, `stock`); `common` is exempt from it but not from R3–R7. |
+| Direction (§2) | ArchUnit | The table in §2 as a rule per business module (`account`, `pos`, `reporting`, `stock`), plus a rule that every class of a business module lives in one of the §2 packages (else the layer rule never sees it); `common` is exempt from both but not from R3–R7. Package patterns are anchored to the module. |
 | R1 | ArchUnit | `DatabaseAccessRules`: each module only its own `com.onemind.db.<schema>` package; the `reporting → pos` exception is removed. |
 | R2 | ArchUnit + reviewer | Gate: Spring beans (`@Service`/`@Component`) in `application` have at most 5 constructor parameters not on the allowlist (`Clock`, `TransactionTemplate`), and no name ending in `Service`. Reviewer: "one screen or job per class". |
 | R3 | ArchUnit | `org.jooq..` and `com.onemind.db..` accessed only from `..infra.persistence..`. |
@@ -189,7 +191,7 @@ already grouped by hour and product). The SQL stays inside `pos`.
 | R6 | ArchUnit | `..domain..` depends on no `org.springframework..`, `org.jooq..`, `tools.jackson..` or `com.fasterxml.jackson..`. |
 | R7 | ArchUnit | `@Transactional` and `TransactionTemplate` used only in `..application..` of business modules and outside `infra`/`web` in `common`. |
 | R8 | Spring Modulith | `ApplicationModules.verify()` with `allowedDependencies` and named interfaces `api` and `events`. |
-| R9 | Reviewer (+ ArchUnit allowlist) | Gate: interfaces outside sealed result types exist only for `PosProvider`, `ReceiptExtractor` and `LlmClient`. Reviewer: a new exception needs a second implementation or a decision here. |
+| R9 | ArchUnit (allowlist) + reviewer | Gate: interfaces are sealed result types or on the allowlist by fully qualified name (`pos.infra.client.PosProvider`, `stock.infra.client.ReceiptExtractor`; `LlmClient` is added with its package when the assistant's module is decided). Reviewer: a new entry needs a second implementation or a decision here. |
 
 Notes for the C3 rules:
 
@@ -231,7 +233,9 @@ Every ArchUnit rule gets a fixture that violates it and a test proving the rule 
   - `account/infra/AuthJobs` → `application`.
   - `common/idempotency/infra` → `common/idempotency/infra/persistence`.
   - `EmailSignIn` (9 dependencies) split into `StartEmailSignIn` and `VerifyEmailSignIn`;
-    `IdTokenSignIn` (6) into `SignInWithApple` and `SignInWithGoogle` over a shared helper (R2).
+    `IdTokenSignIn` stays one class (done in C2): after the shared rate limit and hash moved out it
+    has 5 collaborators, serves one screen (A1), and Apple and Google differ only in the nonce check and
+    the display name, so a split would add two thin classes and a helper without removing code.
   - `SessionTokenService` split into use cases (start session as a helper of the sign-ins,
     `RefreshTokens`, `Logout`).
   - `VenueAccess`: interface plus `VenueAccessService` becomes one concrete facade class in
@@ -247,7 +251,9 @@ Every ArchUnit rule gets a fixture that violates it and a test proving the rule 
   - Paths in docs: ADR 0004 implementation notes and `backend/AGENTS.md` ("Where it lives",
     "Architecture") follow the moves in the same PR.
   - `@ApplicationModule(allowedDependencies = …)` on every module.
-- **C3:** the ArchUnit and Modulith gates in §7, with fixture tests, mandatory in CI.
+- **C3 (done):** the gates in §7 live in `backend/src/test/.../architecture/` (`StructureRules`,
+  `DatabaseAccessRules`, `ModuleBoundaryTests`); fixtures in `com.onemind.archfixture` (outside the
+  application package, so component scanning never loads them) prove each rule catches its violation.
 - **Docs:** `backend/AGENTS.md` ("Architecture", "Rules", the AI rule on `LlmClient` and the
   hosting list of interfaces) follows this ADR in C2; ADR 0009 is kept for history, superseded.
   ADR 0008's "external services sit behind interfaces" now reads: `FileStorage` and `EmailSender`

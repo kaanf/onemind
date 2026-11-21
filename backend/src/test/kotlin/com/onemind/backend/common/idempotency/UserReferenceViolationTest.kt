@@ -1,6 +1,6 @@
 package com.onemind.backend.common.idempotency
 
-import com.onemind.backend.common.idempotency.infra.violatesUserReference
+import com.onemind.backend.common.idempotency.infra.persistence.violatesUserReference
 import org.junit.jupiter.api.Test
 import org.postgresql.util.PSQLException
 import org.postgresql.util.ServerErrorMessage

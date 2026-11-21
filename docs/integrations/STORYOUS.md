@@ -93,7 +93,7 @@ Money values in bills are **decimal strings** (`"10.00"`); timestamps carry an o
 - Idempotent upserts keyed by `(provider, externalId)`; bills can change (refunds) after payment.
 - Polling interval while the venue is open: target ~2 minutes; back off when closed. Respect rate
   limits (to be confirmed).
-- After each batch publish `BillsSynced` (ADR 0009) for reporting and stock usage.
+- After each batch publish `BillsSynced` (ADR 0013, `pos/api/events`) for reporting and stock usage.
 
 ## Questions for Storyous
 

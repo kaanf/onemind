@@ -1,8 +1,9 @@
 package com.onemind.backend.architecture
 
 import com.onemind.backend.architecture.fixture.pos.application.PosServiceUsingJooq
-import com.onemind.backend.architecture.fixture.reporting.infra.ReportingQueryReadingPos
-import com.onemind.backend.architecture.fixture.stock.infra.StockQueryReadingPos
+import com.onemind.backend.architecture.fixture.reporting.infra.persistence.ReportingQueryReadingPos
+import com.onemind.backend.architecture.fixture.stock.infra.client.ClientUsingJooq
+import com.onemind.backend.architecture.fixture.stock.infra.persistence.StockQueryReadingPos
 import com.tngtech.archunit.core.importer.ClassFileImporter
 import kotlin.reflect.KClass
 import kotlin.test.Test
@@ -13,8 +14,8 @@ class DatabaseAccessRulesTest {
     private val rules = DatabaseAccessRules.rules(appRoot = "com.onemind.backend.architecture.fixture")
 
     @Test
-    fun `reporting may read pos tables`() {
-        assertEquals(0, violations(ReportingQueryReadingPos::class))
+    fun `reporting may not read pos tables`() {
+        assertEquals(1, violations(ReportingQueryReadingPos::class))
     }
 
     @Test
@@ -23,8 +24,9 @@ class DatabaseAccessRulesTest {
     }
 
     @Test
-    fun `jOOQ classes outside infra are rejected`() {
+    fun `jOOQ classes outside infra persistence are rejected`() {
         assertEquals(1, violations(PosServiceUsingJooq::class))
+        assertEquals(1, violations(ClientUsingJooq::class))
     }
 
     private fun violations(type: KClass<*>): Int {

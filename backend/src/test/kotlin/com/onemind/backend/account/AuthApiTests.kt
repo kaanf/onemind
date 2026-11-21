@@ -1,12 +1,13 @@
 package com.onemind.backend.account
 
 import com.onemind.backend.TestcontainersConfiguration
-import com.onemind.backend.account.application.EmailSignIn
-import com.onemind.backend.account.infra.AuthJobs
-import com.onemind.backend.account.infra.EmailLoginCodeRepository
-import com.onemind.backend.account.infra.RefreshTokenRepository
+import com.onemind.backend.account.application.AuthJobs
+import com.onemind.backend.account.application.AuthRateLimits
+import com.onemind.backend.account.application.StartEmailSignIn
+import com.onemind.backend.account.application.VerifyEmailSignIn
+import com.onemind.backend.account.infra.persistence.EmailLoginCodeRepository
+import com.onemind.backend.account.infra.persistence.RefreshTokenRepository
 import com.onemind.backend.common.email.EmailMessage
-import com.onemind.backend.common.email.EmailSender
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
@@ -22,6 +23,8 @@ import org.springframework.context.annotation.Primary
 import org.springframework.http.MediaType
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.queryForObject
+import org.springframework.mail.SimpleMailMessage
+import org.springframework.mail.javamail.JavaMailSenderImpl
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm
@@ -76,11 +79,12 @@ class AuthApiTests {
         }
     }
 
-    class RecordingEmailSender : EmailSender {
+    // Replaces the JavaMailSender under the real EmailSender, so the whole send path runs.
+    class RecordingMailSender : JavaMailSenderImpl() {
         val sent = CopyOnWriteArrayList<EmailMessage>()
 
-        override fun send(message: EmailMessage) {
-            sent += message
+        override fun send(vararg simpleMessages: SimpleMailMessage) {
+            simpleMessages.forEach { sent += EmailMessage(it.to.orEmpty().single(), it.subject.orEmpty(), it.text.orEmpty()) }
         }
     }
 
@@ -101,7 +105,7 @@ class AuthApiTests {
 
         @Bean
         @Primary
-        fun recordingEmailSender() = RecordingEmailSender()
+        fun recordingMailSender() = RecordingMailSender()
 
         @Bean
         fun probeController() = ProbeController()
@@ -114,7 +118,7 @@ class AuthApiTests {
     lateinit var clock: MutableClock
 
     @Autowired
-    lateinit var emails: RecordingEmailSender
+    lateinit var emails: RecordingMailSender
 
     @Autowired
     lateinit var jdbc: JdbcTemplate
@@ -225,6 +229,18 @@ class AuthApiTests {
     }
 
     @Test
+    fun `clients whose address doesn't parse share one limit instead of none`(output: CapturedOutput) {
+        // Different unparseable addresses: before the fix each skipped the limit, now they count together.
+        repeat(StartEmailSignIn.START_LIMIT_PER_IP) {
+            start(address = "unknown-$it-$email", remoteAddress = "not-an-ip-$it").andExpect { status { isAccepted() } }
+        }
+
+        start(address = "unknown-x-$email", remoteAddress = "not-an-ip-x").andExpectProblem(429, "RATE_LIMITED")
+        // Warned, so a proxy misconfiguration that hides every client address shows up in the logs.
+        assertTrue(output.out.contains("Client address unknown, rate-limited under a shared key"))
+    }
+
+    @Test
     fun `wrong codes count, and the fifth burns the code`() {
         start()
         val code = lastCode()
@@ -295,10 +311,10 @@ class AuthApiTests {
     @Test
     fun `an IP may try 30 codes in 10 minutes`() {
         start()
-        repeat(EmailSignIn.VERIFY_LIMIT_PER_IP) { verify("000000").andExpect { status { is4xxClientError() } } }
+        repeat(VerifyEmailSignIn.VERIFY_LIMIT_PER_IP) { verify("000000").andExpect { status { is4xxClientError() } } }
 
         verify(lastCode()).andExpectProblem(429, "RATE_LIMITED")
-        clock.advance(EmailSignIn.IP_LIMIT_WINDOW)
+        clock.advance(AuthRateLimits.WINDOW)
         verify(lastCode()).andExpect { status { isUnprocessableEntity() } } // The code was burnt meanwhile.
     }
 
@@ -575,12 +591,14 @@ class AuthApiTests {
 
     // Helpers
 
-    private fun start(address: String = email) =
-        mockMvc.post("/api/v1/auth/email/start") {
-            with { it.apply { remoteAddr = ip } }
-            contentType = MediaType.APPLICATION_JSON
-            content = json.writeValueAsString(mapOf("email" to address))
-        }
+    private fun start(
+        address: String = email,
+        remoteAddress: String = ip,
+    ) = mockMvc.post("/api/v1/auth/email/start") {
+        with { it.apply { remoteAddr = remoteAddress } }
+        contentType = MediaType.APPLICATION_JSON
+        content = json.writeValueAsString(mapOf("email" to address))
+    }
 
     private fun verify(
         code: String,

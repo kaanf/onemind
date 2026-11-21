@@ -7,10 +7,12 @@ import com.onemind.api.v1.model.EmailCodeVerifyRequest
 import com.onemind.api.v1.model.GoogleSignInRequest
 import com.onemind.api.v1.model.RefreshTokenRequest
 import com.onemind.api.v1.web.AuthApi
-import com.onemind.backend.account.application.EmailSignIn
 import com.onemind.backend.account.application.IdTokenSignIn
-import com.onemind.backend.account.application.SessionTokenService
+import com.onemind.backend.account.application.Logout
+import com.onemind.backend.account.application.RefreshTokens
 import com.onemind.backend.account.application.SessionTokens
+import com.onemind.backend.account.application.StartEmailSignIn
+import com.onemind.backend.account.application.VerifyEmailSignIn
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
@@ -19,20 +21,22 @@ import java.time.ZoneOffset
 
 @RestController
 class AuthController(
-    private val emailSignIn: EmailSignIn,
+    private val startEmailSignIn: StartEmailSignIn,
+    private val verifyEmailSignIn: VerifyEmailSignIn,
     private val idTokenSignIn: IdTokenSignIn,
-    private val sessionTokens: SessionTokenService,
+    private val refreshTokens: RefreshTokens,
+    private val logout: Logout,
     // Request-scoped proxy; the client address behind Caddy comes from `server.forward-headers-strategy`.
     private val request: HttpServletRequest,
 ) : AuthApi {
     override fun startEmailSignIn(emailCodeStartRequest: EmailCodeStartRequest): ResponseEntity<Unit> {
-        emailSignIn.start(emailCodeStartRequest.email, clientIp())
+        startEmailSignIn.start(emailCodeStartRequest.email, clientIp())
         return ResponseEntity.accepted().build()
     }
 
     override fun verifyEmailSignIn(emailCodeVerifyRequest: EmailCodeVerifyRequest): ResponseEntity<AuthTokens> =
         ResponseEntity.ok(
-            emailSignIn
+            verifyEmailSignIn
                 .verify(emailCodeVerifyRequest.email, emailCodeVerifyRequest.code, emailCodeVerifyRequest.deviceName, clientIp())
                 .toDto(),
         )
@@ -50,13 +54,14 @@ class AuthController(
         )
 
     override fun refreshTokens(refreshTokenRequest: RefreshTokenRequest): ResponseEntity<AuthTokens> =
-        ResponseEntity.ok(sessionTokens.refresh(refreshTokenRequest.refreshToken).toDto())
+        ResponseEntity.ok(refreshTokens.refresh(refreshTokenRequest.refreshToken).toDto())
 
     override fun logout(refreshTokenRequest: RefreshTokenRequest): ResponseEntity<Unit> {
-        sessionTokens.logout(refreshTokenRequest.refreshToken)
+        logout.signOut(refreshTokenRequest.refreshToken)
         return ResponseEntity.noContent().build()
     }
 
+    // Null when the address doesn't parse; the limits then count it under a shared key (fail closed).
     private fun clientIp(): InetAddress? = runCatching { InetAddress.ofLiteral(request.remoteAddr) }.getOrNull()
 
     private fun SessionTokens.toDto() =

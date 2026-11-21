@@ -2,7 +2,7 @@
 
 Kotlin + Spring Boot API for OneMind. Read the root [`../AGENTS.md`](../AGENTS.md) first.
 
-> **Status:** scaffolded (Spring Boot 4.2, Java 25). Architecture decided in ADR 0009. Items still
+> **Status:** scaffolded (Spring Boot 4.2, Java 25). Architecture decided in ADR 0013 (replaces ADR 0009). Items still
 > marked *Proposed* may change.
 
 ## Responsibilities
@@ -32,61 +32,65 @@ Kotlin + Spring Boot API for OneMind. Read the root [`../AGENTS.md`](../AGENTS.m
   Spring Boot test slices.
 - **Docker is required to build** (jOOQ codegen and integration tests use Testcontainers).
 
-## Architecture ([ADR 0009](../docs/architecture/adr/0009_BACKEND_MODULAR_MONOLITH.md))
+## Architecture ([ADR 0013](../docs/architecture/adr/0013_BACKEND_MODULE_STRUCTURE.md))
 
-Modular monolith, boundaries verified by **Spring Modulith**. Read ADR 0009 before adding a
-module, a cross-module call, an event or a table.
+Modular monolith, boundaries verified by **Spring Modulith**. Read ADR 0013 (it replaces ADR 0009)
+before adding a module, a package, a cross-module call, an event, an interface or a table.
 
 ```
 backend/src/main/kotlin/com/onemind/backend/
 ├── BackendApplication.kt
-├── common/      ← shared kernel: Money, Quantity, typed IDs, business-day calendar, errors, security, pagination
+├── common/      ← shared kernel (open module): Money, errors, security, web, idempotency, events, …
 ├── account/     ← users, auth, organizations, venues, memberships          (schema: account)
-├── pos/         ← Storyous client, sync jobs, POS read model               (schema: pos)
-├── reporting/   ← metrics, hourly rollups, screen queries                  (schema: reporting; reads pos)
+├── pos/         ← POS read model and sync; mock data first (PosProvider)   (schema: pos)
+├── reporting/   ← metrics, hourly rollups, screen queries                  (schema: reporting)
 └── stock/       ← items, locations, movements, receipts, counts, transfers, recipes (schema: stock)
 ```
 
-Inside each module:
+Inside each business module (ADR 0013 §2):
 
 ```
 <module>/
-├── api/          ← PUBLIC: service interfaces, DTOs and events other modules may use
-├── web/          ← @RestController implementing generated OpenAPI interfaces, mappers
-├── application/  ← use cases, @Transactional, venue access checks
-├── domain/       ← plain Kotlin model and rules (only where rules exist, e.g. stock)
-└── infra/        ← jOOQ repositories/queries, external clients, scheduled jobs
+├── api/                 ← PUBLIC facade (the only synchronous entry for other modules) and its DTOs
+│   └── events/          ← PUBLIC: events this module publishes
+├── web/                 ← @RestController implementing generated OpenAPI interfaces; mapping only
+├── application/         ← one use case per screen or job; @Transactional; job and listener beans
+├── domain/              ← pure Kotlin rules and calculations
+└── infra/
+    ├── persistence/     ← jOOQ repositories/queries returning domain types or their own row classes
+    └── client/          ← adapters to external systems (IdTokenVerifier, PosProvider implementations)
 ```
 
-Rules:
+**New backend code follows the structure of the `account` module.** Canonical slice:
+`account/web/AuthController` → `account/application/RefreshTokens` →
+`account/infra/persistence/RefreshTokenRepository`.
 
-- A module may use another module **only through its `api` package**: never its `application`,
-  `domain`, `infra` or `web` classes. The boundary test (`architecture/ModuleBoundaryTests`) enforces
-  this with Spring Modulith plus jOOQ package rules (`architecture/DatabaseAccessRules`) and must pass
-  in CI.
-- `<module>/api` is exposed by `@NamedInterface("api")` in a `package-info.java` under
-  `src/main/java` (Kotlin can't annotate packages). `common` is an open module
-  (`@ApplicationModule(type = OPEN)`): all its packages are usable everywhere. A new module needs
-  its own `api/package-info.java` and an entry in `DatabaseAccessRules` and `ModuleBoundaryTests`.
-- jOOQ classes (`com.onemind.db..`) are used only from `infra` packages.
-- **Each module owns one PostgreSQL schema** and uses only its own jOOQ package. Exception:
-  `reporting` may read (never write) `pos` tables. Cross-module foreign keys only to
-  `account.venue` and `account.app_user`.
-- Ports/adapters only for external systems: `PosProvider`, `ReceiptExtractor`, `FileStorage`,
-  `EmailSender`. Don't add interfaces for internal classes without a reason.
-- `stock` uses aggregates and value objects; invariants live in the aggregate. `reporting` uses
-  jOOQ query classes that return response models directly (no domain layer). `pos` uses plain data
-  classes.
-- Async work between modules uses domain events via the Spring Modulith event publication registry
-  (`@ApplicationModuleListener`). Delivery is at least once: **every listener must be
+The direction (`web`/`api` → `application` → `domain` ← `infra`) and rules R1–R9 of ADR 0013 are
+build gates in `architecture/` (`ModuleBoundaryTests` runs them on the code; `StructureRulesTest` and
+`DatabaseAccessRulesTest` prove each one against fixtures). Product rules 1, 5 and 6 are gated the
+same way (`ProductRules`, `ProductRulesTest`). A red gate names the rule; read it in
+ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. What the gates don't check:
+
+- Cross-module foreign keys only to `account.venue` and `account.app_user` (R1, database level).
+- One use case per screen or job (R2; the gate checks the 5-collaborator limit and `*Service` names).
+- A new interface needs a second implementation or an ADR 0013 exception (R9; the gate holds the
+  allowlist `PosProvider`, `ReceiptExtractor`, `LlmClient`).
+- Module graph (R8): `@ApplicationModule(allowedDependencies = …)` in each module's
+  `package-info.java` (`src/main/java`), equal to ADR 0013 §4 (pinned by `ModuleBoundaryTests`).
+  `common` must be listed although it is open. A new module needs `package-info.java` for the module,
+  `api` and `api/events`, and entries in ADR 0013, `DatabaseAccessRules` and `ModuleBoundaryTests`.
+- `stock` uses aggregates and value objects; invariants live in the aggregate. `reporting` keeps its
+  calculations in `reporting/domain` and its queries in `reporting/infra/persistence`, over its own
+  tables. `pos` uses plain data classes.
+- Async work between modules uses events in `api/events` via the Spring Modulith event publication
+  registry (`@ApplicationModuleListener`). Delivery is at least once: **every listener must be
   idempotent**, with a test that delivers the same event twice. Failed publications are resubmitted
   by a job (`common/events/EventPublicationJobs`), so a listener may see the same event again later.
 - Background jobs use **db-scheduler**. Jobs must be idempotent and safe to retry. Register a job
-  as a task bean (`Tasks.recurring(...)` / `Tasks.oneTime(...)`) and keep its body in a plain
-  method you can test without the scheduler.
+  as a task bean (`Tasks.recurring(...)` / `Tasks.oneTime(...)`) in `application` (in `common`: at
+  the area's root) and keep its body in a plain method you can test without the scheduler.
 - Kotlin classes are final: a class proxied only because of a method annotation (for example an
   `@ApplicationModuleListener` method in a class without `@Component`) must be `open`.
-- `domain/` is plain Kotlin: no Spring, no jOOQ. Unit-test it without Spring.
 - Controllers are thin: validate, call one use case, map to DTO.
 - Controllers implementing a generated interface are served under `/api/v1` by
   `common/web/ApiPathConfig` (the generated paths don't include the server URL).
@@ -111,16 +115,22 @@ Rules:
 - Versions live in `gradle/libs.versions.toml`; no version strings in `build.gradle.kts`.
 - Immutable data classes for DTOs and value objects. Use `value class` for IDs
   (`VenueId`, `BillId`) and `Money`.
-- **Money:** `Money(amountMinor: Long, currency: Currency)`. Never `Double`. Rounding rules in
-  one place.
-- **Time:** store `Instant` (UTC, `timestamptz`). Business-day logic only in
-  `common/time/BusinessDayCalendar` using the venue's `ZoneId`. Inject a `Clock`; never call
-  `Instant.now()` directly (tests need fixed time).
+- **Money:** `Money(amountMinor: Long, currency: Currency)`; sub-minor prices `BigDecimal`. Rounding
+  rules in one place. Gated (`architecture/ProductRules`, rule 5): no `Float`/`Double` in a
+  money-named class, field, method or parameter (whole words from `docs/api/lint/money-words.json`,
+  plurals too; names ending in `Rate`/`Ratio`/`Percent`/`Pct`/`Share`/`Count`/`Quantity` are not
+  money), no `BigDecimal` from a `Double`. Parameter names come from `javaParameters` in
+  `build.gradle.kts`. Not caught: a `Double` money value under a name without a money word.
+- **Time:** store `Instant` (UTC, `timestamptz`). Business days only via
+  `common/time/BusinessDayCalendar` (venue `ZoneId` + `businessDayStart`). Gated (rule 6): only
+  `common/time/ClockConfig` reads the system clock; elsewhere inject `Clock` (`Instant.now(clock)`).
+  Only `common/time` turns an instant into a local date, time or hour (`atZone`, `LocalDate.ofInstant`,
+  `toLocalDate`, `hour` on zoned values); `atOffset` for API mapping is fine.
 - **Tenancy:** every venue-scoped repository method takes a `VenueId`. Every venue-scoped use case
   first calls `account/api/VenueAccess.requireAccess(userId, venueId, role?)` with
   `CurrentUser.id()`: it loads the membership per request and throws `404 VENUE_NOT_FOUND` for a
   venue that isn't the user's, doesn't exist or is `DISABLED` and `403 VENUE_ROLE_REQUIRED` for a too-low role.
-  Pass no role (any member) or `MembershipRole.OWNER`; STAFF permissions wait for P2. Every
+  Pass no role (any member) or `VenueRole.OWNER`; STAFF permissions wait for P2. Every
   venue-scoped endpoint gets a cross-venue test: build a `testing/TenancyFixture` (two
   organizations, owner/staff/other owner/outsider) and call
   `fixture.expectNoCrossVenueAccess { venueId, token -> mockMvc.get(...) }`
@@ -131,14 +141,14 @@ Rules:
 - **Errors:** expected business outcomes the caller must handle are **sealed return types**
   (`Matched | NeedsMatch | Unreadable`). Rule violations and unexpected failures are exceptions
   from the sealed `DomainException` hierarchy (stable error codes), mapped once to RFC 9457 Problem
-  Details in `common/error/ApiExceptionHandler`. A module's exception extends one of the categories
+  Details in `common/web/ApiExceptionHandler`. A module's exception extends one of the categories
   in `common/error/DomainException.kt` (`InvalidRequestException` 400, `ForbiddenException` 403,
   `NotFoundException` 404, `ConflictException` 409, `RuleViolationException` 422) with its own
   `code`, an English `detail` without personal data and optional `params`. A servlet filter that
   must reject a request passes the exception to the `handlerExceptionResolver` bean
   (`resolveException(request, response, null, e)`), so the problem looks like any other. No Arrow,
   no generic `Result` wrapper.
-- **Transactions:** one per use case, in `application`. Never call Claude or Storyous inside a DB
+- **Transactions:** one per use case (where: R7, gated). Never call Claude or Storyous inside a DB
   transaction.
 - **Concurrency:** Spring MVC on virtual threads with blocking jOOQ/JDBC. No coroutines, no
   WebFlux. Keep the HikariCP pool small (10–20) and bound concurrent calls to external APIs.
@@ -163,10 +173,12 @@ Rules:
 - Auth code changes need tests for each rule above.
 - Where it lives: access tokens `common/security/AccessTokenIssuer` + `JwtConfig` (keys, validation);
   public endpoints and 401/403 problems `common/security/SecurityConfig`; email sign-in
-  `account/application/EmailSignIn`; Apple/Google `account/application/IdTokenSignIn` +
-  `account/infra/IdTokenVerifier`; refresh rotation and logout
-  `account/application/SessionTokenService`; account deletion `account/application/AccountDeletion`;
-  per-IP limits `common/ratelimit/RateLimiter`; email `common/email/EmailSender`. Values and env vars:
+  `account/application/StartEmailSignIn` + `VerifyEmailSignIn`; Apple/Google
+  `account/application/IdTokenSignIn` + `account/infra/client/IdTokenVerifier`; sessions
+  `account/application/StartSession`, `RefreshTokens`, `Logout`; account deletion
+  `account/application/AccountDeletion`; per-IP limits `account/application/AuthRateLimits` (an
+  unparseable client address counts under one shared key, fail closed) over
+  `common/ratelimit/RateLimiter`; email `common/email/EmailSender`. Values and env vars:
   ADR 0004 "Implementation notes".
 - The authenticated principal's name is the user ID (`sub`); use it, never an email, to identify the
   user.
@@ -186,7 +198,9 @@ Rules:
 
 ## POS sync rules
 
-- Storyous client exposes **read methods only**. A test must fail if a non-GET call is added.
+- Storyous client exposes **read methods only**. Gated (`architecture/ProductRules`, rule 1): no
+  mutating HTTP call anywhere in `pos`. The real client's recorded-fixture tests must also fail on any
+  non-GET request.
 - Upserts idempotent by `(provider, externalId)`.
 - Sync never blocks API requests. Report progress per step for `/pos/sync/status`.
 - After sync batches, publish events (`BillsSynced(venueId, businessDays)`) that trigger
@@ -212,7 +226,8 @@ Rules:
 - Every answer returns citations. Document retrieval filters by role and venue **before** the
   prompt is built.
 - Prompts live in versioned resource files, not inline strings scattered through the code.
-- Wrap the provider behind an interface (`LlmClient`) so the model/provider can change.
+- Wrap the provider behind an interface (`LlmClient`, an R9 exception) so the model/provider can
+  change and tests use a fake without network calls.
 - Golden-question tests run against fixture data for any prompt/tool change.
 
 ## Database
@@ -222,7 +237,7 @@ Rules:
   `build/generated-src/jooq`, package `com.onemind.db.<schema>` (e.g. `com.onemind.db.pos`). `build`
   regenerates them when a migration changes; never edit generated code. A new schema must be added
   to `generateJooqClasses.schemas` in `build.gradle.kts`.
-- jOOQ `Record` types never leave `infra/`. Repositories return domain objects.
+- Records stay in `infra/persistence` (R4, gated in `architecture/StructureRules`).
 - Use jOOQ's DSL for all SQL, including reports (window functions, CTEs). No raw SQL strings except
   in migrations.
 - Bulk sync writes: `insertInto(...).onConflict(...).doUpdate()` with batching.
@@ -240,6 +255,10 @@ Rules:
 - Integration tests with Testcontainers PostgreSQL for repositories and migrations.
 - API tests (`@SpringBootTest` + `WebTestClient`/`MockMvc`) for auth and tenancy.
 - Storyous client tests against recorded fixtures (no live calls in CI).
+- Email: `EmailSender` is concrete (R9). Tests that read sent mail register a `@Primary`
+  `JavaMailSender` that records messages (a `JavaMailSenderImpl` subclass overriding
+  `send(vararg SimpleMailMessage)`, see `account/AuthApiTests.RecordingMailSender`), so the real
+  sender runs; no mocking library needed.
 
 ## Commands
 
@@ -271,8 +290,9 @@ Not set up yet (next steps): detekt.
 
 - Production is one Hetzner VM with Docker Compose (Caddy, backend, PostgreSQL). Deployment,
   backup and restore scripts live in `../infra/`; never change the server by hand.
-- External services sit behind interfaces so they can be swapped by configuration:
-  `FileStorage` (S3 API; MinIO locally), `EmailSender`, `ReceiptExtractor`.
+- External services sit behind adapters in `infra/client`, swapped by configuration: `FileStorage`
+  (S3 API; MinIO locally) and `EmailSender` (SMTP) are concrete classes; `ReceiptExtractor` is an
+  interface (ADR 0013, R9).
 - Expose a health endpoint (Spring Boot Actuator `health`) for uptime monitoring; no other
   actuator endpoints public.
 - Configuration only via environment variables in production.

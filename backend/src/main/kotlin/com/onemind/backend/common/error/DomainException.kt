@@ -6,7 +6,7 @@ import java.time.Duration
  * Rule violations and failures that end a request with an RFC 9457 problem (docs/api/README.md#errors).
  * Expected outcomes the caller must handle are sealed return types instead, not exceptions.
  *
- * The hierarchy is sealed so [ApiExceptionHandler] maps every category to its HTTP status in one
+ * The hierarchy is sealed so [ApiExceptionHandler][com.onemind.backend.common.web.ApiExceptionHandler] maps every category to its HTTP status in one
  * exhaustive `when`. Modules extend the abstract categories below with their own exceptions.
  *
  * @param code stable machine-readable code (`SCREAMING_SNAKE`); clients switch on it.

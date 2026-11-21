@@ -76,6 +76,8 @@ dependencies {
 kotlin {
     compilerOptions {
         freeCompilerArgs.addAll("-Xjsr305=strict", "-Xemit-jvm-type-annotations")
+        // Parameter names in bytecode: the rule 5 gate (architecture/ProductRules) reads them.
+        javaParameters = true
     }
 }
 
@@ -162,7 +164,7 @@ tasks.generateJooqClasses {
             org.jooq.meta.jaxb
                 .ForcedType()
                 .withUserType("java.util.Currency")
-                .withConverter("com.onemind.backend.common.money.CurrencyConverter")
+                .withConverter("com.onemind.backend.common.money.infra.persistence.CurrencyConverter")
                 .withIncludeExpression(".*\\.currency")
                 .withIncludeTypes("bpchar|char|character"),
         )

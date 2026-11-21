@@ -6,7 +6,7 @@ schema.
 
 ## Modules and contexts
 
-Backend modules are defined in [ADR 0009](../architecture/adr/0009_BACKEND_MODULAR_MONOLITH.md).
+Backend modules are defined in [ADR 0013](../architecture/adr/0013_BACKEND_MODULE_STRUCTURE.md).
 Each module owns one PostgreSQL schema.
 
 | Module (schema) | Owns | Source of data |

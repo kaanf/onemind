@@ -109,6 +109,12 @@ jobs:
           npx --yes @redocly/cli@${REDOCLY_CLI_VERSION} lint
           --config docs/api/redocly.yaml --format github-actions docs/api/openapi.yaml
 
+      # The money rule must flag exactly the fixture's violations, no more, no fewer (AGENTS.md rule 5).
+      - name: Prove the money lint rule bites
+        run: |
+          out=$(npx --yes @redocly/cli@${REDOCLY_CLI_VERSION} lint --config docs/api/redocly.yaml --format json docs/api/lint/money-as-number.yaml || true)
+          diff <(jq -r '[.problems[] | select(.ruleId == "onemind/money-minor-units") | .location[0].pointer] | sort | .[]' <<<"$out") docs/api/lint/money-as-number.expected
+
       # ADR 0001: compare against the released contract on main. Skipped until main has a spec.
       # Fails on warnings too (oasdiff rates removed request fields/params as warnings; v1 forbids
       # them). docs/api/oasdiff-levels.txt allows new response enum values (v1 permits them) and
