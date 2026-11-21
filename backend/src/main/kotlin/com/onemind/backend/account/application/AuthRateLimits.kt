@@ -2,6 +2,7 @@ package com.onemind.backend.account.application
 
 import com.onemind.backend.common.error.RateLimitedException
 import com.onemind.backend.common.ratelimit.RateLimiter
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.net.InetAddress
 import java.time.Duration
@@ -15,13 +16,20 @@ import java.time.Duration
 class AuthRateLimits(
     private val rateLimiter: RateLimiter,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     /** Throws [RateLimitedException] once [ip] has used up [limit] calls of [action] in [WINDOW]. */
     fun limitIp(
         action: String,
         ip: InetAddress?,
         limit: Int,
     ) {
-        val client = ip?.hostAddress ?: UNKNOWN_IP
+        val client =
+            ip?.hostAddress ?: run {
+                // Many of these point to a proxy misconfiguration that puts every client under one key.
+                log.warn("Client address unknown, rate-limited under a shared key: action={}", action)
+                UNKNOWN_IP
+            }
         rateLimiter.tryAcquire("$action:ip:$client", limit, WINDOW)?.let { throw RateLimitedException(it) }
     }
 

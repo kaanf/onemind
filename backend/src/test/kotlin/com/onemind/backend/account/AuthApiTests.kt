@@ -229,13 +229,15 @@ class AuthApiTests {
     }
 
     @Test
-    fun `clients whose address doesn't parse share one limit instead of none`() {
+    fun `clients whose address doesn't parse share one limit instead of none`(output: CapturedOutput) {
         // Different unparseable addresses: before the fix each skipped the limit, now they count together.
         repeat(StartEmailSignIn.START_LIMIT_PER_IP) {
             start(address = "unknown-$it-$email", remoteAddress = "not-an-ip-$it").andExpect { status { isAccepted() } }
         }
 
         start(address = "unknown-x-$email", remoteAddress = "not-an-ip-x").andExpectProblem(429, "RATE_LIMITED")
+        // Warned, so a proxy misconfiguration that hides every client address shows up in the logs.
+        assertTrue(output.out.contains("Client address unknown, rate-limited under a shared key"))
     }
 
     @Test

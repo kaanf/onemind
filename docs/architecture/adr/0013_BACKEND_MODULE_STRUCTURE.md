@@ -233,7 +233,9 @@ Every ArchUnit rule gets a fixture that violates it and a test proving the rule 
   - `account/infra/AuthJobs` → `application`.
   - `common/idempotency/infra` → `common/idempotency/infra/persistence`.
   - `EmailSignIn` (9 dependencies) split into `StartEmailSignIn` and `VerifyEmailSignIn`;
-    `IdTokenSignIn` (6) into `SignInWithApple` and `SignInWithGoogle` over a shared helper (R2).
+    `IdTokenSignIn` stays one class (done in C2): after the shared rate limit and hash moved out it
+    has 5 collaborators, serves one screen (A1), and Apple and Google differ only in the nonce check and
+    the display name, so a split would add two thin classes and a helper without removing code.
   - `SessionTokenService` split into use cases (start session as a helper of the sign-ins,
     `RefreshTokens`, `Logout`).
   - `VenueAccess`: interface plus `VenueAccessService` becomes one concrete facade class in
