@@ -27,8 +27,9 @@ Last updated: 2026-11-21.
 
 ## Process and guardrails (from the 2026-11-21 setup review; runs alongside the phases)
 
-Every gate counts as done only when its PR links a red CI run from a deliberate violation and the
-green run after it.
+Every gate counts as done only when its PR proves it bites: either a linked red CI run from a
+deliberate violation and the green run after it, or fixture tests that run in CI and assert the
+violation is caught and the allowed shape passes (owner, 2026-11-21).
 
 - [x] Merge safety and coordination: orchestrator verifies checks itself, PLAN message, `critical
       areas` line, guard files, autonomy tier, batched owner questions, public-repo rule (#35)
