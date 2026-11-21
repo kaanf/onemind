@@ -65,7 +65,7 @@ to `web`. Allowed dependencies inside a module, and nothing else:
 
 | Package | May depend on (same module) |
 |---------|-----------------------------|
-| `web` | `application` |
+| `web` | `application`, `domain` |
 | `api` (facades and their DTOs) | `application`, `domain` |
 | `api/events` | – (events carry only Kotlin and `common` types) |
 | `application` | `domain`, `infra/persistence`, `infra/client`, `api/events` (to publish) |
@@ -84,8 +84,9 @@ to `web`. Allowed dependencies inside a module, and nothing else:
   `Quantity`, IDs, `DomainException`).
 - Other modules see only `api` and `api/events` (named interfaces), never `application`, `domain`
   or `infra` classes.
-- `web` calls `application` only, never `infra`. Controllers turn generated DTOs into use-case
-  arguments and results into generated DTOs.
+- `web` calls `application` use cases and may use `domain` types (`Money`, a calculated figure) to
+  map them to and from generated DTOs (R5), so use cases don't need extra application-level copies
+  of domain results. It never touches `infra` or `api/events`.
 - Wiring that belongs to a use case lives next to it in `application`: db-scheduler task beans (the
   body is a plain use-case method) and `@ApplicationModuleListener` methods (each is idempotent,
   ADR 0009 §5 still applies).
@@ -189,6 +190,17 @@ already grouped by hour and product). The SQL stays inside `pos`.
 | R7 | ArchUnit | `@Transactional` and `TransactionTemplate` used only in `..application..` of business modules and outside `infra`/`web` in `common`. |
 | R8 | Spring Modulith | `ApplicationModules.verify()` with `allowedDependencies` and named interfaces `api` and `events`. |
 | R9 | Reviewer | Not checkable mechanically (a second implementation can arrive later); the reviewer lane checks every new interface. |
+
+Notes for the C3 rules:
+
+- **One `layeredArchitecture()` per business module**, with
+  `consideringOnlyDependenciesInLayers()`: a single rule over all modules would flag allowed
+  cross-module calls (for example `reporting.application` → `account.api`), which Spring Modulith
+  checks instead (R8).
+- The `api` layer is the **exact package** `<module>.api` (no trailing `..`), so `<module>.api.events`
+  is its own layer.
+- `infra.persistence` and `infra.client` are **two layers**, so a rule can keep jOOQ out of
+  `client` (R3) and `persistence` and `client` independent of each other.
 
 Every ArchUnit rule gets a fixture that violates it and a test proving the rule catches it, as
 `DatabaseAccessRules` has today.
