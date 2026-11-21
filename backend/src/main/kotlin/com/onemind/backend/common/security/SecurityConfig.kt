@@ -23,7 +23,7 @@ class AccessDeniedProblemException : ForbiddenException("FORBIDDEN", "You don't 
 /**
  * Stateless JWT resource server (ADR 0004). Only health and the sign-in endpoints are public;
  * everything else needs a valid access token. 401/403 answers are RFC 9457 problems like every other
- * error (through [ApiExceptionHandler][com.onemind.backend.common.error.ApiExceptionHandler]), with
+ * error (through [ApiExceptionHandler][com.onemind.backend.common.web.ApiExceptionHandler]), with
  * the `WWW-Authenticate` header of RFC 6750.
  */
 @Configuration(proxyBeanMethods = false)

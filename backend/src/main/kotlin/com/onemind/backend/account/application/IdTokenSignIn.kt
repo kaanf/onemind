@@ -1,9 +1,9 @@
 package com.onemind.backend.account.application
 
-import com.onemind.backend.account.infra.IdTokenVerifier
-import com.onemind.backend.account.infra.IdentityProvider
-import com.onemind.backend.account.infra.UserAccountRepository
-import com.onemind.backend.account.infra.VerifiedIdToken
+import com.onemind.backend.account.domain.IdentityProvider
+import com.onemind.backend.account.infra.client.IdTokenVerifier
+import com.onemind.backend.account.infra.client.VerifiedIdToken
+import com.onemind.backend.account.infra.persistence.UserAccountRepository
 import com.onemind.backend.common.error.RateLimitedException
 import com.onemind.backend.common.ratelimit.RateLimiter
 import org.slf4j.LoggerFactory

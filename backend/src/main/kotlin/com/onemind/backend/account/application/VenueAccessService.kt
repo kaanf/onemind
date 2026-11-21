@@ -4,7 +4,7 @@ import com.onemind.backend.account.api.MembershipRole
 import com.onemind.backend.account.api.VenueAccess
 import com.onemind.backend.account.api.VenueNotFoundException
 import com.onemind.backend.account.api.VenueRoleRequiredException
-import com.onemind.backend.account.infra.VenueAccessRepository
+import com.onemind.backend.account.infra.persistence.VenueAccessRepository
 import org.springframework.stereotype.Service
 import java.util.UUID
 

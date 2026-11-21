@@ -1,6 +1,6 @@
 package com.onemind.backend.account.application
 
-import com.onemind.backend.account.infra.RefreshTokenRepository
+import com.onemind.backend.account.infra.persistence.RefreshTokenRepository
 import com.onemind.backend.common.security.AccessToken
 import com.onemind.backend.common.security.AccessTokenIssuer
 import org.slf4j.LoggerFactory

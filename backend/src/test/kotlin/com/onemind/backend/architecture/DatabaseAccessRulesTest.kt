@@ -13,8 +13,8 @@ class DatabaseAccessRulesTest {
     private val rules = DatabaseAccessRules.rules(appRoot = "com.onemind.backend.architecture.fixture")
 
     @Test
-    fun `reporting may read pos tables`() {
-        assertEquals(0, violations(ReportingQueryReadingPos::class))
+    fun `reporting may not read pos tables`() {
+        assertEquals(1, violations(ReportingQueryReadingPos::class))
     }
 
     @Test

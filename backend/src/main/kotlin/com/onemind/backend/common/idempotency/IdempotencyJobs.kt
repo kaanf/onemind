@@ -3,7 +3,7 @@ package com.onemind.backend.common.idempotency
 import com.github.kagkarlsson.scheduler.task.helper.RecurringTask
 import com.github.kagkarlsson.scheduler.task.helper.Tasks
 import com.github.kagkarlsson.scheduler.task.schedule.FixedDelay
-import com.onemind.backend.common.idempotency.infra.IdempotencyRecordRepository
+import com.onemind.backend.common.idempotency.infra.persistence.IdempotencyRecordRepository
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.time.Clock

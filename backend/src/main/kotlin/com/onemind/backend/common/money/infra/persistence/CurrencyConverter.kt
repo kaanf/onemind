@@ -1,4 +1,4 @@
-package com.onemind.backend.common.money
+package com.onemind.backend.common.money.infra.persistence
 
 import org.jooq.impl.AbstractConverter
 import java.util.Currency

@@ -1,6 +1,6 @@
 package com.onemind.backend.account.application
 
-import com.onemind.backend.account.infra.UserAccountRepository
+import com.onemind.backend.account.infra.persistence.UserAccountRepository
 import com.onemind.backend.common.security.AuthenticationRequiredException
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service

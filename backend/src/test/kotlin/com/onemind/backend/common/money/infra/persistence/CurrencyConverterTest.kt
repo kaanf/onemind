@@ -1,4 +1,4 @@
-package com.onemind.backend.common.money
+package com.onemind.backend.common.money.infra.persistence
 
 import java.util.Currency
 import kotlin.test.Test

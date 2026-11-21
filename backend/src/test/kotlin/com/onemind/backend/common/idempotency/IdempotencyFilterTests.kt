@@ -1,8 +1,8 @@
 package com.onemind.backend.common.idempotency
 
 import com.onemind.backend.TestcontainersConfiguration
-import com.onemind.backend.common.idempotency.infra.IdempotencyClaim
-import com.onemind.backend.common.idempotency.infra.IdempotencyRecordRepository
+import com.onemind.backend.common.idempotency.infra.persistence.IdempotencyClaim
+import com.onemind.backend.common.idempotency.infra.persistence.IdempotencyRecordRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired

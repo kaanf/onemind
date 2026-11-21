@@ -1,5 +1,6 @@
-package com.onemind.backend.account.infra
+package com.onemind.backend.account.infra.client
 
+import com.onemind.backend.account.domain.IdentityProvider
 import org.slf4j.LoggerFactory
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties

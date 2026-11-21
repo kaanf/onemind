@@ -1,7 +1,7 @@
 package com.onemind.backend.common.idempotency
 
-import com.onemind.backend.common.idempotency.infra.IdempotencyClaim
-import com.onemind.backend.common.idempotency.infra.IdempotencyRecordRepository
+import com.onemind.backend.common.idempotency.infra.persistence.IdempotencyClaim
+import com.onemind.backend.common.idempotency.infra.persistence.IdempotencyRecordRepository
 import com.onemind.backend.common.security.AuthenticationRequiredException
 import jakarta.servlet.FilterChain
 import jakarta.servlet.ReadListener

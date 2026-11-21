@@ -1,5 +1,6 @@
-package com.onemind.backend.account.infra
+package com.onemind.backend.account.infra.persistence
 
+import com.onemind.backend.account.domain.IdentityProvider
 import com.onemind.db.account.tables.references.APP_USER
 import com.onemind.db.account.tables.references.EMAIL_LOGIN_CODE
 import com.onemind.db.account.tables.references.MEMBERSHIP
@@ -239,9 +240,6 @@ class UserAccountRepository(
         const val OWNER = "OWNER"
     }
 }
-
-/** `account.user_identity.provider`. */
-enum class IdentityProvider { APPLE, GOOGLE, EMAIL }
 
 data class RefreshTokenRow(
     val id: UUID,

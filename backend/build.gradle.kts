@@ -162,7 +162,7 @@ tasks.generateJooqClasses {
             org.jooq.meta.jaxb
                 .ForcedType()
                 .withUserType("java.util.Currency")
-                .withConverter("com.onemind.backend.common.money.CurrencyConverter")
+                .withConverter("com.onemind.backend.common.money.infra.persistence.CurrencyConverter")
                 .withIncludeExpression(".*\\.currency")
                 .withIncludeTypes("bpchar|char|character"),
         )

@@ -1,6 +1,11 @@
-package com.onemind.backend.common.error
+package com.onemind.backend.common.web
 
 import com.onemind.backend.TestcontainersConfiguration
+import com.onemind.backend.common.error.ConflictException
+import com.onemind.backend.common.error.ForbiddenException
+import com.onemind.backend.common.error.InvalidRequestException
+import com.onemind.backend.common.error.NotFoundException
+import com.onemind.backend.common.error.RuleViolationException
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
