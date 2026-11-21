@@ -31,9 +31,6 @@ import com.onemind.archfixture.account.web.ControllerWithTransactionalMethod
 import com.onemind.archfixture.common.events.AreaJob
 import com.onemind.archfixture.common.web.CommonWebUsingTransactions
 import com.onemind.archfixture.pos.infra.client.PosProvider
-import com.tngtech.archunit.core.importer.ClassFileImporter
-import com.tngtech.archunit.lang.ArchRule
-import kotlin.reflect.KClass
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -132,12 +129,5 @@ class StructureRulesTest {
         assertFalse(rule.violatedBy(Outcome::class, PosProvider::class))
         assertTrue(rule.violatedBy(SingleImplPort::class))
         assertTrue(rule.violatedBy(MisplacedPosProvider::class), "allowlisted name in the wrong package")
-    }
-
-    private fun ArchRule.violatedBy(vararg types: KClass<*>): Boolean = listOf(this).violatedBy(*types)
-
-    private fun List<ArchRule>.violatedBy(vararg types: KClass<*>): Boolean {
-        val classes = ClassFileImporter().importClasses(*types.map { it.java }.toTypedArray())
-        return any { it.evaluate(classes).hasViolation() }
     }
 }

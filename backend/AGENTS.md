@@ -67,8 +67,9 @@ Inside each business module (ADR 0013 §2):
 
 The direction (`web`/`api` → `application` → `domain` ← `infra`) and rules R1–R9 of ADR 0013 are
 build gates in `architecture/` (`ModuleBoundaryTests` runs them on the code; `StructureRulesTest` and
-`DatabaseAccessRulesTest` prove each one against fixtures). A red gate names the rule; read it in
-ADR 0013 §3 instead of working around it. What the gates don't check:
+`DatabaseAccessRulesTest` prove each one against fixtures). Product rules 1, 5 and 6 are gated the
+same way (`ProductRules`, `ProductRulesTest`). A red gate names the rule; read it in
+ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. What the gates don't check:
 
 - Cross-module foreign keys only to `account.venue` and `account.app_user` (R1, database level).
 - One use case per screen or job (R2; the gate checks the 5-collaborator limit and `*Service` names).
@@ -114,11 +115,17 @@ ADR 0013 §3 instead of working around it. What the gates don't check:
 - Versions live in `gradle/libs.versions.toml`; no version strings in `build.gradle.kts`.
 - Immutable data classes for DTOs and value objects. Use `value class` for IDs
   (`VenueId`, `BillId`) and `Money`.
-- **Money:** `Money(amountMinor: Long, currency: Currency)`. Never `Double`. Rounding rules in
-  one place.
-- **Time:** store `Instant` (UTC, `timestamptz`). Business-day logic only in
-  `common/time/BusinessDayCalendar` using the venue's `ZoneId`. Inject a `Clock`; never call
-  `Instant.now()` directly (tests need fixed time).
+- **Money:** `Money(amountMinor: Long, currency: Currency)`; sub-minor prices `BigDecimal`. Rounding
+  rules in one place. Gated (`architecture/ProductRules`, rule 5): no `Float`/`Double` in a
+  money-named class, field, method or parameter (whole words from `docs/api/lint/money-words.json`,
+  plurals too; names ending in `Rate`/`Ratio`/`Percent`/`Pct`/`Share`/`Count`/`Quantity` are not
+  money), no `BigDecimal` from a `Double`. Parameter names come from `javaParameters` in
+  `build.gradle.kts`. Not caught: a `Double` money value under a name without a money word.
+- **Time:** store `Instant` (UTC, `timestamptz`). Business days only via
+  `common/time/BusinessDayCalendar` (venue `ZoneId` + `businessDayStart`). Gated (rule 6): only
+  `common/time/ClockConfig` reads the system clock; elsewhere inject `Clock` (`Instant.now(clock)`).
+  Only `common/time` turns an instant into a local date, time or hour (`atZone`, `LocalDate.ofInstant`,
+  `toLocalDate`, `hour` on zoned values); `atOffset` for API mapping is fine.
 - **Tenancy:** every venue-scoped repository method takes a `VenueId`. Every venue-scoped use case
   first calls `account/api/VenueAccess.requireAccess(userId, venueId, role?)` with
   `CurrentUser.id()`: it loads the membership per request and throws `404 VENUE_NOT_FOUND` for a
@@ -191,7 +198,9 @@ ADR 0013 §3 instead of working around it. What the gates don't check:
 
 ## POS sync rules
 
-- Storyous client exposes **read methods only**. A test must fail if a non-GET call is added.
+- Storyous client exposes **read methods only**. Gated (`architecture/ProductRules`, rule 1): no
+  mutating HTTP call anywhere in `pos`. The real client's recorded-fixture tests must also fail on any
+  non-GET request.
 - Upserts idempotent by `(provider, externalId)`.
 - Sync never blocks API requests. Report progress per step for `/pos/sync/status`.
 - After sync batches, publish events (`BillsSynced(venueId, businessDays)`) that trigger

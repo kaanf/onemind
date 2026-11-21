@@ -1,0 +1,5 @@
+{
+  "comment": "AGENTS.md rule 5: whole camelCase/snake_case words (singular; a plural s/es also matches) that make a name money-related, and last words that make it a ratio or count instead. Used by money-plugin.js; backend architecture/ProductRules holds the same lists (ProductRulesTest keeps them equal).",
+  "moneyWords": ["money", "amount", "price", "total", "subtotal", "revenue", "sales", "cost", "tip", "discount", "loss", "payment", "refund", "bill", "net", "gross", "minor"],
+  "notMoneySuffixes": ["rate", "ratio", "percent", "pct", "share", "count", "quantity"]
+}
