@@ -1,0 +1,23 @@
+type: object
+required:
+  - identityToken
+  - nonce
+properties:
+  identityToken:
+    type: string
+    maxLength: 4096
+    description: The identity token (JWT) from Sign in with Apple.
+  nonce:
+    type: string
+    minLength: 16
+    maxLength: 128
+    description: |
+      The raw random nonce. The app passes its SHA-256 (hex) to Apple; the backend checks the
+      token's `nonce` claim against the hash of this value.
+  displayName:
+    type: string
+    maxLength: 100
+    description: The name Apple gives the app on the first sign-in only (not in the token). Stored if the account has none.
+  deviceName:
+    type: string
+    maxLength: 100

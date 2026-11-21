@@ -1,0 +1,16 @@
+type: object
+required:
+  - idToken
+properties:
+  idToken:
+    type: string
+    maxLength: 4096
+    description: The Google ID token (JWT) from Credential Manager (Android) or Google Sign-In (iOS).
+  nonce:
+    type: string
+    minLength: 16
+    maxLength: 128
+    description: The nonce the app passed to Google, if any; the token's `nonce` claim must equal it.
+  deviceName:
+    type: string
+    maxLength: 100

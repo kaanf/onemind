@@ -1,0 +1,30 @@
+post:
+  tags:
+    - Auth
+  operationId: signInWithGoogle
+  summary: Sign in with Google (A1)
+  description: |
+    Verifies the Google ID token (signature against Google's keys, issuer, audience = our app's client IDs,
+    expiry, nonce if sent) and signs in, creating the account on first sign-in. An existing account with
+    the same verified email is linked (ADR 0004). `401 ID_TOKEN_INVALID` if the token doesn't pass;
+    `422 EMAIL_NOT_VERIFIED` if this Google account is new to us and has no verified email.
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/GoogleSignInRequest.yaml
+  responses:
+    '200':
+      description: Signed in.
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/AuthTokens.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '422':
+      $ref: ../../components/responses/UnprocessableEntity.yaml

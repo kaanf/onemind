@@ -17,6 +17,10 @@ paths:
     $ref: ./paths/account/auth-email-start.yaml
   /auth/email/verify:
     $ref: ./paths/account/auth-email-verify.yaml
+  /auth/apple:
+    $ref: ./paths/account/auth-apple.yaml
+  /auth/google:
+    $ref: ./paths/account/auth-google.yaml
   /auth/refresh:
     $ref: ./paths/account/auth-refresh.yaml
 components:
@@ -33,12 +37,16 @@ components:
       $ref: ./components/schemas/FieldError.yaml
     Money:
       $ref: ./components/schemas/Money.yaml
+    AppleSignInRequest:
+      $ref: ./components/schemas/AppleSignInRequest.yaml
     AuthTokens:
       $ref: ./components/schemas/AuthTokens.yaml
     EmailCodeStartRequest:
       $ref: ./components/schemas/EmailCodeStartRequest.yaml
     EmailCodeVerifyRequest:
       $ref: ./components/schemas/EmailCodeVerifyRequest.yaml
+    GoogleSignInRequest:
+      $ref: ./components/schemas/GoogleSignInRequest.yaml
     RefreshTokenRequest:
       $ref: ./components/schemas/RefreshTokenRequest.yaml
   parameters:
