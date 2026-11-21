@@ -15,6 +15,7 @@ is a plan; the source of truth for shapes is the OpenAPI spec once written.
   docs/api/
   ├── openapi.yaml                      ← entry: info, servers, security, path list
   ├── redocly.yaml                      ← lint config
+  ├── oasdiff-levels.txt                ← breaking-check severity overrides
   ├── paths/{account,dashboard,stock}/*.yaml   ← added with the first endpoints
   └── components/{schemas,responses,parameters}/*.yaml
   ```
@@ -28,7 +29,9 @@ is a plan; the source of truth for shapes is the OpenAPI spec once written.
 - Workflow: change the spec first, then backend and mobile in the same PR.
 - Inside `/api/v1` changes are **additive only**. CI (`.github/workflows/ci.yml`, PRs touching
   `docs/api/`) runs the linter and `oasdiff breaking` against `main`'s spec (skipped while `main` has
-  none). Locally: `oasdiff breaking --fail-on ERR <main-copy>/docs/api/openapi.yaml docs/api/openapi.yaml`.
+  none). It fails on errors and warnings; `oasdiff-levels.txt` downgrades new response enum values
+  (allowed in v1) to info. Locally: `oasdiff breaking --fail-on WARN --severity-levels
+  docs/api/oasdiff-levels.txt <main-copy>/docs/api/openapi.yaml docs/api/openapi.yaml`.
 - Clients send `X-App-Version` and `X-Platform`; the backend may answer `426 Upgrade Required`.
 
 ## Endpoint style

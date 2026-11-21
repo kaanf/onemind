@@ -87,6 +87,8 @@ jobs:
           --config docs/api/redocly.yaml --format github-actions docs/api/openapi.yaml
 
       # ADR 0001: compare against the released contract on main. Skipped until main has a spec.
+      # Fails on warnings too (oasdiff rates removed request fields/params as warnings; v1 forbids
+      # them). docs/api/oasdiff-levels.txt downgrades new response enum values, which v1 allows.
       - name: Check breaking changes against main (oasdiff)
         if: steps.changes.outputs.spec == 'true'
         run: |
@@ -105,5 +107,6 @@ jobs:
           echo "${OASDIFF_SHA256}  $RUNNER_TEMP/$archive" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" oasdiff
 
-          "$RUNNER_TEMP/oasdiff" breaking --fail-on ERR --format githubactions \
+          "$RUNNER_TEMP/oasdiff" breaking --fail-on WARN --format githubactions \
+            --severity-levels docs/api/oasdiff-levels.txt \
             "$base/docs/api/openapi.yaml" docs/api/openapi.yaml
