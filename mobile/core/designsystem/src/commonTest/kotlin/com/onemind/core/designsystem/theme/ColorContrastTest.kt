@@ -35,6 +35,8 @@ class ColorContrastTest {
         assertReadable(c.negativeText, c.negativeSurface, "negativeText on negativeSurface")
         assertReadable(c.warningStrongText, c.warningSurface, "warningStrongText on warningSurface")
         assertReadable(c.onAccent, c.tablesRamp.last(), "onAccent on the busiest table tile")
+        assertReadable(c.textSecondary, c.surfaceMuted, "textSecondary on surfaceMuted (muted avatar, free tile)")
+        c.tablesRamp.drop(4).forEach { step -> assertReadable(c.onAccent, step, "onAccent on tables ramp step from 5") }
     }
 
     private fun assertReadable(

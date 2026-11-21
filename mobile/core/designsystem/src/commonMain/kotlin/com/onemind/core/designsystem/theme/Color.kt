@@ -54,7 +54,8 @@ val LightColors =
         borderStrong = Color(0xFFE2E2DE),
         divider = Color(0xFFEFEFEC),
         textPrimary = Color(0xFF14161A),
-        textSecondary = Color(0xFF6B7079),
+        // Canvas #6B7079, darkened for 4.5:1 on surfaceMuted (WCAG AA).
+        textSecondary = Color(0xFF696E77),
         textTertiary = Color(0xFF5C626C),
         textPlaceholder = Color(0xFF8A8F98),
         iconMuted = Color(0xFF9BA0A8),
@@ -91,7 +92,8 @@ val LightColors =
                 Color(0xFFE0E2F8),
                 Color(0xFFC4C8F3),
                 Color(0xFF9AA0EC),
-                Color(0xFF6B71E3),
+                // Canvas #6B71E3, darkened for 4.5:1 with white text (WCAG AA).
+                Color(0xFF6269E1),
                 Color(0xFF4F46E5),
             ),
     )

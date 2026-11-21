@@ -21,7 +21,7 @@ define colors as semantic tokens so a dark palette can be added later.
 | `divider`                | `#EFEFEC`  | Row separators inside cards |
 | `surfaceMuted`           | `#F1F1EE`  | Chips, free table tile, source chips, quiet heat cell |
 | `textPrimary`            | `#14161A`  | Main text, dark tiles, selected chip background |
-| `textSecondary`          | `#6B7079`  | Labels, meta, inactive tab |
+| `textSecondary`          | `#696E77`  | Labels, meta, inactive tab (canvas `#6B7079`, darkened for WCAG AA) |
 | `textTertiary`           | `#5C626C`  | Table row labels |
 | `textPlaceholder`        | `#8A8F98`  | Input placeholder (decorative only) |
 | `iconMuted`              | `#9BA0A8`  | Dashed/waiting icons, neutral swatches |
@@ -43,8 +43,8 @@ define colors as semantic tokens so a dark palette can be added later.
 | `chartFuture`            | `#EEEFF1`  | Future hours |
 
 Heat ramp (Hourly patterns, 7 steps): `#F1F1EE, #E0E2F8, #C4C8F3, #9AA0EC, #6B71E3, #4338CA, #312E81`.
-Tables ramp (6 steps): `#F1F1EE, #E0E2F8, #C4C8F3, #9AA0EC, #6B71E3, #4F46E5` (white text from
-step 5).
+Tables ramp (6 steps): `#F1F1EE, #E0E2F8, #C4C8F3, #9AA0EC, #6269E1, #4F46E5` (white text from
+step 5; step 5 is canvas `#6B71E3` darkened for WCAG AA).
 
 Accent theme options in the design: `#4F46E5` (indigo, default), `#14161A`, `#0F766E`, `#9F1239`.
 Treat accent as a single token so it can be switched.
@@ -136,9 +136,10 @@ Not built yet: **Stepper**, **Fraction picker**, **Checklist row** (with the sto
 
 - Touch targets ≥ 44 × 44.
 - Contrast 4.5:1 for text (the palette above is chosen for this; check new colors). A test in
-  `core:designsystem` checks the text tokens on their surfaces. Two pairs used on the canvas fall
-  short and need a design decision: `textSecondary` on `surfaceMuted` (4.4:1, muted avatar
-  initials) and white text on tables ramp step 5 `#6B71E3` (4.1:1).
+  `core:designsystem` checks the text tokens on their surfaces. Two canvas colours fell short and
+  were darkened slightly, same hue (owner decision 2026-11-21): `textSecondary` `#6B7079` →
+  `#696E77` (4.5:1 on `surfaceMuted`) and tables ramp step 5 `#6B71E3` → `#6269E1` (4.5:1 with white
+  text). The canvas still shows the old values.
 - Icon-only buttons have content descriptions (*Back to Sales*, *Send*, *Attach a document*).
 - Heatmap cells and table tiles expose a spoken label with their value.
 - Don't use color alone: risk rows have a dot **and** red text; variance has text too.
