@@ -4,10 +4,11 @@ Kotlin Multiplatform app (Android + iOS, shared Compose UI) for OneMind. Read th
 [`../AGENTS.md`](../AGENTS.md) first, then
 [ADR 0011](../docs/architecture/adr/0011_MOBILE_ARCHITECTURE.md).
 
-> **Status:** Gradle build, `build-logic` and version catalog are in place; modules are added
-> next (see `docs/ROADMAP.md`, phase 2). The structure follows the owner's other KMP app,
-> **crew-kmp** (`~/Projects/crew/crew-kmp`). Use it as the reference implementation for
-> structure, Gradle convention plugins and patterns — not for product code or copy.
+> **Status:** build logic, version catalog and the module skeleton below are in place (modules
+> are empty: `core:api` generation, design system and app shell are next, see `docs/ROADMAP.md`,
+> phase 2). The structure follows the owner's other KMP app, **crew-kmp**
+> (`~/Projects/crew/crew-kmp`). Use it as the reference implementation for structure, Gradle
+> convention plugins and patterns — not for product code or copy.
 
 ## Responsibilities
 
@@ -151,15 +152,25 @@ Navigation versions must stay aligned with the Compose Multiplatform version.
 
 ## Commands
 
-Run from `mobile/`. Needs the Android SDK (`ANDROID_HOME` or `local.properties` with `sdk.dir`)
-and Xcode for iOS.
+Run from `mobile/`. Needs JDK 21, the Android SDK (`ANDROID_HOME` or `local.properties` with
+`sdk.dir`) and Xcode with an iOS simulator runtime.
 
 ```sh
-./gradlew :build-logic:convention:build   # compile + validate convention plugins
-./gradlew ktlintCheck                     # lint every module (ktlintFormat to fix); needs at least one module
+./gradlew :build-logic:convention:build                    # compile + validate convention plugins
+./gradlew ktlintCheck                                      # lint every module (ktlintFormat to fix)
+./gradlew :androidApp:assembleDebug                        # Android debug APK
+./gradlew :androidApp:assembleRelease                      # Android release (R8); unsigned without ONEMIND_* signing values
+./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64  # iOS framework (shared code compiles for iOS)
+
+# Full iOS app for the simulator (runs the Gradle framework build as an Xcode build phase)
+xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug \
+  -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
 
-Module build, test and iOS commands are added with the modules.
+Open `iosApp/iosApp.xcodeproj` in Xcode to run on a simulator or device. The project uses folder
+synchronised groups: new Swift files in `iosApp/iosApp/` are picked up without editing the
+project. iOS deployment target is 18.5 (the minimum Compose Multiplatform's native libraries are
+built for). The signing team is set in `iosApp/Configuration/Config.xcconfig`.
 
 ## Definition of done (mobile)
 
