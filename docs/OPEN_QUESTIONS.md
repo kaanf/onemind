@@ -18,7 +18,7 @@ reference the question ID in a code comment / PR. When a question is answered, m
 | P10 | Supplier data (deadlines, delivery days, case sizes, prices): who enters it and where? |
 | P13 | Narrow the first release to read-only dashboards (stock, receipts and counts later) to make the Storyous pitch cleaner? See `product/STORYOUS_PARTNERSHIP.md`. |
 | P14 | Stock: our own system with Storyous read-only (current plan), and how to position it against Storyous Inventory. |
-| P15 | Storyous partnership outcome (owner is handling it): access model, extra data (open bills, voids, attendance), terms. |
+| P15 | Storyous partnership outcome (owner is handling it): access model, extra data (open bills, voids, attendance), terms. Until then the app runs on mock POS data (owner, 2026-11-21). |
 | P12 | Can the table layout be edited in the app, or only taken from the POS? |
 | P16 | A venue disabled (or `hidden`, not mapped yet) in Storyous: should its owner still see its history (sales, later stock) read-only, and should *All venues* include it? Today `VenueAccess` answers 404 for a `DISABLED` venue, even for its owner (#30); relaxing it is a one-line change. Decide before phase 5. |
 

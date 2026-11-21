@@ -10,6 +10,8 @@ docs' OpenAPI pages). Anything marked **undocumented** must be confirmed with St
   exposes only read methods; a test fails if a non-GET call is added.
 - Credentials (client ID/secret, tokens) are stored encrypted, server-side only.
 - All Storyous access goes through one backend module behind a `PosProvider` interface.
+- Until P15 is settled the only `PosProvider` is a mock provider (owner, 2026-11-21; ADR 0013);
+  the client below is built later behind the same interface.
 
 ## Authentication (verified)
 
