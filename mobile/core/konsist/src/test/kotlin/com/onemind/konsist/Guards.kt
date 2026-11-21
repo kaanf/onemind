@@ -204,7 +204,10 @@ object MoneyNames {
 
     fun tokens(name: String): List<String> = name.split(tokenBoundary).filter { it.isNotEmpty() }.map { it.lowercase() }
 
-    fun isMoney(name: String): Boolean {
+    fun isMoney(
+        name: String,
+        words: MoneyWords = MoneyWords.shared,
+    ): Boolean {
         val tokens = tokens(name)
         val last = tokens.last()
         return tokens.any { it.isWordIn(moneyWords) } && !last.isWordIn(notMoneySuffixes) && !last.isWordIn(drawingSuffixes)
