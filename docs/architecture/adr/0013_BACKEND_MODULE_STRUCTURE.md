@@ -56,40 +56,58 @@ Package names stay as they are; `infra` is split in two.
 ├── application/         ← one use-case class per screen or job (GetTodaySummary, SyncBills, EmailSignIn)
 ├── domain/              ← pure Kotlin: rules and calculations (BusinessDay, METRICS formulas, stock aggregates)
 └── infra/
-    ├── persistence/     ← jOOQ repositories and queries, returning domain or application types
+    ├── persistence/     ← jOOQ repositories and queries, returning domain types or plain data classes
     └── client/          ← adapters to external systems (IdTokenVerifier, Storyous client, SMTP)
 ```
 
-**Dependency direction:** `web → application → domain ← infra`.
+**Dependency direction:** `web → application → domain ← infra`, with `api` as a second entry next
+to `web`. Allowed dependencies inside a module, and nothing else:
 
+| Package | May depend on (same module) |
+|---------|-----------------------------|
+| `web` | `application` |
+| `api` (facades and their DTOs) | `application`, `domain` |
+| `api/events` | – (events carry only Kotlin and `common` types) |
+| `application` | `domain`, `infra/persistence`, `infra/client`, `api/events` (to publish) |
+| `infra/persistence`, `infra/client` | `domain` |
+| `domain` | – |
+
+- **No cycle with `api`:** facade classes in `api` call `application`; `application` never imports
+  `api` except `api/events`. A type both sides need (a role, a result) is defined in `domain` or
+  `application` and the facade maps it to its own DTO. Exceptions thrown by use cases live in
+  `application` or `domain`; other modules don't catch them, `ApiExceptionHandler` maps them.
 - `application` uses `infra/persistence` and `infra/client` classes **directly**. Under R9 there
-  are no repository interfaces in `domain`, so `infra` doesn't implement domain ports. It only uses
-  domain types as inputs and results.
+  are no repository interfaces in `domain`, so `infra` doesn't implement domain ports. Repositories
+  take and return domain types, plain Kotlin values or plain data classes declared next to them in
+  `infra/persistence` (like today's `RefreshTokenRow`), never `application` types.
 - `domain` depends on nothing in the module and only on the plain-Kotlin parts of `common` (`Money`,
   `Quantity`, IDs, `DomainException`).
-- `api` is a thin facade: plain classes that delegate to `application` use cases, plus DTOs that
-  carry only Kotlin and `common` types. Other modules never see `application` or `domain` classes.
+- Other modules see only `api` and `api/events` (named interfaces), never `application`, `domain`
+  or `infra` classes.
 - `web` calls `application` only, never `infra`. Controllers turn generated DTOs into use-case
   arguments and results into generated DTOs.
 - Wiring that belongs to a use case lives next to it in `application`: db-scheduler task beans (the
   body is a plain use-case method) and `@ApplicationModuleListener` methods (each is idempotent,
   ADR 0009 §5 still applies).
-- Where the shared kernel needs the same split (for example `common/idempotency/infra`), it gets it:
-  `common/<area>/infra/persistence`.
+- **`common`** is organised by area (`email`, `error`, `idempotency`, `money`, `security`, `web`, …),
+  not by layer, so the direction table doesn't apply to it. R3–R7 do: jOOQ code sits in
+  `common/<area>/infra/persistence` (also the jOOQ `CurrencyConverter`), generated OpenAPI types only
+  in `common/web`, transactions and job beans at the area's root (`common/events/EventPublicationJobs`,
+  `common/idempotency/IdempotencyJobs`), since an area is its own small use case.
 
 ### 3. Rules
 
 | ID | Rule |
 |----|------|
 | **R1** | A module touches only its own schema's generated jOOQ classes (`com.onemind.db.<own schema>`; `common` owns `platform`). Data of another module comes through that module's `api` or its events. No cross-schema joins in code. |
-| **R2** | Use-case classes, not growing `*Service` classes. A use case covers one screen or job. More than **5 constructor dependencies** means it must be split. |
+| **R2** | Use-case classes, not growing `*Service` classes. A use case covers one screen or job. A Spring bean in `application` with more than **5 constructor dependencies** must be split (data classes, results and exceptions there aren't use cases). |
 | **R3** | `DSLContext` and other jOOQ types (`org.jooq..`, `com.onemind.db..`) are used only in `infra/persistence`. |
-| **R4** | jOOQ `Record` types never leave `infra/persistence`: repositories return domain or application types, or plain Kotlin values. |
-| **R5** | Generated OpenAPI models (`com.onemind.api.v1..`) never leave `web`. |
+| **R4** | jOOQ `Record` types never leave `infra/persistence`: repositories return domain types, plain Kotlin values or plain data classes declared in `infra/persistence`. |
+| **R5** | Generated OpenAPI models and interfaces (`com.onemind.api.v1..`) never leave `web` (a module's `web` or `common/web`). |
 | **R6** | `domain` imports no Spring, jOOQ or Jackson. |
 | **R7** | Transactions (`@Transactional`, `TransactionTemplate`) only in `application`. One per use case; no Claude or Storyous call inside one. |
 | **R8** | The module graph is explicit: every module declares `@ApplicationModule(allowedDependencies = …)` (§4). Changing it changes this ADR. |
-| **R9** | No interface without a second implementation. **Exception:** `PosProvider` (Storyous now, other POS systems later). Test doubles don't count as a second implementation. |
+| **R9** | No interface without a second implementation. **Exception:** `PosProvider` (Storyous now, other POS systems later). Test doubles don't count as a second implementation. Sealed interfaces for result types (`IdempotencyClaim`) are not ports and are fine. |
 
 ### 4. Module graph (R8)
 
@@ -98,30 +116,35 @@ Package names stay as they are; `infra` is split in two.
 | `common` | open | – | Shared kernel; every module may use every `common` package. `common` itself uses no business module. |
 | `account` | base | – | Users, venues and memberships. The others depend on it; it depends on none of them. |
 | `pos` | – | `account::api` | Registers the venues it discovers and checks venue access for sync status. Uses no other business module. |
-| `reporting` | – | `account::api`, `pos::api`, `pos::events` | Venue access; reads POS facts through the pos read API; refreshes rollups on `BillsSynced`. |
+| `reporting` | – | `account::api`, `pos::api`, `pos::events`, `stock::api`, `stock::events` | Venue access; reads POS facts through the pos read API; refreshes rollups on `BillsSynced`; `possibleLoss` includes `stockCorrections` (METRICS), read through `stock::api` and refreshed on stock correction events. Without stock in the first release (P13) that part is an empty state, never 0. |
 | `stock` | – | `account::api`, `pos::api`, `pos::events` | Venue access; sold items and the product catalog for usage and recipes; deducts usage on `BillsSynced`. |
 
-`account::api` and `account::events` are named interfaces, as are `pos::api` and `pos::events`.
-Nothing depends on `reporting` or `stock`. Cycles are forbidden (Spring Modulith already checks
-that).
+`api` and `api/events` are named interfaces (`::api`, `::events`) in every module. Nothing depends
+on `reporting`, and only `reporting` depends on `stock`, so the graph has no cycle (Spring Modulith
+checks that). `stock` must never need `reporting`: a number both show is computed in `stock` and
+read by `reporting`.
 
 **Deviation from the brief ("reporting and stock only on `pos::events`"):** both also need venue
-access (`account::api`, AGENTS.md rule 7), and both need POS facts that an event can't carry
-reasonably (bill lines for a business day are thousands of rows, and the event payload is stored in
+access (`account::api`, AGENTS.md rule 7), `reporting` needs stock corrections for `possibleLoss`,
+and both need POS facts that an event can't carry reasonably (bill lines for a business day are thousands of rows, and the event payload is stored in
 `platform.event_publication`). So they read through the pos read API below. Events stay small
 signals (`BillsSynced(venueId, businessDays)`).
 
 ### 5. POS read API (replaces reporting's table access)
 
-`pos/api` gets a read facade, owned and versioned by `pos`, that returns DTOs, never jOOQ types:
+`pos/api` gets a read facade, owned and versioned by `pos`, that returns DTOs, never jOOQ types.
+It returns **pages, never a lazy `Sequence` or stream**: a lazy result would keep a cursor and its
+connection open across the module boundary, outside `pos`'s control. Each call is complete when it
+returns; the caller asks for the next page with the keyset cursor it got.
 
-- `PosReadModel.billLines(venueId, businessDays): Sequence<BillLineFact>` streams paid bill lines
-  (bill, business day, paid at, desk, staff, product, quantity, gross/net minor units, discount,
-  refunded/deleted flags) in pages, ordered by bill.
-- `PosReadModel.payments(venueId, businessDays)`, `deletedItems(…)`, `products(venueId)`,
-  `desks(venueId)`, `staff(venueId)` for the other rollups and screens.
-- "Now" figures that need open bills (Today, ADR 0005) go through the same facade
-  (`openTabs(venueId)`), so `reporting` never reads `pos` tables, not even for live data.
+- `PosReadModel.billLines(venueId, businessDays, after: BillLineCursor?, limit): Page<BillLineFact>`:
+  paid bill lines (bill, business day, paid at, desk, staff, product, quantity, gross/net minor units,
+  discount, refunded/deleted flags), ordered by bill and line.
+- `payments(…)` and `deletedItems(…)`, paged the same way.
+- `openTabs(venueId)` for the "now" figures of Today (ADR 0005), so `reporting` never reads `pos`
+  tables, not even for live data.
+
+Start with these four; products, desks and staff are added when a screen needs them.
 
 `reporting` builds its hourly rollups in its own schema from these facts, inside the
 `BillsSynced` listener. A rebuild job replays the same path per business day. The facade is where
@@ -156,14 +179,14 @@ already grouped by hour and product). The SQL stays inside `pos`.
 
 | Rule | Gate in C3 | How |
 |------|------------|-----|
-| Direction (§2) | ArchUnit | Layer rule per module: `web` → `application` → `domain`/`infra`; `infra` → `domain`; `domain` → nothing in the module; `web` doesn't access `infra`. |
+| Direction (§2) | ArchUnit | The table in §2 as a rule per business module (`account`, `pos`, `reporting`, `stock`); `common` is exempt from it but not from R3–R7. |
 | R1 | ArchUnit | `DatabaseAccessRules`: each module only its own `com.onemind.db.<schema>` package; the `reporting → pos` exception is removed. |
-| R2 | ArchUnit + reviewer | Gate: classes in `application` have at most 5 constructor parameters and no name ending in `Service`. Reviewer: "one screen or job per class". |
+| R2 | ArchUnit + reviewer | Gate: Spring beans (`@Service`/`@Component`) in `application` have at most 5 constructor parameters and no name ending in `Service`. Reviewer: "one screen or job per class". |
 | R3 | ArchUnit | `org.jooq..` and `com.onemind.db..` accessed only from `..infra.persistence..`. |
 | R4 | ArchUnit (partial) + reviewer | Gate: public methods in `infra.persistence` don't return `org.jooq.Record` subtypes or `Result`. Reviewer: records hidden inside generic return types. |
 | R5 | ArchUnit | `com.onemind.api.v1..` accessed only from `..web..`. |
 | R6 | ArchUnit | `..domain..` depends on no `org.springframework..`, `org.jooq..`, `tools.jackson..` or `com.fasterxml.jackson..`. |
-| R7 | ArchUnit | `@Transactional` and `TransactionTemplate` used only in `..application..`. |
+| R7 | ArchUnit | `@Transactional` and `TransactionTemplate` used only in `..application..` of business modules and outside `infra`/`web` in `common`. |
 | R8 | Spring Modulith | `ApplicationModules.verify()` with `allowedDependencies` and named interfaces `api` and `events`. |
 | R9 | Reviewer | Not checkable mechanically (a second implementation can arrive later); the reviewer lane checks every new interface. |
 
@@ -203,6 +226,14 @@ Every ArchUnit rule gets a fixture that violates it and a test proving the rule 
     `account/api` (R9).
   - `EmailSender` (one SMTP implementation, a test fake) becomes a concrete class, unless the owner
     keeps it as an exception (see open points).
+  - `common/money/CurrencyConverter` (a jOOQ converter, R3) → `common/money/infra/persistence`,
+    with its class name updated in the jOOQ codegen config in `build.gradle.kts`.
+  - `common/error/ApiExceptionHandler` and `Problems` (they use the generated `FieldError`, R5) →
+    `common/web`.
+  - Job beans: `AuthJobs` → `account/application`; `IdempotencyJobs` and `EventPublicationJobs`
+    stay at their `common` area's root.
+  - Paths in docs: ADR 0004 implementation notes and `backend/AGENTS.md` ("Where it lives",
+    "Architecture") follow the moves in the same PR.
   - `@ApplicationModule(allowedDependencies = …)` on every module.
 - **C3:** the ArchUnit and Modulith gates in §7, with fixture tests, mandatory in CI.
 - **Docs:** after approval, `backend/AGENTS.md` ("Architecture", "Rules") and
@@ -216,10 +247,12 @@ Every ArchUnit rule gets a fixture that violates it and a test proving the rule 
 
 1. **Module graph:** `reporting` and `stock` also depend on `account::api` (venue access) and
    `pos::api` (read facade), not only on `pos::events` (§4). Confirm.
-2. **R9 and existing ports:** `EmailSender` has one production implementation; ADR 0008 lists it,
-   `FileStorage` and `ReceiptExtractor` as swappable interfaces. Under R9 they become concrete
-   adapters until a second implementation exists (the provider switch for email is SMTP
-   configuration, `docs/architecture/README.md` item 11). Confirm, or name them as exceptions
-   next to `PosProvider`.
+2. **R9 and existing ports:** `EmailSender` has one production implementation. ADR 0008 lists it and
+   `FileStorage` as swappable interfaces, ADR 0007 puts receipt extraction behind
+   `ReceiptExtractor`, and the AI rules in `backend/AGENTS.md` require an `LlmClient` interface for
+   the assistant "so the model/provider can change". Under R9 they all become concrete adapters
+   until a second implementation exists (the email provider switch is SMTP configuration,
+   `docs/architecture/README.md` item 11; the Sonnet retry in ADR 0007 is the same client with
+   another model). Confirm, or name some of them as exceptions next to `PosProvider`.
 3. **R2 threshold:** "more than 5 constructor dependencies" counts `Clock` and
    `TransactionTemplate`, which almost every use case needs. Keep 5, or count only collaborators?
