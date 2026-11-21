@@ -104,6 +104,9 @@ jobs:
         with:
           node-version: 26
 
+      - name: TEMP gate check, must fail
+        run: exit 1
+
       - name: Lint spec (Redocly)
         run: >-
           npx --yes @redocly/cli@${REDOCLY_CLI_VERSION} lint
