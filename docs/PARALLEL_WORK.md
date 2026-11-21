@@ -13,17 +13,15 @@ outputs never collide:
 | Session | Folder | Work | Owns |
 |---------|--------|------|------|
 | **orchestrator** | `onemind-orchestrator/` | Assigns items, collects reports, asks the owner, merges, keeps `ROADMAP.md` | `docs/ROADMAP.md`, this file, `.claude/skills/` |
-| **backend** | `onemind/` (main checkout) | Backend items, in roadmap order, as assigned | `backend/` (except CI config), migrations `V006`+ |
-| **ci** | `onemind-ci/` | CI items of each phase, as assigned | `.github/` |
+| **backend** | `onemind/` (main checkout) | Backend items, in roadmap order, as assigned | `backend/` (except CI config), migrations `V006`+, `infra/` changes the orchestrator approved |
+| **ci** | `onemind-ci/` | CI items, as assigned; on demand: the owner starts it when the orchestrator has a ci item | `.github/` |
 | **mobile** | `onemind-mobile/` | Mobile items, in roadmap order, as assigned | `mobile/` |
-| **reviewer** | `onemind-review/` | Reviews every lane PR before the owner is asked to merge; audits on request | nothing (read-only, PR comments) |
+| **reviewer** | `onemind-review/` | Reviews every lane PR before the owner is asked to merge; audits on request; `/clear` after each verdict | nothing (read-only, PR comments) |
 
 Each worktree has a `CLAUDE.local.md` (listed in `.git/info/exclude`, never committed) that names its
 role and the start-up steps: read the three docs, then the orchestrator sends `HELLO` + `STATUS` and a
 lane sends a `REPORT`. Claude Code loads it on every start and after `/clear`, so the owner only types
-something like "başla". Without that file, the owner starts each session with: "Read AGENTS.md,
-docs/ROADMAP.md and docs/PARALLEL_WORK.md. You are the **orchestrator**." or "… You are on the
-**<lane>** lane."
+something like "başla".
 
 Create a worktree (from the main checkout):
 
@@ -47,16 +45,19 @@ Remove a worktree when the lane is finished: `git worktree remove ../onemind-<la
   report to that name.
 - **Assigns** the next roadmap item to each idle lane (one item per lane at a time), and orders work
   that crosses lanes (for example an `openapi.yaml` change before mobile `core:api` uses it).
-- **Sends every ready lane PR to the reviewer** (`REVIEW`), relays blockers and should-fix items
-  to the owning lane, and asks the owner to merge only after a `clean` verdict (or with the open
-  items listed). The reviewer uses the `onemind-review` skill (`.claude/skills/`).
-- **Asks the owner** for every decision and every merge, in one Turkish message per topic. A lane's
-  PR is merged only after the owner says yes for that PR.
-- **Merges** approved PRs (squash). When another open PR is based on the merged branch, it first
+- **Sends every ready lane PR to the reviewer** (`REVIEW`, skill `onemind-review`) and relays blockers
+  and should-fix items to the owning lane.
+- **Asks the owner** for decisions and merges in Turkish, batched: non-urgent questions at most twice
+  a day in one message grouped by topic; a blocker that stops a lane goes at once.
+- **Approves `PLAN`s** that stay inside docs and accepted ADRs; anything else (and every ADR) goes to
+  the owner.
+- **Merges** per [Merging](#merging) (squash). When another open PR is based on the merged branch, it first
   retargets that PR to `dev` (`gh pr edit <n> --base dev`), otherwise GitHub closes it when the
   branch is deleted, and then tells the owning lane to rebase onto `origin/dev`.
 - **Is the only writer of `ROADMAP.md`.** It ticks items in a small `docs(repo)` PR after their PRs are
   merged and keeps the status section current. Lanes never edit `ROADMAP.md`.
+- **Restarts its own session** at least at every phase boundary instead of running on a long
+  compacted context.
 - Keeps no state only in its head: what each lane is doing is visible in the open PRs and in the
   lanes' last reports; after a restart it rebuilds the picture from `gh pr list`, `ROADMAP.md` and a
   `STATUS` request to every lane.
@@ -87,8 +88,21 @@ pr: #<n>          # the owner said yes; the orchestrator merges
 REVIEW            # to the reviewer
 pr: #<n> | audit
 focus: <optional: areas or risks to look at>
+critical areas: <from the PR body>
 
 STATUS            # asks for a REPORT
+```
+
+Lane → orchestrator, before writing code when an item touches the DB schema, `openapi.yaml`, module
+structure, a new dependency, auth or anything an ADR covers:
+
+```
+PLAN
+item: <roadmap line>
+approach: <5–10 lines>
+files/modules: <paths>
+risks: <…>
+open questions: <… or none>
 ```
 
 Lane → orchestrator:
@@ -100,7 +114,12 @@ item: <roadmap line>
 pr: #<n> (base, checks passed / failed / running)
 summary: <2–5 lines: what changed, deviations from docs, follow-ups>
 needs: <decision or approval needed from the owner, or "nothing">
+critical areas: openapi | migration | auth | guard files | process | new dependency | ADR | module graph | domain core | none
 ```
+
+`domain core` = METRICS calculations, `BusinessDay`, `Money`, stock ledger. `process` = `AGENTS.md`,
+`CLAUDE.md`, this file, `.claude/**`. The line goes into the PR body, `REVIEW`, `REVIEW-RESULT` and
+every merge question; when it isn't `none` the owner reads the diff.
 
 Reviewer → orchestrator:
 
@@ -108,6 +127,7 @@ Reviewer → orchestrator:
 REVIEW-RESULT
 pr: #<n> | audit
 verdict: clean | fix-needed | blocked
+critical areas: <confirmed or corrected>
 checks: <passed / failed / skipped>
 blockers: <count, one line each>
 should-fix: <count, one line each>
@@ -127,8 +147,7 @@ as it needs a decision, and answers every `STATUS` and `REBASE` with a `REPORT`.
 - **Stay in your lane.** Change only the paths your lane owns, plus the docs that describe your
   change. If you need something from another lane, report `blocked` to the orchestrator.
 - **Shared files** (`AGENTS.md`, `docs/architecture/**`, `docs/api/**`): keep edits small and local.
-  `docs/ROADMAP.md` belongs to the orchestrator: don't tick items in lane PRs; mention new follow-up
-  items in the `REPORT` instead.
+  Never tick `ROADMAP.md`; put follow-ups in the `REPORT`.
 - **Migrations:** the backend lane owns the next numbers. Another lane that needs a migration asks
   the orchestrator for a number first.
 - **Before a PR is merged,** the lane rebases it onto the latest `origin/dev`, resolves conflicts and
@@ -138,12 +157,27 @@ as it needs a decision, and answers every `STATUS` and `REBASE` with a `REPORT`.
 - **After a merge,** start the next assigned item on a new branch from `origin/dev` inside the same
   worktree (`git switch -c <type>/<name> origin/dev`, then `git branch --unset-upstream`).
 
+## Guard files
+
+`.github/**`, `**/.editorconfig`, `docs/api/redocly.yaml`, lint baselines, `backend/src/test/**/architecture/**`,
+`mobile/core/konsist/**`, `mobile/build-logic/**`, `{backend,mobile}/{build,settings}.gradle.kts`,
+`**/gradle/libs.versions.toml`, `**/gradle-wrapper.properties`. Lanes never weaken them to pass a check; a PR touching them says
+`critical areas: guard files` and goes to the owner even with a clean review.
+
+## Merging
+
+Before any merge or merge question the orchestrator runs `gh pr checks <n>` itself; a lane's or the
+reviewer's report is not enough. Green = every check passed or skipped by its path filter, none
+pending or failing (Devin is advisory). It merges **without asking** only when all hold: docs-only or
+test-only change, reviewer verdict `clean`, checks green, `critical areas: none`. Every other PR waits
+for the owner's yes, asked with the reviewer verdict, open items, checks and the critical-areas line.
+
 ## Talking to the owner
 
 - Chat replies are in **Turkish**; docs, code, commits and PRs stay in English.
 - Back technology choices with current web research.
 - The owner talks to the orchestrator. When an item is ready, the lane commits, pushes, opens a PR to
-  `dev` (template in `AGENTS.md`) and reports it; the orchestrator gives the owner a short Turkish
-  summary and asks **"mergeleyeyim mi?"**. Never tag.
+  `dev` (template in `AGENTS.md`) and reports it; the orchestrator follows [Merging](#merging) and,
+  when the owner must decide, asks **"mergeleyeyim mi?"**. Never tag.
 - If the owner talks to a lane directly, the lane answers and then sends the orchestrator a `REPORT`
   of anything that changed.
