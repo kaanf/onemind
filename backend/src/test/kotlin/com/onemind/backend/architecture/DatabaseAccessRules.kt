@@ -40,7 +40,7 @@ object DatabaseAccessRules {
                 .that()
                 .resideInAPackage("$appRoot..")
                 .and()
-                .resideOutsideOfPackage("..infra.persistence..")
+                .resideOutsideOfPackages(*StructureRules.persistencePackages(appRoot).toTypedArray())
                 .should()
                 .dependOnClassesThat()
                 .resideInAnyPackage("$dbRoot..", "org.jooq..")

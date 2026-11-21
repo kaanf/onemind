@@ -30,10 +30,41 @@ object StructureRules {
     const val R2_MAX_COLLABORATORS = 5
 
     private val TRANSACTION_TYPES =
-        setOf(TransactionTemplate::class.java.name, "org.springframework.transaction.support.TransactionOperations")
+        setOf(
+            TransactionTemplate::class.java.name,
+            "org.springframework.transaction.support.TransactionOperations",
+            "org.springframework.transaction.PlatformTransactionManager",
+            "org.springframework.transaction.TransactionManager",
+        )
 
-    /** R9: the only interfaces allowed besides sealed result types (ADR 0013, owner decision). */
-    val R9_ALLOWLIST = setOf("PosProvider", "ReceiptExtractor", "LlmClient")
+    /**
+     * R9: the only interfaces allowed besides sealed result types (ADR 0013, owner decision), by fully
+     * qualified name relative to the app root. `LlmClient` (also an exception) is added with its package
+     * once the assistant's module is decided; until then a new interface of that name fails on purpose.
+     */
+    val R9_ALLOWLIST = setOf("pos.infra.client.PosProvider", "stock.infra.client.ReceiptExtractor")
+
+    /** The packages a business module's classes may live in (ADR 0013 §2). */
+    fun layerPackages(
+        appRoot: String,
+        module: String,
+    ): List<String> {
+        val m = "$appRoot.$module"
+        return listOf(
+            "$m.api",
+            "$m.api.events..",
+            "$m.web..",
+            "$m.application..",
+            "$m.domain..",
+            "$m.infra.persistence..",
+            "$m.infra.client..",
+        )
+    }
+
+    private fun modulePackages(
+        appRoot: String,
+        layer: String,
+    ) = BUSINESS_MODULES.map { "$appRoot.$it.$layer.." }
 
     fun all(
         appRoot: String = "com.onemind.backend",
@@ -42,6 +73,7 @@ object StructureRules {
     ): List<ArchRule> =
         direction(appRoot) +
             listOf(
+                classesInLayers(appRoot),
                 collaborators(appRoot),
                 noJooqResultsOutsidePersistence(appRoot),
                 openApiOnlyInWeb(appRoot, apiRoot),
@@ -88,11 +120,23 @@ object StructureRules {
                 .because("module $module follows the package direction of ADR 0013 §2")
         }
 
+    /** §2: every class of a business module lives in one of its layers, so direction covers it. */
+    fun classesInLayers(appRoot: String): ArchRule =
+        classes()
+            .that()
+            .resideInAnyPackage(*BUSINESS_MODULES.map { "$appRoot.$it.." }.toTypedArray())
+            .and()
+            .doNotHaveSimpleName("package-info")
+            .should()
+            .resideInAnyPackage(*BUSINESS_MODULES.flatMap { layerPackages(appRoot, it) }.toTypedArray())
+            .because("classes outside the ADR 0013 §2 packages would escape the direction rules")
+            .allowEmptyShould(true)
+
     /** R2: application beans are use cases with at most 5 collaborators, not `*Service` classes. */
     fun collaborators(appRoot: String): ArchRule =
         classes()
             .that()
-            .resideInAPackage("$appRoot..application..")
+            .resideInAnyPackage(*modulePackages(appRoot, "application").toTypedArray())
             .and(springBeans)
             .should(beSmallUseCases())
             .because("use cases stay small (ADR 0013, R2)")
@@ -108,7 +152,7 @@ object StructureRules {
             .doNotHaveModifier(JavaModifier.SYNTHETIC)
             .and()
             .areDeclaredInClassesThat()
-            .resideInAPackage("$appRoot..infra.persistence..")
+            .resideInAnyPackage(*persistencePackages(appRoot).toTypedArray())
             .should(notExposeJooqResults())
             .because("jOOQ records never leave infra.persistence (ADR 0013, R4)")
             .allowEmptyShould(true)
@@ -122,7 +166,7 @@ object StructureRules {
             .that()
             .resideInAPackage("$appRoot..")
             .and()
-            .resideOutsideOfPackage("..web..")
+            .resideOutsideOfPackages(*(modulePackages(appRoot, "web") + "$appRoot.common.web..").toTypedArray())
             .should()
             .dependOnClassesThat()
             .resideInAPackage("$apiRoot..")
@@ -136,7 +180,7 @@ object StructureRules {
     ): ArchRule =
         noClasses()
             .that()
-            .resideInAPackage("$appRoot..domain..")
+            .resideInAnyPackage(*modulePackages(appRoot, "domain").toTypedArray())
             .should()
             .dependOnClassesThat()
             .resideInAnyPackage("org.springframework..", "org.jooq..", "$dbRoot..", "tools.jackson..", "com.fasterxml.jackson..")
@@ -150,13 +194,13 @@ object StructureRules {
                 .that()
                 .resideInAnyPackage(*BUSINESS_MODULES.map { "$appRoot.$it.." }.toTypedArray())
                 .and()
-                .resideOutsideOfPackage("..application..")
+                .resideOutsideOfPackages(*modulePackages(appRoot, "application").toTypedArray())
                 .should(notUseTransactions())
                 .because("transactions are opened in application (ADR 0013, R7)")
                 .allowEmptyShould(true),
             classes()
                 .that()
-                .resideInAnyPackage("$appRoot.common..infra..", "$appRoot.common..web..")
+                .resideInAnyPackage("$appRoot.common.*.infra..", "$appRoot.common.web..")
                 .should(notUseTransactions())
                 .because("common opens transactions at an area's root, not in infra or web (ADR 0013, R7)")
                 .allowEmptyShould(true),
@@ -174,9 +218,12 @@ object StructureRules {
             .and()
             // package-info.java compiles to a synthetic interface.
             .doNotHaveSimpleName("package-info")
-            .should(beSealedOrAllowlisted())
+            .should(beSealedOrAllowlisted(appRoot))
             .because("no interface without a second implementation (ADR 0013, R9)")
             .allowEmptyShould(true)
+
+    /** jOOQ's home: each business module's `infra.persistence` and each `common` area's. */
+    fun persistencePackages(appRoot: String) = modulePackages(appRoot, "infra.persistence") + "$appRoot.common.*.infra.persistence.."
 
     private val springBeans =
         DescribedPredicate.describe<JavaClass>("are Spring beans (@Service or @Component)") {
@@ -239,13 +286,13 @@ object StructureRules {
             }
         }
 
-    private fun beSealedOrAllowlisted() =
+    private fun beSealedOrAllowlisted(appRoot: String) =
         object : ArchCondition<JavaClass>("be sealed or one of $R9_ALLOWLIST") {
             override fun check(
                 item: JavaClass,
                 events: ConditionEvents,
             ) {
-                if (item.simpleName in R9_ALLOWLIST || item.reflect().kotlin.isSealed) return
+                if (item.name.removePrefix("$appRoot.") in R9_ALLOWLIST || item.reflect().kotlin.isSealed) return
                 events.add(SimpleConditionEvent.violated(item, "${item.name} is an interface without an ADR 0013 exception"))
             }
         }

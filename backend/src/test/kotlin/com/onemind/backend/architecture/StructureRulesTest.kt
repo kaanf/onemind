@@ -11,6 +11,7 @@ import com.onemind.archfixture.account.application.SingleImplPort
 import com.onemind.archfixture.account.application.SixCollaborators
 import com.onemind.archfixture.account.application.UseCase
 import com.onemind.archfixture.account.application.UseCaseUsingOpenApi
+import com.onemind.archfixture.account.application.web.NestedWebUsingOpenApi
 import com.onemind.archfixture.account.domain.DomainUsingApplication
 import com.onemind.archfixture.account.domain.DomainUsingSpring
 import com.onemind.archfixture.account.domain.Role
@@ -20,9 +21,11 @@ import com.onemind.archfixture.account.infra.persistence.PersistenceUsingApplica
 import com.onemind.archfixture.account.infra.persistence.PersistenceUsingClient
 import com.onemind.archfixture.account.infra.persistence.Repository
 import com.onemind.archfixture.account.infra.persistence.RepositoryReturningRecord
+import com.onemind.archfixture.account.support.Sneaky
 import com.onemind.archfixture.account.web.Controller
 import com.onemind.archfixture.account.web.ControllerUsingEvents
 import com.onemind.archfixture.account.web.ControllerUsingPersistence
+import com.onemind.archfixture.account.web.ControllerUsingTransactionManager
 import com.onemind.archfixture.account.web.ControllerUsingTransactions
 import com.onemind.archfixture.account.web.ControllerWithTransactionalMethod
 import com.onemind.archfixture.common.events.AreaJob
@@ -34,6 +37,7 @@ import kotlin.reflect.KClass
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import com.onemind.archfixture.account.infra.client.PosProvider as MisplacedPosProvider
 
 /**
  * Proves every ADR 0013 gate catches its violation and lets the allowed shape pass, using the
@@ -66,6 +70,23 @@ class StructureRulesTest {
     }
 
     @Test
+    fun `every class of a business module lives in one of the ADR 0013 layers`() {
+        val rule = StructureRules.classesInLayers(root)
+        assertFalse(
+            rule.violatedBy(
+                Facade::class,
+                SomethingHappened::class,
+                Controller::class,
+                UseCase::class,
+                Role::class,
+                Repository::class,
+                Client::class,
+            ),
+        )
+        assertTrue(rule.violatedBy(Sneaky::class))
+    }
+
+    @Test
     fun `R2 limits application beans to 5 collaborators besides Clock and TransactionTemplate, and bans Service names`() {
         val rule = StructureRules.collaborators(root)
         assertFalse(rule.violatedBy(UseCase::class, FiveCollaborators::class, BigResult::class))
@@ -85,6 +106,7 @@ class StructureRulesTest {
         val rule = StructureRules.openApiOnlyInWeb(root, "com.onemind.api.v1")
         assertFalse(rule.violatedBy(Controller::class))
         assertTrue(rule.violatedBy(UseCaseUsingOpenApi::class))
+        assertTrue(rule.violatedBy(NestedWebUsingOpenApi::class), "a deeper web package is not web")
     }
 
     @Test
@@ -100,6 +122,7 @@ class StructureRulesTest {
         assertFalse(rules.violatedBy(UseCase::class, AreaJob::class), "allowed")
         assertTrue(rules.violatedBy(ControllerUsingTransactions::class), "TransactionTemplate in web")
         assertTrue(rules.violatedBy(ControllerWithTransactionalMethod::class), "@Transactional in web")
+        assertTrue(rules.violatedBy(ControllerUsingTransactionManager::class), "PlatformTransactionManager in web")
         assertTrue(rules.violatedBy(CommonWebUsingTransactions::class), "TransactionTemplate in common web")
     }
 
@@ -108,6 +131,7 @@ class StructureRulesTest {
         val rule = StructureRules.interfacesOnlyWithSecondImplementation(root)
         assertFalse(rule.violatedBy(Outcome::class, PosProvider::class))
         assertTrue(rule.violatedBy(SingleImplPort::class))
+        assertTrue(rule.violatedBy(MisplacedPosProvider::class), "allowlisted name in the wrong package")
     }
 
     private fun ArchRule.violatedBy(vararg types: KClass<*>): Boolean = listOf(this).violatedBy(*types)

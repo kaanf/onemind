@@ -5,6 +5,7 @@ import com.onemind.archfixture.account.api.events.SomethingHappened
 import com.onemind.archfixture.account.application.UseCase
 import com.onemind.archfixture.account.domain.Role
 import com.onemind.archfixture.account.infra.persistence.Repository
+import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionTemplate
 
@@ -26,6 +27,10 @@ class ControllerUsingEvents(
 // R7: transactions only in application.
 class ControllerUsingTransactions(
     val transactions: TransactionTemplate,
+)
+
+class ControllerUsingTransactionManager(
+    val transactionManager: PlatformTransactionManager,
 )
 
 open class ControllerWithTransactionalMethod {
