@@ -130,7 +130,12 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
 - Strings in Compose resources (English; Czech before release). Plurals use CLDR categories
   (Czech: one/few/many/other) — test them.
 - Money via platform formatters (`expect/actual` in `core:presentation`), by the venue's currency,
-  independent of UI language. Times in the venue's time zone from the API.
+  independent of UI language. Times in the venue's time zone from the API (`formatClockTime`).
+- No business-day calculation in the app: the backend returns the business date; the app only
+  formats times in the venue's time zone (bar nights across midnight and DST are tested).
+- The system clock is read only in `coreDataModule` (`core/data/.../di/CoreDataModule.kt`, which
+  binds `Clock.System` as `kotlin.time.Clock`); everything else injects `Clock`. The device time
+  zone is never used.
 - Send `X-Request-Id` per request; add it to Sentry breadcrumbs. No analytics SDK in the first
   release.
 
@@ -141,6 +146,36 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
 - Formatter tests (money, deltas, dates, business-day labels).
 - Koin graph verification test. Compose UI tests for key screens; screenshot tests later.
 - Android success does not verify iOS: build/test both targets.
+
+## Guardrails (`:core:konsist`)
+
+`mobile/core/konsist` is a guard-only JVM module (Konsist, tests only, no production code). It runs
+with `./gradlew :core:konsist:test` in CI and checks:
+
+- layers come from the Gradle module path (`feature/sales/domain/…` is domain), and every file's
+  package matches its module, so paths and packages can't drift;
+- features never import another feature (only `composeApp` wires them);
+- domain layers import nothing from `core:api`, data, presentation, `core:designsystem`,
+  `composeApp`, Ktor, Koin, Android/androidx or Compose; presentation imports no data;
+- generated `core:api` models are imported only in data layers;
+- money-named declarations are never `Float`/`Double`, in every layer (product rule 5). Money names
+  are whole camelCase/snake tokens from the backend's list (`docs/api/lint/money-words.json`:
+  `money`, `amount`, `price`, `total`, `subtotal`, `revenue`, `sales`, `cost`, `tip`, `discount`,
+  `loss`, `payment`, `refund`, `bill`, `net`, `gross`, `minor`), a plural `s`/`es` also matches
+  (`prices`, `salesByHour`). Names ending in `Rate`/`Ratio`/`Percent`/`Pct`/`Share`/`Count`/`Quantity`
+  are not money (same as the backend); `Height`/`Width`/`Fraction` are mobile-only suffixes for
+  drawing values. Keep the lists equal to the backend's. Percentages and drawing values may stay
+  floating point. In domain and data, a line naming money
+  also has no floating-point literal or `toDouble()`/`toFloat()`;
+- no system clock outside the clock seam (`CoreDataModule.kt`) and no device time zone anywhere
+  (product rule 6);
+- the scopes are not empty (so the guards can't pass by scanning nothing).
+
+`GuardFixturesTest` runs every rule on planted violations in `src/test/fixtures` (laid out like
+`mobile/`, not compiled) and expects exactly those offenders, so each rule is proven to catch
+something. Add a fixture when you add or change a rule.
+
+It is a guard file (`docs/PARALLEL_WORK.md#guard-files`): never weaken a rule to make a change pass.
 
 ## Build logic
 
@@ -171,6 +206,7 @@ Run from `mobile/`. Needs JDK 21, Node.js (`npx`, for the `core:api` spec bundle
 ./gradlew :build-logic:convention:build                    # compile + validate convention plugins
 ./gradlew ktlintCheck                                      # lint every module (ktlintFormat to fix)
 ./gradlew testAndroidHostTest                              # commonTest of every module on the JVM
+./gradlew :core:konsist:test                               # architecture, money and clock guards
 ./gradlew :core:api:openApiGenerate                        # regenerate API models after a spec change
 ./gradlew :androidApp:assembleDebug                        # Android debug APK
 ./gradlew :androidApp:assembleRelease                      # Android release (R8); unsigned without ONEMIND_* signing values

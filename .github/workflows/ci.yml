@@ -167,9 +167,9 @@ jobs:
           cache-provider: basic
           cache-read-only: ${{ github.ref != 'refs/heads/dev' && github.ref != 'refs/heads/main' }}
 
-      # testAndroidHostTest runs every module's commonTest on the JVM. The Android SDK is preinstalled
-      # on ubuntu runners (ANDROID_HOME).
-      - run: ./gradlew ktlintCheck testAndroidHostTest :androidApp:assembleDebug
+      # testAndroidHostTest runs every module's commonTest on the JVM; :core:konsist:test runs the
+      # architecture, money and clock guards. The Android SDK is preinstalled on ubuntu runners (ANDROID_HOME).
+      - run: ./gradlew ktlintCheck testAndroidHostTest :core:konsist:test :androidApp:assembleDebug
 
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
