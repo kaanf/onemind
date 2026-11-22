@@ -14,7 +14,31 @@ class IosSecureSessionStoreTest {
     private val store = IosSecureSessionStore(serviceName = service, defaults = defaults)
 
     @AfterTest
-    fun cleanUp() = runTest { store.clear() }
+    fun cleanUp() =
+        runTest {
+            store.clear()
+            defaults.removeObjectForKey("$service.installed")
+        }
+
+    @Test
+    fun aLeftoverItemFromAPreviousInstallIsRemoved() =
+        runTest {
+            store.write("from the last install")
+            // Simulate a reinstall: NSUserDefaults is gone, the Keychain item is not.
+            defaults.removeObjectForKey("$service.installed")
+            val reinstalled = IosSecureSessionStore(serviceName = service, defaults = defaults)
+
+            assertNull(reinstalled.read())
+        }
+
+    @Test
+    fun theInstallCheckRunsOnlyOnce() =
+        runTest {
+            store.write("kept")
+            val nextLaunch = IosSecureSessionStore(serviceName = service, defaults = defaults)
+
+            assertEquals("kept", nextLaunch.read())
+        }
 
     @Test
     fun writeReadOverwriteClear() =

@@ -211,8 +211,19 @@ jobs:
       - run: ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
 
       # iOS-only tests on the simulator: the Keychain session store (`core/data/src/iosTest`) can't be
-      # exercised on the JVM. The macOS runner ships an iOS simulator runtime.
-      - run: ./gradlew :core:data:iosSimulatorArm64Test
+      # exercised on the JVM. Kotlin/Native's default `simctl spawn --standalone` has no Keychain, so a
+      # simulator is booted first and the tests run inside it (`onemind.iosTestDevice`, core/data).
+      - name: Boot an iOS simulator
+        id: simulator
+        run: |
+          udid=$(xcrun simctl list devices available --json \
+            | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | startswith("iPhone"))][0].udid')
+          test -n "$udid" && test "$udid" != "null"
+          xcrun simctl boot "$udid" || true
+          xcrun simctl bootstatus "$udid" -b
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - run: ./gradlew :core:data:iosSimulatorArm64Test -Ponemind.iosTestDevice=${{ steps.simulator.outputs.udid }}
 
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

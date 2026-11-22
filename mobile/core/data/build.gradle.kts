@@ -32,6 +32,15 @@ kotlin {
     }
 }
 
+// iOS tests run in `simctl spawn --standalone` by default, which has no Keychain (errSecNotAvailable).
+// CI boots a simulator and passes its UDID, so the Keychain store is tested in a full simulator.
+providers.gradleProperty("onemind.iosTestDevice").orNull?.let { udid ->
+    tasks.withType<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest>().configureEach {
+        device.set(udid)
+        standalone.set(false)
+    }
+}
+
 // Optional dev override in the git-ignored local.properties, e.g. a physical phone reaching the
 // backend on the LAN: onemind.apiBaseUrl=http://192.168.1.20:8080
 val localApiBaseUrl: String? =
