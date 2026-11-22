@@ -91,8 +91,14 @@ Live overview of the current business day for the selected venue (or all venues)
 - **Shortcuts** list: *On shift · 4 staff* (→ 03 Staff), *Possible loss · 1 870 Kč* in red
   (→ 02c Discounts & losses).
 - Venue switcher opens a sheet: one venue or *All venues* (not designed).
+- **First release** (`MVP_SCOPE.md#data-sources-in-the-first-release`): *Open tabs* and *Occupancy*
+  stay on screen as empty-state cards ("Not available from your POS"), with no value; *Tips · card
+  69%* drops the card share and shows only the tips total; *On shift* is hidden; *Possible loss*
+  names the components it includes. Tapping the *Occupancy* card still opens 01a on *This week*.
 
 ## 01a · Tables — `AltTables` (opened from Today › Occupancy)
+
+First release: only *This week*; the *Now* tab is not shown (`MVP_SCOPE.md`).
 
 - Back to Today. Title **Tables**, subtitle depends on mode:
   - Now: *"10 of 13 occupied · 9 860 Kč open"*
