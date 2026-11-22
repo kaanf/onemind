@@ -2,6 +2,7 @@ package com.onemind.core.presentation.util
 
 import com.onemind.core.domain.util.DataError
 import com.onemind.core.presentation.generated.resources.Res
+import com.onemind.core.presentation.generated.resources.error_needs_app_update
 import com.onemind.core.presentation.generated.resources.error_no_internet
 import com.onemind.core.presentation.generated.resources.error_rate_limited
 import com.onemind.core.presentation.generated.resources.error_timeout
@@ -20,6 +21,10 @@ fun DataError.toUiText(): UiText =
 
         DataError.Network.TIMEOUT -> {
             UiText.Resource(Res.string.error_timeout)
+        }
+
+        DataError.Network.NEEDS_APP_UPDATE -> {
+            UiText.Resource(Res.string.error_needs_app_update)
         }
 
         DataError.Network.SERIALIZATION, DataError.Network.UNKNOWN -> {

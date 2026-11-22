@@ -54,6 +54,8 @@ import com.onemind.today.presentation.generated.resources.today_hourly_descripti
 import com.onemind.today.presentation.generated.resources.today_hourly_description_no_peak
 import com.onemind.today.presentation.generated.resources.today_loading
 import com.onemind.today.presentation.generated.resources.today_loss_includes
+import com.onemind.today.presentation.generated.resources.today_loss_includes_and_other
+import com.onemind.today.presentation.generated.resources.today_loss_includes_other_only
 import com.onemind.today.presentation.generated.resources.today_no_venue
 import com.onemind.today.presentation.generated.resources.today_not_available_from_pos
 import com.onemind.today.presentation.generated.resources.today_occupancy
@@ -284,7 +286,7 @@ internal fun HourlyUi.chartBars(colors: OneMindColors): List<Bar> =
                 when (bar.kind) {
                     HourKind.PAST -> colors.chartMutedStrong
                     HourKind.CURRENT -> colors.accent
-                    HourKind.FORECAST -> colors.chartFuture
+                    HourKind.FORECAST, HourKind.UNKNOWN -> colors.chartFuture
                 },
         )
     }
@@ -340,12 +342,25 @@ private fun FigureTile(
 private fun PossibleLossRow(today: TodayUi) {
     val colors = OneMindTheme.colors
     val loss = today.possibleLoss
-    val includes = loss?.includes?.map { stringResource(it.nameRes()) }?.joinToString(", ")
+    val named =
+        loss
+            ?.includes
+            ?.map { stringResource(it.nameRes()) }
+            ?.joinToString(", ")
+            .orEmpty()
+    val meta =
+        when {
+            loss == null -> null
+            loss.includesOther && named.isEmpty() -> stringResource(Res.string.today_loss_includes_other_only)
+            loss.includesOther -> stringResource(Res.string.today_loss_includes_and_other, named)
+            named.isNotEmpty() -> stringResource(Res.string.today_loss_includes, named)
+            else -> null
+        }
     // 02c Discounts & losses opens from here once it is built.
     OneMindListCard {
         ListRow(
             title = stringResource(Res.string.today_possible_loss),
-            meta = includes?.takeIf { it.isNotEmpty() }?.let { stringResource(Res.string.today_loss_includes, it) },
+            meta = meta,
             leading = {
                 Box(
                     contentAlignment = Alignment.Center,

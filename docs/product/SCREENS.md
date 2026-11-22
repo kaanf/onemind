@@ -139,7 +139,9 @@ Live overview of the current business day for the selected venue (or all venues)
   - Hourly chart: past hours `chartMutedStrong`, current hour `accent`, forecast hours `chartFuture`; a
     forecast without any earlier same weekday is an empty slot, never a 0 label. No value or axis labels
     (as on the canvas); the chart is one spoken node (*Revenue by hour, peak 22:00*).
-  - *Possible loss* names the included components (*Includes discounts, refunds*). It is shown without
+  - *Possible loss* names the included components (*Includes discounts, refunds*); a component the app
+    version doesn't know yet adds *and other losses* (it is in the total). An hour of an unknown kind
+    keeps an empty slot; an unknown data status asks the user to update the app. It is shown without
     a chevron, and *Occupancy* is not tappable, until 02c and 01a exist.
   - `dataGaps`: one warning card (*Some bills are missing from these figures.*) with one line per count
     above 0: couldn't be read, without items (missing from product figures), may be out of date, and

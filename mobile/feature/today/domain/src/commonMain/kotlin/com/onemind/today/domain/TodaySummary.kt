@@ -62,8 +62,12 @@ data class LossComponent(
     val amount: Money,
 )
 
-/** First-release `possibleLoss` components (METRICS, Discounts and losses). */
-enum class LossKind { DISCOUNTS, REFUNDS, DELETED_BILLS }
+/**
+ * First-release `possibleLoss` components (METRICS, Discounts and losses). [OTHER] is a component this
+ * app version doesn't know (added to the API later): it is in the server's total, so the screen says
+ * "and other losses" rather than naming only part of it.
+ */
+enum class LossKind { DISCOUNTS, REFUNDS, DELETED_BILLS, OTHER }
 
 /** The hourly chart, in business-day order from the cut-off. */
 data class TodayHourly(
@@ -79,8 +83,11 @@ data class HourlyBar(
     val amount: Money?,
 )
 
-/** `PAST`: paid in that hour. `CURRENT`: paid so far this hour. `FORECAST`: last 4 same weekdays' average. */
-enum class HourKind { PAST, CURRENT, FORECAST }
+/**
+ * `PAST`: paid in that hour. `CURRENT`: paid so far this hour. `FORECAST`: last 4 same weekdays' average.
+ * `UNKNOWN`: a kind this app version doesn't know; the hour keeps its slot and draws nothing.
+ */
+enum class HourKind { PAST, CURRENT, FORECAST, UNKNOWN }
 
 /** A figure of the design the POS can't give (`docs/product/MVP_SCOPE.md`); never shown with a value. */
 enum class UnavailableFigure { OPEN_TABS, OCCUPANCY_NOW, STAFF_ON_SHIFT, TIPS_CARD_SHARE }
