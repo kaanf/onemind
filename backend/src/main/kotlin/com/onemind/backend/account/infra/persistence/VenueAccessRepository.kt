@@ -29,11 +29,7 @@ class VenueAccessRepository(
             .on(o.ID.eq(v.ORGANIZATION_ID))
             .join(m)
             .on(m.ORGANIZATION_ID.eq(o.ID))
-            .where(v.ID.eq(venueId), v.STATUS.eq(ACTIVE), m.USER_ID.eq(userId), o.DELETION_DUE_AT.isNull)
+            .where(v.ID.eq(venueId), venueOpenTo(userId))
             .fetchOne(m.ROLE)
-    }
-
-    private companion object {
-        const val ACTIVE = "ACTIVE"
     }
 }

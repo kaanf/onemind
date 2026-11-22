@@ -1,6 +1,7 @@
 package com.onemind.backend.account.infra.persistence
 
 import com.onemind.backend.account.domain.IdentityProvider
+import com.onemind.backend.common.lock.infra.persistence.advisoryXactLock
 import com.onemind.db.account.tables.references.APP_USER
 import com.onemind.db.account.tables.references.EMAIL_LOGIN_CODE
 import com.onemind.db.account.tables.references.MEMBERSHIP
@@ -61,7 +62,7 @@ class EmailLoginCodeRepository(
      * Serialises sign-in starts for one address until the transaction ends, so concurrent requests
      * can't all pass the per-address limits.
      */
-    fun lockAddress(email: String) = advisoryLock(dsl, "email-login-code:${email.lowercase()}")
+    fun lockAddress(email: String) = dsl.advisoryXactLock("email-login-code:${email.lowercase()}")
 
     /** Creation time of the [n]-th newest code since [since], or `null` if there are fewer. */
     fun nthNewestCreatedSince(
@@ -290,7 +291,7 @@ class RefreshTokenRepository(
      * Serialises rotation and revocation of one family until the transaction ends. Row locks are not
      * enough: a revocation running next to a rotation would not see the replacement row being inserted.
      */
-    fun lockFamily(familyId: UUID) = advisoryLock(dsl, "refresh-token-family:$familyId")
+    fun lockFamily(familyId: UUID) = dsl.advisoryXactLock("refresh-token-family:$familyId")
 
     fun findByHashForUpdate(tokenHash: String): RefreshTokenRow? {
         val t = REFRESH_TOKEN
@@ -343,14 +344,6 @@ class RefreshTokenRepository(
         val t = REFRESH_TOKEN
         return dsl.deleteFrom(t).where(t.EXPIRES_AT.lt(instant)).execute()
     }
-}
-
-/** Transaction-scoped PostgreSQL advisory lock on a string key (hash collisions only over-serialise). */
-private fun advisoryLock(
-    dsl: DSLContext,
-    key: String,
-) {
-    dsl.execute("select pg_advisory_xact_lock(hashtextextended(?, 0))", key)
 }
 
 /** Columns declared `not null` are nullable in generated jOOQ code. */

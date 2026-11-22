@@ -85,6 +85,8 @@ Treat accent as a single token so it can be switched.
 - Radius: cards **16**, inner panels **14**, buttons and inputs **12**, chips **10**, small tags
   **6–8**, checkboxes **7**, table tiles **10**, heat cells **5**.
 - Card: `surface` + 1 px `border`, no shadow.
+- Leading icon box in a list row (*Possible loss* on Today): **32** square, radius 8, icon **18**
+  (`OneMindTheme.spacing.iconBoxSize`, `iconBoxIconSize`).
 - Rows: min height 44–68 dp, separated by 1 px `divider`; the last row has no divider.
 
 ## Components
@@ -104,14 +106,14 @@ Treat accent as a single token so it can be switched.
 | **Avatar initials** | Initials (*TN*, *EP*) in a 40 × 40 rounded square (radius 12, `surfaceMuted`) in staff rows, as on the canvas; the dark 44 circle is the account button. |
 | **Hint card** | `accentSoft` bg, sparkle icon in accent, bold lead sentence + body. Used for generated insights. |
 | **Warning card** | `warningSurface` bg, 1 px `warningBorder`, warning icon in `warningText`, text `textPrimary` with a bold lead (canvas). Optional trailing arrow when it links. |
-| **Bar chart** | Rounded bars (3 px), optional value labels, axis labels 10–11 px, highlight colors per rule. |
+| **Bar chart** | Rounded bars (3 px), optional value labels, axis labels 10–11 px, highlight colors per rule. A bar without a value is an empty slot (no bar, no stub, no label), so it never reads as 0; a 0 draws the 2 px minimum. |
 | **Heatmap** | Grid of buttons with accessible labels (*Sat 22:00, 54 guests*). **Touch target exception:** with 10 hour columns (17:00 to 02:00, canvas 02b) a cell is about 29 × 28 dp, so 44 × 44 is impossible; cells stay at least 24 × 24 (WCAG 2.5.8 AA), one tap handler on the cell area selects the nearest cell (no dead zones between cells, a drag still scrolls), and every cell is its own accessibility node with its spoken label. |
 | **Floor plan** | Grid of table tiles; Bar spans the row; selected outline `selection`. |
 | **Progress row** | Status icon (done ✓ green / running ring accent / waiting dashed), name, meta, optional progress bar 4 px. |
 | **Checklist row** | Checkbox 24 (accent when checked), name with strike-through when done. |
 | **Chat bubble** | User: dark bubble right, radius 16 16 4 16. Assistant: plain text + cards. Source chips under answers. |
 | **Composer** | Attach button, input with accent border (1.5), send button 48 accent. |
-| **OTP input** | 6 boxes 56 high, radius 12, focused box accent border. |
+| **OTP input** | 6 boxes 56 high, radius 12, focused box accent border. Tapping a filled box selects its digit (the next one typed replaces it, and in a full code the following digit is selected next, so digits are corrected in a row); tapping an empty box goes to the end. |
 | **Text field** | Label 13 medium above; field 52 high, radius 12, white, `borderStrong` border, 1.5 accent border while focused; placeholder `textPlaceholder`. |
 
 Icons: simple stroke icons (1.75–2 stroke, round caps), 22 px in the tab bar. Use one icon set

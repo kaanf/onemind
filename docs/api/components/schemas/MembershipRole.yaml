@@ -1,0 +1,5 @@
+type: string
+description: The user's role in an organization (first release OWNER only; STAFF permissions wait for P2).
+enum:
+  - OWNER
+  - STAFF

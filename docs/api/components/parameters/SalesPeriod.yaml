@@ -1,0 +1,14 @@
+name: period
+in: query
+required: false
+description: |
+  `HOUR` = the current clock hour (today only), `DAY` = one business day, `WEEK` = Monday to Sunday (ISO),
+  `MONTH` = the calendar month; business days in the venues' time zone (`docs/domain/METRICS.md`, periods).
+schema:
+  type: string
+  enum:
+    - HOUR
+    - DAY
+    - WEEK
+    - MONTH
+  default: WEEK
