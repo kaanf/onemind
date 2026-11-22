@@ -14,16 +14,17 @@ Last updated: 2026-11-22.
   `pos`, `reporting`), backend scaffold, local Docker (Colima) are in `dev`.
 - **Phase 1 is done.** Error handling, JSON logging + tracing, idempotency, event registry +
   db-scheduler and CI (backend build/test, spec lint, `oasdiff breaking`) are in `dev`.
-- **Current phase: 2 — Mobile scaffold.** Phase 3 backend auth is done in parallel (backend lane):
-  email code, JWT + refresh rotation (#22), Apple/Google (#27), logout and `DELETE /me` (#28),
-  auth rule tests + `VenueAccess` cross-venue check (#30), 426 min-version check (#36). App shell is
-  done (#32). ADR 0013 audit (#40, #41), ArchUnit gates (#42), product-rule gates (#43) and the
-  Konsist guard module (#39), gate follow-ups (#47, #48), the end-to-end auth smoke test (#49) and
-  JWT clock skew 0 s for own tokens (#50), mobile `dev`/`prod` variants (#52), the organization purge
-  job (#53) and the first-release data-source table (#54, R28) are in `dev`. Phase 4 runs on mock POS data (owner,
-  2026-11-21): the read-only `PosProvider` + demo mock (#57) and the POS sync for places, menu, desks
-  (#59) and bills (#61) are in `dev`. Mobile auth core (API client, secure session, refresh) is in
-  `dev` (#58); the A1/A2 screens wait for the owner's device check (#60).
+- **Phases 2–4 are done except the items left open below** (phase-end audits, Apple/Google sign-in
+  on mobile, the real Storyous client, retention and alerting follow-ups). Auth works end to end
+  (backend #22–#50, mobile #58, #60, #62). Phase 4 runs on mock POS data (owner, 2026-11-21):
+  `PosProvider` + demo mock (#57), sync (#59, #61), rollups (#63) with the SQL date-function gate
+  (#64), interim demo onboarding (#66).
+- **Current phase: 5 — Dashboards.** Backend endpoints for Today (#71), Sales (#76), Discounts &
+  losses (#77), Products by hour (#84), plus `GET /venues` and `GET /me` (#78). On mobile, the Today
+  screen (#80) has the venue list and scope (#83) and the offline read cache (#86).
+- **Owner hold (2026-11-22 evening):** no new item is assigned until the owner lifts it.
+- **iOS framework compile CI job is off** (owner, 2026-11-22, `CI_IOS_COMPILE=off`, #85); see the
+  process item.
 - **Blockers outside the code:** Storyous partnership / API credentials (P15, owner; not needed
   until the real client is connected); design
   additions for the first-release Stock tab landing and location form (owner, only needed in
@@ -104,27 +105,29 @@ real code in that job with a scope proven non-empty (owner, 2026-11-21).
 - [x] `:core:konsist` guard module: ADR 0011 module rules, no `Float`/`Double` money, one clock seam
       (Konsist 0.18.1). No mobile feature screen starts before this merges. (#39)
 - [x] Phase-end `REVIEW pr: audit` (2026-11-22: 0 blockers, follow-ups below)
-- [ ] Audit follow-up: 44×44 touch targets: `OneMindFilterChip` hit area via
+- [x] Audit follow-up: 44×44 touch targets: `OneMindFilterChip` hit area via
       `minimumInteractiveComponentSize()`; heatmap cells either larger hit areas or a documented
-      exception in `DESIGN_SYSTEM.md` with another way to reach each value (mobile)
-- [ ] Audit follow-up: `core:domain` `Money` (minor units + currency) / `Quantity` and the
+      exception in `DESIGN_SYSTEM.md` with another way to reach each value (mobile) (#67)
+- [x] Audit follow-up: `core:domain` `Money` (minor units + currency) / `Quantity` and the
       `core:presentation` money formatter (expect/actual, venue currency, tests incl. negative and
       large values); before the first dashboard screen. `Result`/`DataError`, `UiText`,
-      `ObserveAsEvents` come with mobile auth (mobile)
-- [ ] Audit follow-up: Konsist rule for feature presentation sources: no `Color(0x…)`, no literal
-      `.sp`, no literal `Text("…")` outside `@Preview`, with fixtures (guard file; mobile)
+      `ObserveAsEvents` come with mobile auth (mobile) (#68)
+- [x] Audit follow-up: Konsist rule for feature presentation sources: no `Color(0x…)`, no literal
+      `.sp`, no literal `Text("…")` outside `@Preview`, with fixtures (guard file; mobile) (#69)
 - [ ] Audit nits: chart-label type token instead of `10.sp` in `BarChart`, KDoc on `Bar.value`
-      (drawing only), ADR 0011 bundle-ID line cross-references ADR 0012 §2 (mobile)
+      (drawing only), ADR 0011 bundle-ID line cross-references ADR 0012 §2 (mobile; the chart-label
+      token came with #67)
 
 ## Phase 3 — Auth (first vertical slice)
 
 - [x] Backend: email code (start/verify), Apple, Google, JWT access + rotating refresh, logout,
       `DELETE /me` (ADR 0004)
-- [ ] Mobile: A1 sign in, A2 email code, secure token storage, refresh on 401, update screen on 426
+- [x] Mobile: A1 sign in, A2 email code, secure token storage, refresh on 401, update screen on 426
       (core: API client, Keystore/Keychain session store, single-flight refresh, 426 state, iOS
-      Keychain tests in CI (#58); screens and gate: #60, after the owner's device check)
+      Keychain tests in CI (#58); screens and gate (#60); back-navigation test (#62))
 - [ ] Android instrumented test for the Keystore session store (real device/emulator), before the
-      first release (from the #58 review; the iOS Keychain store is tested in CI)
+      first release (from the #58 review; the iOS Keychain store was tested in CI until the iOS job
+      was switched off, #85)
 - [ ] Mobile: Sign in with Apple / Google (A1): native SDKs + client IDs; buttons hidden behind the
       `SignInProviders` seam until then (deferred from mobile auth, 2026-11-22)
 - [x] Backend: minimum app version (`X-App-Version` / `X-Platform`) → `426 Upgrade Required` (#36)
@@ -166,8 +169,10 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
       named as demo; no fixture data is packaged into the prod artifact; the `pos` scope anchor in
       `ModuleBoundaryTests` becomes a real class (same for `reporting`/`stock` in their first code PR)
       (#57)
-- [ ] Interim onboarding: after verify, a new account picks mock places on A5 (dev/demo only), which
-      creates the organization, venues and membership; update `docs/product/SCREENS.md`
+- [x] Interim onboarding: after verify, a new account picks mock places on A5 (dev/demo only), which
+      creates the organization, venues and membership; update `docs/product/SCREENS.md` (#66)
+- [ ] `account.venue.demo` flag: additive migration, set by `VenueRegistry.register` from a `MOCK`
+      connection, optional field on `GET /venues`, so the app can label demo venues (backend)
 - [x] Sync jobs (db-scheduler) fed by `PosProvider`: places → venues, menu, desks, bills
       (`modifiedSince`), initial 90-day import, `BillsSynced` event (#59, #61)
 - [ ] Owner confirmation: a place the POS hides, disables or stops reporting keeps its venue and
@@ -175,33 +180,48 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
       owner confirmation")
 - [ ] Retention for `pos.sync_job` (one row per connection every 2 min, about 720 a day): keep N
       days, purge job (from the #59 review)
-- [ ] Reporting rollups refreshed from `BillsSynced`; rebuild job. Acceptance: a gate that fails when
+- [x] Reporting rollups refreshed from `BillsSynced`; rebuild job. Acceptance: a gate that fails when
       date functions decide a business day or hour (`METRICS.md`), scanning both Flyway/raw SQL
       (`date_trunc`, `AT TIME ZONE`, `::date`) and the jOOQ DSL equivalents (`DSL.trunc`, casts to
-      `SQLDataType.DATE`, `atTimeZone`)
+      `SQLDataType.DATE`, `atTimeZone`) (#63, #64)
 - [ ] Later (P15): read-only Storyous client behind `PosProvider` (client credentials, token cache,
       paging), built and tested against recorded fixtures that fail on any non-GET call (the
       `posIsReadOnly` gate already has a non-empty scope since #57); verify the STORYOUS.md
       "assumptions to verify" list against the real API; onboarding A3–A5 (no OAuth redirect; see `docs/integrations/STORYOUS.md`)
 - [x] Purge job: delete organizations whose `deletion_due_at` has passed (set by `DELETE /me`, #28) (#53)
-- [ ] Indexes on the `ON DELETE SET NULL` FKs (`bill.desk_id`, `bill.created_by_staff_id`,
+- [x] Indexes on the `ON DELETE SET NULL` FKs (`bill.desk_id`, `bill.created_by_staff_id`,
       `bill.paid_by_staff_id`, `bill_item.product_id`, `product.category_id`, `category.parent_id`,
-      `desk.section_id`), additive migration before real data (from the #53 review)
+      `desk.section_id`), additive migration before real data (from the #53 review) (#70)
 - [ ] Alertable signal for an organization the purge job keeps failing on (today: ERROR log), with
       phase 7 Sentry (from the #53 review)
 - [ ] Phase-end `REVIEW pr: audit`
 
 ## Phase 5 — Dashboards
 
-- [ ] Today (01) and Tables "This week" (01a)
-- [ ] Data gaps on Today and Sales: an "N bills couldn't be read" note whenever
+- [x] Today (01): endpoint (#71), screen with polling, ETag and data gaps (#80), venue list and
+      scope, venue name and initials (#83)
+- [ ] Tables "This week" (01a)
+- [ ] Data gaps on Today and Sales (Today done in #80; Sales with its screen): an "N bills couldn't be read" note whenever
       `RollupReads.dataGaps` is above 0 (quarantined bills, bills without lines, outdated bills,
       payment mismatches);
       net revenue hidden while `bills_missing_net` > 0 (rule 2)
-- [ ] Sales (02), Products by hour (02a), Hourly patterns (02b), Discounts & losses (02c)
+- [x] Backend endpoints: Sales (02) (#76), Products by hour (02a) (#84), Discounts & losses (02c) (#77)
+- [ ] Sales/Losses period coverage by `firstDay` (rule 2): a venue whose data doesn't cover the day
+      or period has no data for it (today Sales DAY/WEEK/MONTH and Losses answer `READY` with 0 for
+      pre-data days and sum partial spans as whole); one shared rule for partially covered spans
+      (no data vs a `coveredFrom` note), the same rule for the comparison span, as in 02a (#84).
+      Must land before the mobile 02/02c screens use these endpoints (reviewer condition, #77)
+      (backend; PLAN first)
+- [ ] Backend endpoint: Hourly patterns (02b)
+- [ ] Mobile screens: Sales (02), Products by hour (02a), Hourly patterns (02b), Discounts & losses
+      (02c)
 - [ ] Staff (03), Waiter detail (03a)
 - [ ] Rule-based hint cards (codes + params), venue switcher / all-venues view
-- [ ] Polling + ETag, offline read cache (DataStore)
+- [ ] Polling + ETag, offline read cache (DataStore): done for Today (#80, #86); each new screen
+      adopts `ScreenCache` with its PR
+- [ ] iOS run of the offline read cache (`:core:data:iosSimulatorArm64Test` or a simulator relaunch
+      that shows cached figures) before any iOS build reaches the owner or testers (#86 review
+      condition; the iOS path is compiled but not run)
 - [ ] Phase-end `REVIEW pr: audit`
 
 ## Phase 6 — Stock (depends on P13/P14)
@@ -233,6 +253,9 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
 - [ ] App Store / Play listings, first release `dev` → `main` + tag
 
 ## Later
+
+- In-app account switching: `StoredSession` has no user id, so the read cache relies on every switch
+  passing through sign-out (#83, #86); add a user id first if a switch flow is planned.
 
 - detekt as a blocking check once 2.0 is stable (a non-blocking job is tried above); drop the ktlint Kotlin-compiler pin in
   `backend/build.gradle.kts` once ktlint supports the project's Kotlin version.
