@@ -1,3 +1,20 @@
+get:
+  tags:
+    - Me
+  operationId: getMe
+  summary: Me
+  description: The signed-in user and a summary of their memberships.
+  responses:
+    '200':
+      description: The user.
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Me.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '426':
+      $ref: ../../components/responses/UpgradeRequired.yaml
 delete:
   tags:
     - Me

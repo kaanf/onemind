@@ -15,6 +15,12 @@ data class HourTotals(
     val discountMinor: Long,
     val deletedMinor: Long,
     val paymentMismatchBills: Int,
+    /** Bills that count in [paidMinor] (V013; 0 on a day stored before RollupVersion 2). */
+    val paidBills: Int,
+    /** Card / cash / other of [paidMinor]: refunded bills already taken off (0 before RollupVersion 2). */
+    val paidCardMinor: Long,
+    val paidCashMinor: Long,
+    val paidOtherMinor: Long,
 ) {
     /** `paidRevenue` of the hour: revenue without refunded bills (M13). */
     val paidMinor: Long get() = revenueMinor - refundedMinor

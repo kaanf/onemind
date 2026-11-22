@@ -1,0 +1,12 @@
+type: object
+description: Business days, both inclusive.
+required:
+  - from
+  - to
+properties:
+  from:
+    type: string
+    format: date
+  to:
+    type: string
+    format: date

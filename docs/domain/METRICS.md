@@ -44,8 +44,8 @@ couldn't be read are missing from them; screens show that gap (`RollupReads.data
 |--------|-----------------------------------------|------------------------------------------------|---------------------------------------|
 | Hour   | current clock hour                      | same hour, same weekday last week              | *+9.2% vs last Fri, same hour*        |
 | Day    | current business day so far             | same weekday last week, **up to the same time** | *+12.4% vs last Friday*               |
-| Week   | Mon–Sun (ISO week) containing today     | previous week, same elapsed span **(?)**       | *+8.1% vs last week*                  |
-| Month  | calendar month                          | previous month, same elapsed span **(?)**      | *+3.6% vs October*                    |
+| Week   | Mon–Sun (ISO week) containing today     | previous week, same elapsed span **(?, M3)**   | *+8.1% vs last week*                  |
+| Month  | calendar month                          | previous month, same elapsed span **(?, M3)**  | *+3.6% vs October*                    |
 
 `delta% = (current − previous) / previous × 100`, one decimal, rounded half-up. Not shown when previous
 is 0 or missing.
@@ -56,21 +56,47 @@ is 0 or missing.
   facts with the same per-bill revenue rule as the rollups (`reporting/domain/BillRevenue`). It covers
   the same venues on both sides: only those that have that earlier day (a venue synced since would
   make up growth); the response names them, and without any there is no comparison.
-- Several venues share one Today only when they share one time zone and cut-off (one chart, one
-  clock; `422 BUSINESS_DAYS_DIFFER` otherwise) and one currency: a first-release limit.
-- Week and month comparisons (M3) stay open; they come with the Sales screen.
+- Several venues share one Today or Sales only when they share one time zone and cut-off (one chart,
+  one clock; `422 BUSINESS_DAYS_DIFFER` otherwise) and one currency: a first-release limit.
+
+**Sales (02).** Ranges are business days (`DAY` = one business day, `WEEK` = Monday to Sunday, `MONTH`
+= the calendar month, `HOUR` = the current clock hour of today). *Choose dates* picks a period
+containing an earlier day (never after today); arbitrary from/to ranges come later.
+
+**Same elapsed span (M3 default, (?)).** A period that contains today is compared with the same part of
+the previous period: as many whole business days from its start, then the next day **up to the same
+local time** as now (Day and Hour are the one-day case). A finished period is compared with the whole
+previous period.
+
+- Week, Wednesday 18 Nov at 21:40: Mon 16 – Wed 18 so far vs Mon 9 – Tue 10 whole + Wed 11 up to 21:40.
+- Month cap: on day N of a month, the previous month's days 1 to N−1 whole + day N up to the same time;
+  when the previous month has no day N, the **whole** previous month (on 29, 30 or 31 March of a
+  non-leap year: all of February).
+- DST: the cut is the same local clock time, not the same elapsed hours. On Sunday 29 March 2026 (the
+  23-hour spring day in Prague) at 21:40, last Sunday is cut at 21:40 local time.
+- Hour: the current clock hour so far vs the same hour of the same weekday last week up to the same
+  minute (*21:00 to 21:40* vs *21:00 to 21:40*).
+- Whole days come from the hourly rollups, the cut day from that day's POS facts (as on Today).
+- **"Same local time" = the venue's last successful bills sync (`dataAsOf`), not the request time**, on
+  Today and Sales alike: between syncs the current figures stop at the last sync, so the earlier side is
+  cut at the same point (else the delta would lean downward until the next sync).
+- `averageBill` and the payment split stay hidden (`null`) until the rebuild job has moved **every day
+  of the period** to the current rollup version (V013 added the columns they need, RollupVersion 2).
+- **Same venues:** the venues whose data (first rollup day) starts on or before the compared span's
+  first day; a closed day inside the span is a real 0 (Today asks for the compared day itself). None:
+  no comparison.
 
 ## Revenue
 
 | Metric           | Definition |
 |------------------|------------|
-| `paidRevenue` (*Paid so far*, *Revenue*) | Sum of payment amounts **excluding tips**, for bills paid in the period. Gross incl. VAT **(?)**. Refunds subtracted in the period of the refund; first release: in the bill's own paid business day, since Storyous has no refund time **(?, M13)**. |
+| `paidRevenue` (*Paid so far*, *Revenue*) | Sum of payment amounts **excluding tips**, for bills paid in the period. Gross incl. VAT **(?)**. Refunds subtracted in the bill's own paid business day, since Storyous has no refund time (owner, 2026-11-22; M13 closed, R29). |
 | `openTabsTotal`  | Sum of current totals of bills with status `OPEN`. Only for "now". |
 | `openTabsTables` | Number of distinct tables with an open bill. |
-| `cardRevenue`, `cashRevenue` | `paidRevenue` split by payment method. `cardPct = card / (card + cash)`, rounded to an integer; cash% = 100 − card%. Other methods: **(?)** Payments include tips, so a bill's tips are taken off its card payments first, then cash, then other: an approximation for bills paid partly by card and partly in cash, since Storyous gives tips per bill only **(?, M14)**. |
+| `cardRevenue`, `cashRevenue` | `paidRevenue` split by payment method (refunded bills taken off by their own split, so card + cash + other = `paidRevenue`). `cardPct = card / (card + cash)`, rounded half-up to an integer; cash% = 100 − card%. Other methods (vouchers, meal cards) are sent as an amount and left out of `cardPct` **(?, M4)**. Payments include tips, so a bill's tips are taken off its card payments first, then cash, then other: an approximation for bills paid partly by card and partly in cash, since Storyous gives tips per bill only (owner, 2026-11-22; M14 closed, R30). |
 | `tips`           | Sum of bill `tips` for bills paid in the period. *Tips · card 69%* = card tips share. First release: the tips total is shown, the card share is not (Storyous gives tips per bill only; no inference from payments). |
 | `guests`         | Sum of `guestCount` on bills paid in the period ("since opening" for today). If the POS has no guest count for a bill, count 1 **(?, M5)**. |
-| `averageBill`    | `paidRevenue / number of paid bills`. |
+| `averageBill`    | `paidRevenue / number of paid bills`, half-up: bills that count in `paidRevenue` (not deleted, not refunded, payments add up; `hourly_sales.paid_bills`). Not shown while a day of the period is still stored by an older rollup calculation (rule 2). |
 | `revenuePerGuest`| `paidRevenue / guests`. |
 | Hourly chart (Today) | `paidRevenue` per local clock hour over the hours that have sales at the venue(s) (owner decision 2026-11-22, M12 closed): every hour with paid revenue today or on any of the last 4 same weekdays, contiguous from the first to the last in business-day order (the day's own local hours: the hour skipped on the spring DST day has no bar), plus the current hour. Past hours = paid in that hour; current hour = paid so far; future hours = the average of that hour over those of the last 4 same weekdays that have data (an hour without sales on such a day counts 0), rounded half-up; no forecast without any earlier same weekday. Several venues add up hour by hour (forecast = sum of each venue's average). |
 

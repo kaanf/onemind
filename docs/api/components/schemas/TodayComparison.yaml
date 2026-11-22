@@ -1,7 +1,7 @@
 type: object
 description: |
-  Paid so far against the same weekday last week, up to the same local time (METRICS, periods), over
-  the same venues: only those that have that day (`venueIds`); the others are left out of both figures,
+  Paid so far against the same weekday last week, up to the same local time as each venue's last
+  successful bills sync (`dataAsOf`, not the request time; METRICS, periods), over the same venues: only those that have that day (`venueIds`); the others are left out of both figures,
   so a venue synced since makes up no growth. The whole comparison is null when no venue has that day.
 required:
   - previousBusinessDay

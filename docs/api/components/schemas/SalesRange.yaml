@@ -1,0 +1,31 @@
+type: object
+description: |
+  The whole period (the range label, e.g. "2 to 8 Nov"); figures cover it up to the current business day.
+required:
+  - period
+  - from
+  - to
+  - finished
+properties:
+  period:
+    type: string
+    enum:
+      - HOUR
+      - DAY
+      - WEEK
+      - MONTH
+  from:
+    type: string
+    format: date
+  to:
+    type: string
+    format: date
+  hour:
+    type: integer
+    minimum: 0
+    maximum: 23
+    nullable: true
+    description: '`HOUR` only: the current local clock hour ("21:00 to 22:00").'
+  finished:
+    type: boolean
+    description: False while the period contains the current business day.

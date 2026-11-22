@@ -175,7 +175,7 @@ class PosReadRepository(
      */
     fun outdatedBills(
         venueId: UUID,
-        day: LocalDate? = null,
+        days: ClosedRange<LocalDate>? = null,
     ): Int {
         val q = BILL_QUARANTINE
         return dsl.fetchCount(
@@ -185,7 +185,7 @@ class PosReadRepository(
                     selectOne()
                         .from(BILL)
                         .where(BILL.VENUE_ID.eq(q.VENUE_ID), BILL.EXTERNAL_ID.eq(q.EXTERNAL_ID), BILL.ITEMS_UNREADABLE.isFalse)
-                        .and(day?.let { BILL.BUSINESS_DAY.eq(it) } ?: noCondition()),
+                        .and(days?.let { BILL.BUSINESS_DAY.between(it.start, it.endInclusive) } ?: noCondition()),
                 ),
             ),
         )
@@ -197,14 +197,14 @@ class PosReadRepository(
      */
     fun billsWithoutLines(
         venueId: UUID,
-        day: LocalDate? = null,
+        days: ClosedRange<LocalDate>? = null,
     ): Int =
         dsl.fetchCount(
             BILL,
             BILL.VENUE_ID
                 .eq(venueId)
                 .and(BILL.ITEMS_UNREADABLE.isTrue)
-                .and(day?.let { BILL.BUSINESS_DAY.eq(it) } ?: noCondition()),
+                .and(days?.let { BILL.BUSINESS_DAY.between(it.start, it.endInclusive) } ?: noCondition()),
         )
 
     /** When the venue's bills last synced successfully; `null` before the first sync. */

@@ -33,12 +33,16 @@ paths:
     $ref: ./paths/account/auth-logout.yaml
   /me:
     $ref: ./paths/account/me.yaml
+  /venues:
+    $ref: ./paths/account/venues.yaml
   /onboarding/demo-places:
     $ref: ./paths/onboarding/demo-places.yaml
   /onboarding/demo:
     $ref: ./paths/onboarding/demo.yaml
   /dashboard/today:
     $ref: ./paths/dashboard/today.yaml
+  /dashboard/sales:
+    $ref: ./paths/dashboard/sales.yaml
 components:
   securitySchemes:
     bearerAuth:
