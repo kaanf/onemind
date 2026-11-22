@@ -24,6 +24,32 @@ object PosMoney {
         return scaled.unscaledValue().longValueExact()
     }
 
+    /**
+     * Minor units of a POS **price** (menu product price, bill line unit price), rounded half-up when it
+     * has more fraction digits than the currency (owner decision 2026-11-22). Only for prices: totals,
+     * payments and discounts use the exact [minorUnits]. Fails on a value that isn't a decimal number.
+     */
+    fun minorUnitsRounded(
+        decimal: String,
+        currency: Currency,
+    ): Long {
+        val value = decimal.trim().toBigDecimalOrNull() ?: throw IllegalArgumentException("Not a decimal money value: '$decimal'")
+        return value.setScale(currency.defaultFractionDigits, RoundingMode.HALF_UP).unscaledValue().longValueExact()
+    }
+
+    /** Whether [decimal] has more fraction digits than [currency], so [minorUnitsRounded] rounds it. */
+    fun needsRounding(
+        decimal: String,
+        currency: Currency,
+    ): Boolean =
+        (
+            decimal
+                .trim()
+                .toBigDecimalOrNull()
+                ?.stripTrailingZeros()
+                ?.scale() ?: 0
+        ) > currency.defaultFractionDigits
+
     /** [minor] units of [currency] as a decimal string, the inverse of [minorUnits]. */
     fun decimal(
         minor: Long,

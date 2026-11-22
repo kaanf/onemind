@@ -41,7 +41,7 @@ class PosBillMappingTest {
     fun `values that can't be stored exactly name their reason`() {
         assertEquals(QuarantineReason.BAD_CURRENCY, reasonOf(detail.copy(bill = detail.bill.copy(currencyCode = "XXQ"))))
         assertEquals(QuarantineReason.BAD_AMOUNT, reasonOf(detail.copy(bill = detail.bill.copy(tips = "ten"))))
-        assertEquals(QuarantineReason.SUB_MINOR_PRICE, reasonOf(detail.copy(bill = detail.bill.copy(finalPrice = "1.005"))))
+        assertEquals(QuarantineReason.SUB_MINOR_AMOUNT, reasonOf(detail.copy(bill = detail.bill.copy(finalPrice = "1.005"))))
         assertEquals(QuarantineReason.BAD_AMOUNT, reasonOf(detail.copy(items = detail.items.map { it.copy(amount = "one") })))
         assertEquals(QuarantineReason.BAD_VAT_RATE, reasonOf(detail.copy(items = detail.items.map { it.copy(vatRate = "21%") })))
     }
@@ -53,5 +53,22 @@ class PosBillMappingTest {
         assertEquals(PaymentKind.CASH, PaymentKind.of(" hotovost "))
         assertEquals(PaymentKind.CASH, PaymentKind.of("CASH"))
         assertEquals(PaymentKind.OTHER, PaymentKind.of("voucher"))
+    }
+
+    @Test
+    fun `a sub-minor line price is rounded half-up, owner decision 2026-11-22`() {
+        val first = detail.items.first()
+        val rounded =
+            detail.copy(
+                items = listOf(first.copy(price = "68.995", amount = "1", discounts = emptyList())) + detail.items.drop(1),
+            )
+        assertEquals(
+            6900,
+            PosBillMapping
+                .toSynced(rounded, zone, cutOff)
+                .items
+                .first()
+                .unitPriceMinor,
+        )
     }
 }

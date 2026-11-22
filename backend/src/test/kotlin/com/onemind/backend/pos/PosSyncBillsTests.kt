@@ -270,15 +270,16 @@ class PosSyncBillsTests {
     }
 
     @Test
-    fun `unreadable bills are quarantined, the rest goes on, and they land once readable`() {
+    fun `unreadable bills keep their header, quarantine their detail, and land whole once readable`() {
         val connection = connection()
-        val (missing, subMinor) = expectedBills().filterNot { it.deleted }.take(2).map { it.billId }
+        val (missing, badHeader) = expectedBills().filterNot { it.deleted }.take(2).map { it.billId }
         pos.detailOverrides[missing] = { null }
-        pos.detailOverrides[subMinor] = { d -> d?.copy(bill = d.bill.copy(finalPrice = "12.345")) }
+        pos.headerOverrides[badHeader] = { it.copy(finalPrice = "12.345") }
+        pos.detailOverrides[badHeader] = { d -> d?.copy(bill = d.bill.copy(finalPrice = "12.345")) }
         val discounted =
             expectedBills()
                 .first { bill ->
-                    bill.billId !in setOf(missing, subMinor) &&
+                    bill.billId !in setOf(missing, badHeader) &&
                         requireNotNull(mock.billDetail(LETNA, bill.billId)).items.any { it.discounts.isNotEmpty() }
                 }.billId
         pos.detailOverrides[discounted] = { d ->
@@ -298,23 +299,86 @@ class PosSyncBillsTests {
                 .queryForList("select external_id, reason from pos.bill_quarantine where venue_id = ?", venue)
                 .associate { it["external_id"] as String to it["reason"] as String }
         assertEquals(
-            mapOf(missing to "DETAIL_MISSING", subMinor to "SUB_MINOR_PRICE", discounted to "DISCOUNT_AMOUNT_MISSING"),
+            mapOf(missing to "DETAIL_MISSING", badHeader to "SUB_MINOR_AMOUNT", discounted to "DISCOUNT_AMOUNT_MISSING"),
             quarantined,
         )
-        assertEquals(
-            0,
-            count("select count(*) from pos.bill where venue_id = ? and external_id in (?, ?, ?)", venue, missing, subMinor, discounted),
-        )
-        assertEquals(expectedBills().size - 3, count("select count(*) from pos.bill where venue_id = ?", venue))
+        // Header read: stored with totals and payments, flagged, without lines. Header unreadable: not stored.
+        listOf(missing, discounted).forEach { billId ->
+            assertEquals(
+                true,
+                jdbc.queryForObject<Boolean>("select items_unreadable from pos.bill where venue_id = ? and external_id = ?", venue, billId),
+            )
+            assertEquals(0, lines(venue, billId))
+            assertTrue(
+                count(
+                    "select count(*) from pos.payment p join pos.bill b on b.id = p.bill_id where b.venue_id = ? and b.external_id = ?",
+                    venue,
+                    billId,
+                ) >
+                    0,
+            )
+        }
+        assertEquals(0, count("select count(*) from pos.bill where venue_id = ? and external_id = ?", venue, badHeader))
+        assertEquals(expectedBills().size - 1, count("select count(*) from pos.bill where venue_id = ?", venue))
         assertEquals(3, quarantineCount(venue))
 
         // The import took several runs, so the retries are in their hourly backoff by now.
         pos.detailOverrides.clear()
+        pos.headerOverrides.clear()
         clock.advance(Duration.ofMinutes(61))
         sync.run()
 
         assertEquals(0, quarantineCount(venue))
         assertEquals(expectedBills().size, count("select count(*) from pos.bill where venue_id = ?", venue))
+        assertEquals(0, count("select count(*) from pos.bill where venue_id = ? and items_unreadable", venue))
+        assertEquals(requireNotNull(mock.billDetail(LETNA, missing)).items.size, lines(venue, missing))
+    }
+
+    @Test
+    fun `a deleted bill without detail still counts as deleted, with its total`() {
+        val connection = connection()
+        val deleted = expectedBills().first { it.deleted }
+        pos.detailOverrides[deleted.billId] = { null }
+
+        importAll(connection)
+
+        val venue = venue(connection, "demo-letna")
+        val row =
+            jdbc.queryForMap(
+                "select deleted, total_minor, items_unreadable from pos.bill where venue_id = ? and external_id = ?",
+                venue,
+                deleted.billId,
+            )
+        assertEquals(true, row["deleted"])
+        assertEquals(deleted.finalPrice.replace(".", "").toLong(), row["total_minor"])
+        assertEquals(true, row["items_unreadable"])
+    }
+
+    @Test
+    fun `a bill without detail gets its later refund from the listing`() {
+        // A bill refunded by now (20 h after payment); the import runs just after it was paid.
+        val refunded = expectedBills().first { it.refunded && it.paidAt.toInstant().isAfter(start - Duration.ofDays(5)) }
+        pos.detailOverrides[refunded.billId] = { null }
+        clock.now = refunded.paidAt.toInstant() + Duration.ofMinutes(1)
+        val connection = connection()
+        importAll(connection)
+        val venue = venue(connection, "demo-letna")
+        assertEquals(
+            false,
+            jdbc.queryForObject<Boolean>("select refunded from pos.bill where venue_id = ? and external_id = ?", venue, refunded.billId),
+        )
+
+        clock.now = start
+        sync.run()
+
+        val row =
+            jdbc.queryForMap(
+                "select refunded, items_unreadable from pos.bill where venue_id = ? and external_id = ?",
+                venue,
+                refunded.billId,
+            )
+        assertEquals(true, row["refunded"])
+        assertEquals(true, row["items_unreadable"])
     }
 
     @Test
@@ -378,6 +442,16 @@ class PosSyncBillsTests {
         assertEquals(0, count("select count(*) from pos.bill_item where venue_id = ? and product_id is null", venue))
         assertEquals(0, count("select count(*) from pos.bill where venue_id = ? and desk_id is null", venue))
     }
+
+    private fun lines(
+        venue: UUID,
+        billId: String,
+    ): Int =
+        count(
+            "select count(*) from pos.bill_item i join pos.bill b on b.id = i.bill_id where b.venue_id = ? and b.external_id = ?",
+            venue,
+            billId,
+        )
 
     private fun attempts(
         venue: UUID,

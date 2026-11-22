@@ -26,7 +26,8 @@ data class StoredBillRow(
 )
 
 /**
- * Paid bills of a venue, upserted by `(venue_id, external_id)`, and the ones that couldn't be read. A bill whose POS modification time
+ * Paid bills of a venue, upserted by `(venue_id, external_id)`, and the ones that couldn't be read. A
+ * bill stored from its header only (`items_unreadable`) has its payments but no lines. A bill whose POS modification time
  * hasn't changed is left alone; a changed one gets its items, discounts and payments replaced (Storyous
  * items have no stable ID, V003).
  */
@@ -114,6 +115,7 @@ class PosBillRepository(
                 .set(b.PAID_BY_STAFF_ID, bill.paidBy?.let { staff[it.externalId] })
                 .set(b.GUEST_COUNT, bill.guestCount)
                 .set(b.EXTERNAL_MODIFIED_AT, bill.externalModifiedAt)
+                .set(b.ITEMS_UNREADABLE, bill.itemsUnreadable)
                 .onConflict(b.VENUE_ID, b.EXTERNAL_ID)
                 .doUpdate()
                 .set(b.SESSION_STARTED_AT, excluded(b.SESSION_STARTED_AT))
@@ -135,9 +137,14 @@ class PosBillRepository(
                 .set(b.PAID_BY_STAFF_ID, excluded(b.PAID_BY_STAFF_ID))
                 .set(b.GUEST_COUNT, excluded(b.GUEST_COUNT))
                 .set(b.EXTERNAL_MODIFIED_AT, excluded(b.EXTERNAL_MODIFIED_AT))
+                .set(b.ITEMS_UNREADABLE, excluded(b.ITEMS_UNREADABLE))
                 .set(b.UPDATED_AT, now)
-                .where(b.EXTERNAL_MODIFIED_AT.isDistinctFrom(excluded(b.EXTERNAL_MODIFIED_AT)))
-                .returning(b.ID)
+                // Unchanged in the POS and as complete as before: nothing to write.
+                .where(
+                    b.EXTERNAL_MODIFIED_AT
+                        .isDistinctFrom(excluded(b.EXTERNAL_MODIFIED_AT))
+                        .or(b.ITEMS_UNREADABLE.isDistinctFrom(excluded(b.ITEMS_UNREADABLE))),
+                ).returning(b.ID)
                 .fetchOne(b.ID)
                 ?: return false
         replaceLines(billId, venueId, bill)

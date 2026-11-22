@@ -67,6 +67,8 @@ data class SyncedBill(
     val externalModifiedAt: Instant,
     val items: List<SyncedBillItem>,
     val payments: List<SyncedPayment>,
+    /** The header read but the detail or items didn't: stored without lines (V009), detail quarantined. */
+    val itemsUnreadable: Boolean = false,
 )
 
 /** `payment.method_kind`; the raw POS value is kept next to it. */
@@ -100,8 +102,11 @@ enum class QuarantineReason {
     /** A money value or quantity that isn't a number. */
     BAD_AMOUNT,
 
-    /** A money value with more fraction digits than the currency: never rounded (rule 5). */
-    SUB_MINOR_PRICE,
+    /**
+     * A total, payment or discount with more fraction digits than the currency: never rounded (rule 5).
+     * Prices are rounded instead (owner decision 2026-11-22), so they never land here.
+     */
+    SUB_MINOR_AMOUNT,
     BAD_VAT_RATE,
     BAD_CURRENCY,
 
@@ -115,10 +120,8 @@ class UnreadableBillException(
 ) : RuntimeException("Unreadable POS bill: $reason")
 
 /**
- * Which business day a bill belongs to. **Open question M1** (`docs/OPEN_QUESTIONS.md`): by close time
- * or by open time. The documented default is the payment time (DB_SCHEMA `pos.bill.business_day`); this
- * is the only place that decides it, so answering M1 changes this function (and a rebuild of the stored
- * days), nothing else.
+ * Which business day a bill belongs to: its **paid** business day (owner decision 2026-11-22, M1
+ * closed; DB_SCHEMA `pos.bill.business_day`). This is the only place that decides it.
  */
 object BillAttribution {
     fun businessDay(

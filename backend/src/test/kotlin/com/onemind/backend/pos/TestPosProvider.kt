@@ -1,5 +1,6 @@
 package com.onemind.backend.pos
 
+import com.onemind.backend.pos.infra.client.PosBill
 import com.onemind.backend.pos.infra.client.PosBillDetail
 import com.onemind.backend.pos.infra.client.PosBillPage
 import com.onemind.backend.pos.infra.client.PosBillQuery
@@ -39,8 +40,14 @@ class TestPosProvider(
     /** This product's price comes with more fraction digits than the currency has. */
     var subMinorPriceProduct: String? = null
 
+    /** This product's VAT rate isn't a number. */
+    var badVatRateProduct: String? = null
+
     /** Menus of this place fail. */
     var failingMenuPlace: String? = null
+
+    /** Changes a bill's header in the `bills` listing. */
+    val headerOverrides = mutableMapOf<String, (PosBill) -> PosBill>()
 
     /** Changes what `billDetail` returns for a bill ID (null = no detail). */
     val detailOverrides = mutableMapOf<String, (PosBillDetail?) -> PosBillDetail?>()
@@ -81,7 +88,8 @@ class TestPosProvider(
     ): PosBillPage {
         call("bills", place.merchantId)
         placeCalls += "bills:${place.placeId}"
-        return mock.bills(place.demo(), query)
+        val page = mock.bills(place.demo(), query)
+        return page.copy(bills = page.bills.map { bill -> headerOverrides[bill.billId]?.invoke(bill) ?: bill })
     }
 
     override fun billDetail(
@@ -111,7 +119,8 @@ class TestPosProvider(
             products =
                 menu.products
                     .filterNot { it.productId == droppedProduct }
-                    .map { if (it.productId == subMinorPriceProduct) it.copy(price = "12.345") else it },
+                    .map { if (it.productId == subMinorPriceProduct) it.copy(price = "12.345") else it }
+                    .map { if (it.productId == badVatRateProduct) it.copy(vatRate = "21%") else it },
         )
     }
 
@@ -126,7 +135,9 @@ class TestPosProvider(
         failDetailsFrom = null
         placeCalls.clear()
         subMinorPriceProduct = null
+        badVatRateProduct = null
         failingMenuPlace = null
         detailOverrides.clear()
+        headerOverrides.clear()
     }
 }

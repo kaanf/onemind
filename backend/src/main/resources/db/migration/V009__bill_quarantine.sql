@@ -16,3 +16,7 @@ create index bill_quarantine_venue_id_last_attempt_at_idx on pos.bill_quarantine
 -- The POS desk ID of a bill, so desk_id can be filled once the desk is synced (DESK has no row yet when
 -- a bill arrives first). Null when the POS sends none.
 alter table pos.bill add column external_desk_id text;
+
+-- A bill whose header (totals, flags, payments) reads but whose detail or items don't: stored without
+-- lines and flagged, so its revenue, refund or deletion still counts; the detail stays quarantined.
+alter table pos.bill add column items_unreadable boolean not null default false;

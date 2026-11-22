@@ -123,7 +123,9 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
 - Immutable data classes for DTOs and value objects. Use `value class` for IDs
   (`VenueId`, `BillId`) and `Money`.
 - **Money:** `Money(amountMinor: Long, currency: Currency)`; sub-minor prices `BigDecimal`. Rounding
-  rules in one place. Gated (`architecture/ProductRules`, rule 5): no `Float`/`Double` in a
+  rules in one place. POS prices finer than the currency (menu product prices, bill line unit prices)
+  are rounded half-up by `pos/domain/PosMoney.minorUnitsRounded` (owner decision 2026-11-22); totals,
+  payments and discounts use the exact `minorUnits` and are never rounded. Gated (`architecture/ProductRules`, rule 5): no `Float`/`Double` in a
   money-named class, field, method or parameter (whole words from `docs/api/lint/money-words.json`,
   plurals too; names ending in `Rate`/`Ratio`/`Percent`/`Pct`/`Share`/`Count`/`Quantity`/`Number`/
   `Id`/`Index`, singular or plural, are not money), no `BigDecimal` from a `Double`. Parameter names

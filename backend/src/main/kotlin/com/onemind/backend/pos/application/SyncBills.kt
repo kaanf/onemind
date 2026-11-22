@@ -118,7 +118,7 @@ class SyncBills(
             val next =
                 if (day == today) BillSyncCursor.Since(start.startedAt) else BillSyncCursor.Initial(day.plusDays(1), start.startedAt)
             pages(target, PosBillQuery(from = range.start, till = range.end, includeDeleted = true)) { page, last ->
-                write(target, changedIds(target, page), cursorAfter = next.takeIf { last })
+                write(target, changed(target, page), cursorAfter = next.takeIf { last })
             }
             day = day.plusDays(1)
             imported++
@@ -132,22 +132,28 @@ class SyncBills(
         var cursor = since
         pages(target, PosBillQuery(modifiedSince = since - properties.lookback, includeDeleted = true)) { page, _ ->
             cursor = maxOf(cursor, page.maxOfOrNull { it.lastModifiedAt.toInstant() } ?: cursor)
-            write(target, changedIds(target, page), cursorAfter = BillSyncCursor.Since(cursor))
+            write(target, changed(target, page), cursorAfter = BillSyncCursor.Since(cursor))
         }
     }
 
     private fun retryQuarantined(target: Target) {
         val due = bills.quarantineDueForRetry(target.venueId, clock.instant(), EAGER_ATTEMPTS, QUARANTINE_BACKOFF, RETRY_LIMIT)
-        if (due.isNotEmpty()) write(target, due, cursorAfter = null)
+        if (due.isNotEmpty()) write(target, due.map { Candidate(it, header = null) }, cursorAfter = null)
     }
 
+    /** A bill to read: its ID, and its header from the listing when it came from one (not on a retry). */
+    private class Candidate(
+        val billId: String,
+        val header: PosBill?,
+    )
+
     /** Bills of [page] that are new or changed since they were stored. */
-    private fun changedIds(
+    private fun changed(
         target: Target,
         page: List<PosBill>,
-    ): List<String> {
+    ): List<Candidate> {
         val stored = bills.stored(target.venueId, page.map { it.billId })
-        return page.filter { stored[it.billId]?.externalModifiedAt != it.lastModifiedAt.toInstant() }.map { it.billId }
+        return page.filter { stored[it.billId]?.externalModifiedAt != it.lastModifiedAt.toInstant() }.map { Candidate(it.billId, it) }
     }
 
     /** Calls [handle] for every page of [query], telling it whether it is the last one. */
@@ -164,23 +170,34 @@ class SyncBills(
         } while (lastBillId != null)
     }
 
-    /** Reads [billIds] from the POS (outside any transaction), then writes them in one transaction. */
+    /**
+     * Reads [candidates] from the POS (outside any transaction), then writes them in one transaction. A
+     * bill whose detail or items can't be read is stored from its header (flagged, no lines) and its
+     * detail quarantined; only a bill whose header doesn't read either is quarantined whole.
+     */
     private fun write(
         target: Target,
-        billIds: List<String>,
+        candidates: List<Candidate>,
         cursorAfter: BillSyncCursor?,
     ) {
+        val zone = target.settings.zone
+        val cutOff = target.settings.businessDayStart
         val readable = mutableListOf<SyncedBill>()
         val unreadable = mutableMapOf<String, QuarantineReason>()
-        billIds.forEach { billId ->
-            val detail = target.provider.billDetail(target.place, billId)
-            if (detail == null) {
-                unreadable[billId] = QuarantineReason.DETAIL_MISSING
-            } else {
-                try {
-                    readable += PosBillMapping.toSynced(detail, target.settings.zone, target.settings.businessDayStart)
-                } catch (e: UnreadableBillException) {
-                    unreadable[billId] = e.reason
+        candidates.forEach { candidate ->
+            val detail = target.provider.billDetail(target.place, candidate.billId)
+            try {
+                if (detail == null) throw UnreadableBillException(QuarantineReason.DETAIL_MISSING)
+                readable += PosBillMapping.toSynced(detail, zone, cutOff)
+            } catch (e: UnreadableBillException) {
+                unreadable[candidate.billId] = e.reason
+                val header = candidate.header ?: detail?.bill
+                if (header != null) {
+                    try {
+                        readable += PosBillMapping.toSyncedHeader(header, zone, cutOff)
+                    } catch (headerError: UnreadableBillException) {
+                        unreadable[candidate.billId] = headerError.reason
+                    }
                 }
             }
         }
@@ -193,7 +210,7 @@ class SyncBills(
             val previous = bills.stored(target.venueId, readable.map { it.externalId })
             val staff = bills.upsertStaff(target.connectionId, readable.flatMap { listOfNotNull(it.createdBy, it.paidBy) }, now)
             val written = readable.filter { bills.upsert(target.venueId, it, staff, now) }
-            bills.releaseQuarantine(target.venueId, readable.map { it.externalId })
+            bills.releaseQuarantine(target.venueId, readable.filterNot { it.itemsUnreadable }.map { it.externalId })
             unreadable.forEach { (billId, reason) -> bills.quarantine(target.venueId, billId, reason.name, now) }
             cursorAfter?.let { cursors.moveCursor(target.venueId, BILLS, it.format(), now) }
             if (written.isNotEmpty()) {

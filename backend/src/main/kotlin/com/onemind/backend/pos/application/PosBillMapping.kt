@@ -10,9 +10,11 @@ import com.onemind.backend.pos.domain.SyncedItemDiscount
 import com.onemind.backend.pos.domain.SyncedPayment
 import com.onemind.backend.pos.domain.SyncedPerson
 import com.onemind.backend.pos.domain.UnreadableBillException
+import com.onemind.backend.pos.infra.client.PosBill
 import com.onemind.backend.pos.infra.client.PosBillDetail
 import com.onemind.backend.pos.infra.client.PosItemDiscount
 import com.onemind.backend.pos.infra.client.PosPerson
+import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalTime
@@ -22,16 +24,37 @@ import java.util.Currency
 /**
  * A POS bill (decimal strings, POS field names) as the sync stores it (minor units). Only what the POS
  * sends is filled; the derived values (line totals, discount amounts) follow the assumptions listed in
- * STORYOUS.md, "Assumptions to verify". A value that can't be stored exactly throws
- * [UnreadableBillException]: the bill is quarantined, never stored with a guessed value.
+ * STORYOUS.md, "Assumptions to verify". Unit prices finer than the currency are rounded half-up (owner
+ * decision 2026-11-22); any other value that can't be stored exactly throws [UnreadableBillException]:
+ * the bill is quarantined, never stored with a guessed value.
  */
 object PosBillMapping {
+    private val log = LoggerFactory.getLogger(PosBillMapping::class.java)
+
     fun toSynced(
         detail: PosBillDetail,
         zone: ZoneId,
         businessDayStart: LocalTime,
     ): SyncedBill {
-        val bill = detail.bill
+        val header = header(detail.bill, zone, businessDayStart)
+        return header.copy(items = items(detail, header.currency))
+    }
+
+    /**
+     * Only the bill header as the listing gives it (totals, flags, payments), for a bill whose detail or
+     * items can't be read: stored without lines and flagged, so its revenue, refund or deletion counts.
+     */
+    fun toSyncedHeader(
+        bill: PosBill,
+        zone: ZoneId,
+        businessDayStart: LocalTime,
+    ): SyncedBill = header(bill, zone, businessDayStart).copy(itemsUnreadable = true)
+
+    private fun header(
+        bill: PosBill,
+        zone: ZoneId,
+        businessDayStart: LocalTime,
+    ): SyncedBill {
         val currency = currency(bill.currencyCode)
         val paidAt = bill.paidAt.toInstant()
         return SyncedBill(
@@ -54,32 +77,37 @@ object PosBillMapping {
             paidBy = bill.paidBy?.toSynced(),
             guestCount = bill.personCount,
             externalModifiedAt = bill.lastModifiedAt.toInstant(),
-            items =
-                detail.items.mapIndexed { index, item ->
-                    val unitPriceMinor = money(item.price, currency)
-                    val quantity = decimal(item.amount, QuarantineReason.BAD_AMOUNT)
-                    val discounts = item.discounts.map { it.toSynced(currency) }
-                    val discountMinor = discounts.sumOf { it.amountMinor() }
-                    val grossMinor = (BigDecimal.valueOf(unitPriceMinor) * quantity).setScale(0, RoundingMode.HALF_UP).longValueExact()
-                    SyncedBillItem(
-                        lineNo = index + 1,
-                        productExternalId = item.productId,
-                        name = item.name,
-                        quantity = quantity,
-                        measure = item.measure,
-                        unitPriceMinor = unitPriceMinor,
-                        vatRate = item.vatRate?.let { decimal(it, QuarantineReason.BAD_VAT_RATE) },
-                        discountMinor = discountMinor,
-                        totalMinor = grossMinor - discountMinor,
-                        discounts = discounts,
-                    )
-                },
+            items = emptyList(),
             payments =
                 bill.payments.map {
                     SyncedPayment(it.paymentMethod, PaymentKind.of(it.paymentMethod), money(it.priceWithVat, currency))
                 },
         )
     }
+
+    private fun items(
+        detail: PosBillDetail,
+        currency: Currency,
+    ): List<SyncedBillItem> =
+        detail.items.mapIndexed { index, item ->
+            val unitPriceMinor = price(detail.bill.billId, item.price, currency)
+            val quantity = decimal(item.amount, QuarantineReason.BAD_AMOUNT)
+            val discounts = item.discounts.map { it.toSynced(currency) }
+            val discountMinor = discounts.sumOf { it.amountMinor() }
+            val grossMinor = (BigDecimal.valueOf(unitPriceMinor) * quantity).setScale(0, RoundingMode.HALF_UP).longValueExact()
+            SyncedBillItem(
+                lineNo = index + 1,
+                productExternalId = item.productId,
+                name = item.name,
+                quantity = quantity,
+                measure = item.measure,
+                unitPriceMinor = unitPriceMinor,
+                vatRate = item.vatRate?.let { decimal(it, QuarantineReason.BAD_VAT_RATE) },
+                discountMinor = discountMinor,
+                totalMinor = grossMinor - discountMinor,
+                discounts = discounts,
+            )
+        }
 
     private fun currency(code: String): Currency =
         try {
@@ -102,8 +130,19 @@ object PosBillMapping {
         return try {
             PosMoney.minorUnits(value, currency)
         } catch (e: IllegalArgumentException) {
-            throw UnreadableBillException(QuarantineReason.SUB_MINOR_PRICE)
+            throw UnreadableBillException(QuarantineReason.SUB_MINOR_AMOUNT)
         }
+    }
+
+    /** A line's unit price: rounded half-up to minor units when finer (owner decision 2026-11-22). */
+    private fun price(
+        billId: String,
+        value: String,
+        currency: Currency,
+    ): Long {
+        decimal(value, QuarantineReason.BAD_AMOUNT)
+        if (PosMoney.needsRounding(value, currency)) log.debug("POS line price rounded: billId={}", billId)
+        return PosMoney.minorUnitsRounded(value, currency)
     }
 
     private fun PosPerson.toSynced() = SyncedPerson(personId, fullName, userName)
