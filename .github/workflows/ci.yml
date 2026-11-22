@@ -210,8 +210,9 @@ jobs:
 
       - run: ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
 
-      # iOS-only tests on the simulator: the Keychain session store (`core/data/src/iosTest`) can't be
-      # exercised on the JVM. Kotlin/Native's default `simctl spawn --standalone` has no Keychain, so a
+      # Tests on the iOS simulator: the Keychain session store (`core/data/src/iosTest`) can't run on the
+      # JVM, and the money formatter (`core/presentation`) uses NSNumberFormatter on iOS, so its common
+      # tests must pass there too. Kotlin/Native's default `simctl spawn --standalone` has no Keychain, so a
       # simulator is booted first and the tests run inside it (`onemind.iosTestDevice`, core/data).
       - name: Boot an iOS simulator
         id: simulator
@@ -223,27 +224,41 @@ jobs:
           xcrun simctl bootstatus "$udid" -b
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
 
-      - run: ./gradlew :core:data:iosSimulatorArm64Test -Ponemind.iosTestDevice=${{ steps.simulator.outputs.udid }}
+      # core:presentation's commonTest also runs on iOS: the money formatter uses NSNumberFormatter there,
+      # and its exact-string tests must agree with the JVM's NumberFormat.
+      - run: >-
+          ./gradlew :core:data:iosSimulatorArm64Test :core:presentation:iosSimulatorArm64Test
+          -Ponemind.iosTestDevice=${{ steps.simulator.outputs.udid }}
 
       # Gradle reports a binary the simulator refused to launch as "1 test, 1 skipped", which would pass.
-      # The Keychain tests must have run: all of them, none skipped, none failed.
-      - name: Check the Keychain tests ran
+      # The iOS suites below must have run: at least N tests each, none skipped, none failed.
+      - name: Check the iOS-only tests ran
         run: |
           python3 - <<'PY'
           import glob, sys, xml.etree.ElementTree as ET
           # Kotlin/Native prefixes the suite with the target: TEST-iosSimulatorArm64Test.com.onemind….xml
-          paths = glob.glob("core/data/build/test-results/iosSimulatorArm64Test/TEST-*IosSecureSessionStoreTest.xml")
-          if len(paths) != 1:
-              sys.exit(f"IosSecureSessionStoreTest did not run: expected one result file, found {paths}")
-          try:
-              suite = ET.parse(paths[0]).getroot()
-          except ET.ParseError as e:
-              sys.exit(f"IosSecureSessionStoreTest result unreadable: {e}")
-          tests, skipped = int(suite.get("tests", 0)), int(suite.get("skipped", 0))
-          failed = int(suite.get("failures", 0)) + int(suite.get("errors", 0))
-          print(f"IosSecureSessionStoreTest: {tests} tests, {failed} failed, {skipped} skipped")
-          if tests < 4 or skipped or failed:
-              sys.exit("expected at least 4 Keychain tests, all executed and passed")
+          suites = {
+              "core/data": ("IosSecureSessionStoreTest", 4),
+              "core/presentation": ("MoneyFormatTest", 10),
+          }
+          problems = []
+          for module, (name, minimum) in suites.items():
+              paths = glob.glob(f"{module}/build/test-results/iosSimulatorArm64Test/TEST-*{name}.xml")
+              if len(paths) != 1:
+                  problems.append(f"{name} did not run: expected one result file, found {paths}")
+                  continue
+              try:
+                  suite = ET.parse(paths[0]).getroot()
+              except ET.ParseError as e:
+                  problems.append(f"{name} result unreadable: {e}")
+                  continue
+              tests, skipped = int(suite.get("tests", 0)), int(suite.get("skipped", 0))
+              failed = int(suite.get("failures", 0)) + int(suite.get("errors", 0))
+              print(f"{name}: {tests} tests, {failed} failed, {skipped} skipped")
+              if tests < minimum or skipped or failed:
+                  problems.append(f"{name}: expected at least {minimum} tests, all executed and passed")
+          if problems:
+              sys.exit("\n".join(problems))
           PY
 
       - if: failure()

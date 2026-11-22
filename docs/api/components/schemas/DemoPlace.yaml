@@ -1,0 +1,18 @@
+type: object
+description: A place of the demo POS; only active places can be picked.
+required:
+  - placeId
+  - name
+  - active
+  - demo
+properties:
+  placeId:
+    type: string
+  name:
+    type: string
+    description: Starts with "Demo".
+  active:
+    type: boolean
+  demo:
+    type: boolean
+    description: Always true; the app shows a "Demo data" badge.

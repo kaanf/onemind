@@ -1,0 +1,5 @@
+description: A system we depend on couldn't be reached (for example POS_UNAVAILABLE); try again later.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/Problem.yaml

@@ -8,10 +8,13 @@ import org.jooq.DSLContext
 import org.jooq.Field
 import org.jooq.Record
 import org.jooq.impl.DSL.excluded
+import org.jooq.impl.DSL.function
+import org.jooq.impl.DSL.inline
 import org.jooq.impl.DSL.jsonbArray
 import org.jooq.impl.DSL.jsonbObject
 import org.jooq.impl.DSL.key
 import org.jooq.impl.DSL.value
+import org.jooq.impl.SQLDataType
 import org.springframework.stereotype.Repository
 import java.time.Instant
 import java.util.UUID
@@ -39,6 +42,47 @@ class PosConnectionRepository(
             // Kotlin's inline map, not jOOQ's RecordMapper: records stay inside this method (R4).
             .toList()
             .map { r ->
+                PosConnectionRow(
+                    r.required(c.ID),
+                    r.required(c.ORGANIZATION_ID),
+                    r.required(c.PROVIDER),
+                    r.required(c.EXTERNAL_MERCHANT_ID),
+                )
+            }
+    }
+
+    /** Serialises demo onboarding of [userId] until the transaction ends (two taps, two devices). */
+    fun lockOnboarding(userId: UUID) = advisoryLock(dsl, "pos-onboarding:$userId")
+
+    /** A new connection of [organizationId]; `PENDING` until its first sync. */
+    fun insert(
+        organizationId: UUID,
+        provider: String,
+        externalMerchantId: String,
+    ): PosConnectionRow {
+        val c = POS_CONNECTION
+        val id =
+            dsl
+                .insertInto(c)
+                .set(c.ORGANIZATION_ID, organizationId)
+                .set(c.PROVIDER, provider)
+                .set(c.EXTERNAL_MERCHANT_ID, externalMerchantId)
+                .returning(c.ID)
+                .fetchOne(c.ID)
+                ?: error("insert returned no id")
+        return PosConnectionRow(id, organizationId, provider, externalMerchantId)
+    }
+
+    fun forOrganization(organizationId: UUID): PosConnectionRow? {
+        val c = POS_CONNECTION
+        return dsl
+            .select(c.ID, c.ORGANIZATION_ID, c.PROVIDER, c.EXTERNAL_MERCHANT_ID)
+            .from(c)
+            .where(c.ORGANIZATION_ID.eq(organizationId))
+            .orderBy(c.ID)
+            .limit(1)
+            .fetchOne()
+            ?.let { r ->
                 PosConnectionRow(
                     r.required(c.ID),
                     r.required(c.ORGANIZATION_ID),
@@ -98,6 +142,12 @@ data class VenueLinkRow(
 class VenueLinkRepository(
     private val dsl: DSLContext,
 ) {
+    /**
+     * Serialises place syncs of one connection until the transaction ends (onboarding and the `pos-sync`
+     * job), so a place never gets two venues.
+     */
+    fun lockConnection(connectionId: UUID) = advisoryLock(dsl, "pos-connection:$connectionId")
+
     fun linked(connectionId: UUID): List<VenueLinkRow> =
         dsl
             .select(VENUE_LINK.VENUE_ID, VENUE_LINK.EXTERNAL_PLACE_ID, VENUE_LINK.ACTIVE)
@@ -286,3 +336,14 @@ class SyncJobRepository(
 }
 
 private fun <T> Record.required(field: Field<T?>): T = get(field) ?: error("${field.name} is null")
+
+// A hash collision between two keys only makes them wait for each other.
+private fun advisoryLock(
+    dsl: DSLContext,
+    key: String,
+) {
+    dsl
+        .select(
+            function("pg_advisory_xact_lock", SQLDataType.OTHER, function("hashtextextended", SQLDataType.BIGINT, value(key), inline(0L))),
+        ).fetch()
+}
