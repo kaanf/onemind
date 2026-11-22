@@ -1,6 +1,7 @@
 package com.onemind.backend.account.web
 
 import com.onemind.api.v1.model.Me
+import com.onemind.api.v1.model.MembershipRole
 import com.onemind.api.v1.model.MyMembership
 import com.onemind.api.v1.model.MyVenue
 import com.onemind.api.v1.model.MyVenues
@@ -33,7 +34,7 @@ class MeController(
                         MyMembership(
                             it.organizationId,
                             it.organizationName,
-                            MyMembership.Role.valueOf(it.role.name),
+                            MembershipRole.valueOf(it.role.name),
                         )
                     },
                 displayName = me.displayName,
@@ -52,13 +53,13 @@ class MeController(
                         currency = it.currency.currencyCode,
                         businessDayStart = it.businessDayStart.format(CUT_OFF),
                         followed = it.followed,
-                        role = MyVenue.Role.valueOf(it.role.name),
+                        role = MembershipRole.valueOf(it.role.name),
                     )
                 },
             ),
         )
 
     private companion object {
-        val CUT_OFF: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+        val CUT_OFF: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
     }
 }

@@ -20,8 +20,9 @@ import kotlin.test.assertFailsWith
 
 /**
  * The API as an app sees it: Spring HTTP interfaces generated from `docs/api/openapi.yaml`
- * (`openApiGenerateTestClient`) over real HTTP. Responses are read strictly (an unknown or missing
- * required field fails), so a body that drifts from the spec fails the test.
+ * (`openApiGenerateTestClient`) over real HTTP. Responses are read strictly, so a body that drifts from
+ * the spec fails the test: an unknown field fails here, a missing or null required field fails on the
+ * generated model's non-null Kotlin type. A spec field marked `nullable` may be an explicit `null`.
  */
 class ApiClient(
     private val port: Int,
@@ -32,7 +33,7 @@ class ApiClient(
     private val strict =
         mapper
             .rebuild()
-            .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, DeserializationFeature.FAIL_ON_NULL_CREATOR_PROPERTIES)
+            .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
             .build()
 
     val auth: AuthApi = client(null)

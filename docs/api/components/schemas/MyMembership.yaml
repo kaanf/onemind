@@ -10,7 +10,4 @@ properties:
   organizationName:
     type: string
   role:
-    type: string
-    enum:
-      - OWNER
-      - STAFF
+    $ref: ./MembershipRole.yaml

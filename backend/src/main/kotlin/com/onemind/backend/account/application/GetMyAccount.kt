@@ -4,6 +4,7 @@ import com.onemind.backend.account.domain.MembershipRole
 import com.onemind.backend.account.infra.persistence.MyAccountRepository
 import com.onemind.backend.common.security.AuthenticationRequiredException
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.LocalTime
 import java.util.Currency
 import java.util.UUID
@@ -40,6 +41,7 @@ data class MeView(
 class GetMyAccount(
     private val account: MyAccountRepository,
 ) {
+    @Transactional(readOnly = true)
     fun me(userId: UUID): MeView {
         // A valid access token of a user deleted a moment ago (as DELETE /me).
         val profile = account.profile(userId) ?: throw AuthenticationRequiredException()
@@ -55,8 +57,12 @@ class GetMyAccount(
         )
     }
 
-    fun venues(userId: UUID): List<MyVenueView> =
-        account.venuesOf(userId).map {
+    /** A deleted user with a still-valid token is `401`, not an empty list (that would read as "not onboarded"). */
+    @Transactional(readOnly = true)
+    fun venues(userId: UUID): List<MyVenueView> {
+        account.profile(userId) ?: throw AuthenticationRequiredException()
+        return account.venuesOf(userId).map {
             MyVenueView(it.venueId, it.name, it.timeZone, it.currency, it.businessDayStart, it.followed, MembershipRole.valueOf(it.role))
         }
+    }
 }

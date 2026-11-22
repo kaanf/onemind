@@ -1,6 +1,7 @@
 package com.onemind.backend.account
 
 import com.onemind.backend.TestcontainersConfiguration
+import com.onemind.backend.account.api.VenueAccess
 import com.onemind.backend.common.security.AccessTokenIssuer
 import com.onemind.backend.testing.TenancyFixture
 import org.junit.jupiter.api.Test
@@ -36,6 +37,9 @@ class MyAccountApiTests {
     @Autowired
     lateinit var json: JsonMapper
 
+    @Autowired
+    lateinit var venueAccess: VenueAccess
+
     @Test
     fun `my venues are the active venues of my organizations, with followed and role`() {
         val fixture = TenancyFixture(jdbc, accessTokens)
@@ -50,7 +54,7 @@ class MyAccountApiTests {
         assertEquals(listOf(second.toString(), fixture.venueA.toString()), venues.map { it["id"].asString() })
         val (secondDto, venueA) = venues
         assertEquals("Europe/Vienna", secondDto["timeZone"].asString())
-        assertEquals("06:30", secondDto["businessDayStart"].asString())
+        assertEquals("06:30:00", secondDto["businessDayStart"].asString())
         assertEquals("CZK", secondDto["currency"].asString())
         assertEquals(false, secondDto["followed"].asBoolean())
         assertEquals(true, venueA["followed"].asBoolean())
@@ -68,6 +72,28 @@ class MyAccountApiTests {
         assertEquals(listOf(fixture.venueA.toString() to "STAFF"), staff.map { it["id"].asString() to it["role"].asString() })
         assertEquals(listOf(fixture.venueB.toString()), ownerB.map { it["id"].asString() })
         assertTrue(outsider.isEmpty())
+    }
+
+    @Test
+    fun `every listed venue passes the tenancy check, and every venue it refuses is left out`() {
+        val fixture = TenancyFixture(jdbc, accessTokens)
+        val disabled = venue(fixture.organizationA, "Closed venue")
+        fixture.disable(disabled)
+        val pendingDeletion = organization("Leaving")
+        jdbc.update(
+            "insert into account.membership (organization_id, user_id, role) values (?, ?, 'OWNER')",
+            pendingDeletion,
+            fixture.ownerA,
+        )
+        val leavingVenue = venue(pendingDeletion, "Leaving venue")
+        fixture.scheduleDeletion(pendingDeletion)
+        val candidates = listOf(fixture.venueA, fixture.venueB, disabled, leavingVenue)
+
+        for (user in listOf(fixture.ownerA, fixture.staffA, fixture.ownerB, fixture.outsider)) {
+            val listed = get("/api/v1/venues", fixture.token(user))["venues"].toList().map { UUID.fromString(it["id"].asString()) }.toSet()
+            val allowed = candidates.filter { runCatching { venueAccess.requireAccess(user, it) }.isSuccess }.toSet()
+            assertEquals(allowed, listed, "user $user")
+        }
     }
 
     @Test
@@ -110,9 +136,14 @@ class MyAccountApiTests {
         mockMvc.delete("/api/v1/me") { header("Authorization", "Bearer $token") }.andExpect { status { isNoContent() } }
 
         mockMvc.get("/api/v1/me") { header("Authorization", "Bearer $token") }.andExpect { status { isUnauthorized() } }
+        // Not an empty list: the app would read that as "not onboarded".
+        mockMvc.get("/api/v1/venues") { header("Authorization", "Bearer $token") }.andExpect { status { isUnauthorized() } }
         mockMvc.get("/api/v1/me").andExpect { status { isUnauthorized() } }
         mockMvc.get("/api/v1/venues").andExpect { status { isUnauthorized() } }
     }
+
+    private fun organization(name: String): UUID =
+        requireNotNull(jdbc.queryForObject<UUID>("insert into account.organization (name) values (?) returning id", name))
 
     private fun venue(
         organization: UUID,

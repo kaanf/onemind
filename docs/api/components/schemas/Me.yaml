@@ -1,7 +1,7 @@
 type: object
 description: |
   The signed-in user. `displayName` is null when the user hasn't given one (the app shows no invented
-  initials then).
+  initials then). Memberships of organizations scheduled for deletion are left out.
 required:
   - id
   - email

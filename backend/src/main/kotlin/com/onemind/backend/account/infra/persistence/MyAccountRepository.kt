@@ -38,10 +38,7 @@ data class MembershipSummaryRow(
 class MyAccountRepository(
     private val dsl: DSLContext,
 ) {
-    /**
-     * The venues the user may open, by name: the same rule as [VenueAccessRepository.roleAt] (a member of
-     * the organization, venue active, organization not scheduled for deletion).
-     */
+    /** The venues the user may open ([venueOpenTo], the tenancy check's rule), by name. */
     fun venuesOf(userId: UUID): List<MyVenueRow> {
         val v = VENUE
         val o = ORGANIZATION
@@ -56,7 +53,7 @@ class MyAccountRepository(
             .on(m.ORGANIZATION_ID.eq(o.ID))
             .leftJoin(f)
             .on(f.VENUE_ID.eq(v.ID), f.USER_ID.eq(userId))
-            .where(m.USER_ID.eq(userId), v.STATUS.eq(ACTIVE), o.DELETION_DUE_AT.isNull)
+            .where(venueOpenTo(userId))
             .orderBy(v.NAME, v.ID)
             .fetch()
             .toList()
@@ -101,8 +98,4 @@ class MyAccountRepository(
                     requireNotNull(r.get(MEMBERSHIP.ROLE)),
                 )
             }
-
-    private companion object {
-        const val ACTIVE = "ACTIVE"
-    }
 }

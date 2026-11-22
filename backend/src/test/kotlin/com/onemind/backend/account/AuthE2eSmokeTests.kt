@@ -16,6 +16,8 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.springframework.http.HttpStatus
+import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.jdbc.core.queryForObject
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
 import java.time.Instant
@@ -54,6 +56,9 @@ class AuthE2eSmokeTests {
 
     @Autowired
     lateinit var mapper: JsonMapper
+
+    @Autowired
+    lateinit var jdbc: JdbcTemplate
 
     lateinit var api: ApiClient
 
@@ -101,5 +106,22 @@ class AuthE2eSmokeTests {
 
         val refreshed = assertNotNull(api.auth.refreshTokens(RefreshTokenRequest(tokens.refreshToken)).body)
         assertEquals(HttpStatus.NO_CONTENT, api.me(refreshed.accessToken).deleteMe().statusCode)
+    }
+
+    @Test
+    fun `me and my venues decode strictly through the generated client`() {
+        val tokens = api.signIn(email, mail)
+        val me = assertNotNull(api.me(tokens.accessToken).getMe().body)
+        val organization =
+            requireNotNull(jdbc.queryForObject<UUID>("insert into account.organization (name) values ('Smoke') returning id"))
+        jdbc.update("insert into account.membership (organization_id, user_id, role) values (?, ?, 'OWNER')", organization, me.id)
+        jdbc.update("insert into account.venue (organization_id, name, currency) values (?, 'Smoke venue', 'CZK')", organization)
+
+        val venues = assertNotNull(api.me(tokens.accessToken).getMyVenues().body).venues
+        val memberships = assertNotNull(api.me(tokens.accessToken).getMe().body).memberships
+
+        assertEquals(email, me.email)
+        assertEquals(listOf("Smoke venue" to "05:00:00"), venues.map { it.name to it.businessDayStart })
+        assertEquals(listOf("Smoke"), memberships.map { it.organizationName })
     }
 }
