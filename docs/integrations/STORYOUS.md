@@ -117,22 +117,35 @@ Until P15 the only `PosProvider` is `pos/infra/client/mock/MockPosProvider` (own
 ## Sync strategy (updated)
 
 Built so far (`pos/application`, task `pos-sync` every 2 minutes, `RunPosSync`): for every connection
-that isn't `REVOKED`, places → venues on every run (one `merchant` call: a new place becomes a venue
-of the connection's organization through `account/api/VenueRegistry` plus a `pos.venue_link`; a known
-place takes over name, address and state, `DISABLED`/`HIDDEN` → venue `DISABLED`), then menu and
-desks of each active venue at most hourly (`sync_cursor` `MENU`/`DESKS`). Catalog rows are upserted by
-`(venue_id, external_id)`; products and desks the POS stops reporting get `active = false` /
-`removed = true`, never deleted. Each run writes a `sync_job` with its steps; a failure marks the
-connection `ERROR` (`last_error` = exception class, never POS text) or the venue's cursor, and doesn't
-stop other connections or venues. POS calls never run inside a transaction (tested). Without a
-configured provider the run does nothing and logs one warning. Bills follow below.
+that isn't `REVOKED`, places → venues on **every run** (one `merchant` call, cheap), then menu and desks
+of each venue with an active link at most hourly (`sync_cursor` `MENU`/`DESKS`; after a failure also at
+most hourly, so a bad menu isn't refetched every run).
+
+- **Places (pending owner confirmation, orchestrator decision 2026-11-22):** a place first reported
+  active becomes a venue of the connection's organization through `account/api/VenueRegistry` plus a
+  `pos.venue_link`; a place first seen disabled/hidden gets no venue. A known place takes over name and
+  address. A place reported `DISABLED`/`HIDDEN`, or no longer reported, **never disables the venue**:
+  only its link becomes inactive (`venue_link.active`, V008), the sync skips it and the owner keeps
+  reading its history. Reported active again → link active again.
+- **Catalog:** rows upserted by `(venue_id, external_id)`; products and desks the POS stops reporting get
+  `active = false` / `removed = true`, never deleted. A product row that can't be read exactly (e.g. a
+  sub-minor price, which is never rounded) is skipped, its ID logged, and keeps what was stored; the
+  rest of the menu is stored and the step counts as a success.
+- **Failures:** each run writes a `sync_job` with its steps and always finishes it. A places failure
+  marks the connection `ERROR` (`last_error` = exception class, never POS text); a venue failure is a
+  failed step and an error on that venue's cursor only. A revoked connection is never set back to
+  `ACTIVE`/`ERROR`. Nothing stops the other connections or venues.
+- POS calls never run inside a transaction (tested). Without a configured provider the run does nothing
+  and logs one warning.
 
 Assumptions in the catalog mapping, to verify against the real API: product `price` is the price
-with VAT in the merchant currency; `vatRate` is a percentage (`"21"`) and is stored as given.
+with VAT in the merchant currency; `vatRate` is a percentage (`"21"`) and is stored as given;
+**sub-minor menu prices** (more fraction digits than the currency) are not expected; such a product is
+skipped until the owner decides how to treat them.
 
 - **Polling only.** Per place: bills with `modifiedSince` = last seen `_lastModifiedAt`, paging with
-  `nextPage` / `lastBillId`; fetch details for new/changed bills (items). Menu, desks and places
-  refreshed less often (e.g. hourly / daily).
+  `nextPage` / `lastBillId`; fetch details for new/changed bills (items). Menu and desks refreshed
+  hourly; places on every run (one cheap call), see above.
 - Initial import: bills with `from`/`till` windows going back up to the agreed history (90 days in the
   design; the API limit is undocumented).
 - Idempotent upserts keyed by `(provider, externalId)`; bills can change (refunds) after payment.

@@ -59,7 +59,8 @@ class PosConnectionRepository(
             .setNull(c.LAST_ERROR)
             .set(c.LAST_SYNCED_AT, now)
             .set(c.UPDATED_AT, now)
-            .where(c.ID.eq(connectionId))
+            // A revoked connection stays revoked, whatever a sync still running reports.
+            .where(c.ID.eq(connectionId), c.STATUS.ne(REVOKED))
             .execute()
     }
 
@@ -75,7 +76,8 @@ class PosConnectionRepository(
             .set(c.STATUS, ERROR)
             .set(c.LAST_ERROR, error)
             .set(c.UPDATED_AT, now)
-            .where(c.ID.eq(connectionId))
+            // A revoked connection stays revoked, whatever a sync still running reports.
+            .where(c.ID.eq(connectionId), c.STATUS.ne(REVOKED))
             .execute()
     }
 
@@ -89,6 +91,7 @@ class PosConnectionRepository(
 data class VenueLinkRow(
     val venueId: UUID,
     val externalPlaceId: String,
+    val active: Boolean,
 )
 
 @Repository
@@ -97,13 +100,15 @@ class VenueLinkRepository(
 ) {
     fun linked(connectionId: UUID): List<VenueLinkRow> =
         dsl
-            .select(VENUE_LINK.VENUE_ID, VENUE_LINK.EXTERNAL_PLACE_ID)
+            .select(VENUE_LINK.VENUE_ID, VENUE_LINK.EXTERNAL_PLACE_ID, VENUE_LINK.ACTIVE)
             .from(VENUE_LINK)
             .where(VENUE_LINK.CONNECTION_ID.eq(connectionId))
             .fetch()
             // Kotlin's inline map, not jOOQ's RecordMapper: records stay inside this method (R4).
             .toList()
-            .map { r -> VenueLinkRow(r.required(VENUE_LINK.VENUE_ID), r.required(VENUE_LINK.EXTERNAL_PLACE_ID)) }
+            .map { r ->
+                VenueLinkRow(r.required(VENUE_LINK.VENUE_ID), r.required(VENUE_LINK.EXTERNAL_PLACE_ID), r.required(VENUE_LINK.ACTIVE))
+            }
 
     fun insert(
         venueId: UUID,
@@ -117,22 +122,42 @@ class VenueLinkRepository(
             .set(VENUE_LINK.EXTERNAL_PLACE_ID, externalPlaceId)
             .execute()
     }
+
+    fun setActive(
+        venueId: UUID,
+        active: Boolean,
+    ) {
+        dsl
+            .update(VENUE_LINK)
+            .set(VENUE_LINK.ACTIVE, active)
+            .where(VENUE_LINK.VENUE_ID.eq(venueId), VENUE_LINK.ACTIVE.ne(active))
+            .execute()
+    }
 }
+
+/** When a resource last succeeded, and when it last failed if its last attempt failed. */
+data class SyncCursorState(
+    val lastSuccessAt: Instant?,
+    val failedAt: Instant?,
+)
 
 /** Per venue and resource (`BILLS`, `MENU`, `DESKS`): the last success, the last error and a cursor. */
 @Repository
 class SyncCursorRepository(
     private val dsl: DSLContext,
 ) {
-    fun lastSuccess(
+    fun state(
         venueId: UUID,
         resource: String,
-    ): Instant? =
-        dsl
-            .select(SYNC_CURSOR.LAST_SUCCESS_AT)
-            .from(SYNC_CURSOR)
-            .where(SYNC_CURSOR.VENUE_ID.eq(venueId), SYNC_CURSOR.RESOURCE.eq(resource))
-            .fetchOne(SYNC_CURSOR.LAST_SUCCESS_AT)
+    ): SyncCursorState? {
+        val s = SYNC_CURSOR
+        return dsl
+            .select(s.LAST_SUCCESS_AT, s.LAST_ERROR, s.UPDATED_AT)
+            .from(s)
+            .where(s.VENUE_ID.eq(venueId), s.RESOURCE.eq(resource))
+            .fetchOne()
+            ?.let { r -> SyncCursorState(r.get(s.LAST_SUCCESS_AT), r.get(s.UPDATED_AT)?.takeIf { r.get(s.LAST_ERROR) != null }) }
+    }
 
     fun succeeded(
         venueId: UUID,
@@ -166,6 +191,7 @@ class SyncCursorRepository(
             .set(s.VENUE_ID, venueId)
             .set(s.RESOURCE, resource)
             .set(s.LAST_ERROR, error)
+            .set(s.UPDATED_AT, now)
             .onConflict(s.VENUE_ID, s.RESOURCE)
             .doUpdate()
             .set(s.LAST_ERROR, excluded(s.LAST_ERROR))

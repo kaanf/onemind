@@ -3,16 +3,8 @@ package com.onemind.backend.pos
 import com.onemind.backend.TestcontainersConfiguration
 import com.onemind.backend.account.api.VenueRegistry
 import com.onemind.backend.pos.application.RunPosSync
-import com.onemind.backend.pos.infra.client.PosBillDetail
-import com.onemind.backend.pos.infra.client.PosBillPage
-import com.onemind.backend.pos.infra.client.PosBillQuery
-import com.onemind.backend.pos.infra.client.PosDeskView
-import com.onemind.backend.pos.infra.client.PosMenu
-import com.onemind.backend.pos.infra.client.PosMerchant
-import com.onemind.backend.pos.infra.client.PosPlaceRef
-import com.onemind.backend.pos.infra.client.PosPlaceState
-import com.onemind.backend.pos.infra.client.PosProvider
 import com.onemind.backend.pos.infra.client.mock.MockPosProvider
+import com.onemind.backend.pos.infra.persistence.PosConnectionRepository
 import com.onemind.backend.testing.MutableClock
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -24,7 +16,6 @@ import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.queryForObject
-import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalTime
@@ -38,84 +29,6 @@ import kotlin.test.assertTrue
 @Import(TestcontainersConfiguration::class, PosSyncCatalogTests.Config::class)
 @SpringBootTest(properties = ["db-scheduler.enabled=false", "onemind.pos.provider=mock"])
 class PosSyncCatalogTests {
-    /**
-     * The demo POS under any merchant ID starting with [PREFIX] (so every test has its own connection),
-     * with knobs to change what it reports, and a check that no POS call runs inside a transaction.
-     */
-    class TestPosProvider(
-        private val mock: MockPosProvider,
-    ) : PosProvider {
-        val callsInTransaction = mutableListOf<String>()
-        val failing = mutableSetOf<String>()
-        var droppedProduct: String? = null
-        var droppedDesk: String? = null
-        var renamedPlace: Pair<String, String>? = null
-        var disabledPlace: String? = null
-
-        private fun call(
-            what: String,
-            merchantId: String,
-        ) {
-            if (TransactionSynchronizationManager.isActualTransactionActive()) callsInTransaction += what
-            check(merchantId !in failing) { "POS unavailable" }
-        }
-
-        private fun PosPlaceRef.demo() = copy(merchantId = "demo-merchant")
-
-        override fun merchant(merchantId: String): PosMerchant? {
-            call("merchant", merchantId)
-            if (!merchantId.startsWith(PREFIX)) return null
-            val merchant = mock.merchant("demo-merchant") ?: return null
-            return merchant.copy(
-                merchantId = merchantId,
-                places =
-                    merchant.places.map { place ->
-                        place.copy(
-                            name = renamedPlace?.takeIf { it.first == place.placeId }?.second ?: place.name,
-                            state = if (place.placeId == disabledPlace) PosPlaceState.DISABLED else place.state,
-                        )
-                    },
-            )
-        }
-
-        override fun bills(
-            place: PosPlaceRef,
-            query: PosBillQuery,
-        ): PosBillPage {
-            call("bills", place.merchantId)
-            return mock.bills(place.demo(), query)
-        }
-
-        override fun billDetail(
-            place: PosPlaceRef,
-            billId: String,
-        ): PosBillDetail? {
-            call("billDetail", place.merchantId)
-            return mock.billDetail(place.demo(), billId)
-        }
-
-        override fun deskView(place: PosPlaceRef): PosDeskView {
-            call("deskView", place.merchantId)
-            val view = mock.deskView(place.demo())
-            return view.copy(desks = view.desks.filterNot { it.deskId == droppedDesk })
-        }
-
-        override fun menu(place: PosPlaceRef): PosMenu {
-            call("menu", place.merchantId)
-            val menu = mock.menu(place.demo())
-            return menu.copy(products = menu.products.filterNot { it.productId == droppedProduct })
-        }
-
-        fun reset() {
-            callsInTransaction.clear()
-            failing.clear()
-            droppedProduct = null
-            droppedDesk = null
-            renamedPlace = null
-            disabledPlace = null
-        }
-    }
-
     @TestConfiguration(proxyBeanMethods = false)
     class Config {
         @Bean
@@ -142,6 +55,9 @@ class PosSyncCatalogTests {
     @Autowired
     lateinit var venueRegistry: VenueRegistry
 
+    @Autowired
+    lateinit var connections: PosConnectionRepository
+
     @AfterEach
     fun noPosCallInsideATransaction() {
         assertEquals(emptyList(), pos.callsInTransaction)
@@ -149,16 +65,14 @@ class PosSyncCatalogTests {
     }
 
     @Test
-    fun `the first run creates a venue per place, linked, with menu and desks of the active ones`() {
+    fun `the first run creates a venue per active place, linked, with its menu and desks`() {
         val connection = connection()
 
         sync.run()
 
         val venues = venues(connection)
-        assertEquals(3, venues.size)
-        assertTrue(venues.values.all { it.name.startsWith("Demo") && it.currency == "CZK" })
-        assertEquals("DISABLED", venues.getValue("demo-oldtown").status)
-        assertEquals("ACTIVE", venues.getValue("demo-letna").status)
+        assertEquals(setOf("demo-letna", "demo-karlin"), venues.keys, "a place first seen disabled gets no venue")
+        assertTrue(venues.values.all { it.name.startsWith("Demo") && it.currency == "CZK" && it.status == "ACTIVE" })
         assertEquals(
             "ACTIVE",
             jdbc.queryForObject<String>("select status from pos.pos_connection where id = ?", connection.id),
@@ -185,7 +99,6 @@ class PosSyncCatalogTests {
                 letna,
             ),
         )
-        assertEquals(0, count("select count(*) from pos.product where venue_id = ?", venues.getValue("demo-oldtown").id))
 
         val (status, steps) = lastJob(connection)
         assertEquals("SUCCEEDED", status)
@@ -201,7 +114,7 @@ class PosSyncCatalogTests {
         sync.run()
 
         assertEquals(before, venues(connection))
-        assertEquals(3, count("select count(*) from pos.venue_link where connection_id = ?", connection.id))
+        assertEquals(2, count("select count(*) from pos.venue_link where connection_id = ?", connection.id))
         assertTrue("menu:" !in lastJob(connection).second)
 
         clock.advance(Duration.ofMinutes(61))
@@ -246,18 +159,111 @@ class PosSyncCatalogTests {
     }
 
     @Test
-    fun `a renamed or disabled place updates its venue`() {
+    fun `a renamed place renames its venue`() {
         val connection = connection()
         sync.run()
         pos.renamedPlace = "demo-letna" to "Demo · Bar Letná Garden"
+
+        sync.run()
+
+        assertEquals("Demo · Bar Letná Garden", venues(connection).getValue("demo-letna").name)
+    }
+
+    @Test
+    fun `a disabled or vanished place stops syncing but keeps its venue, and comes back when reported again`() {
+        val connection = connection()
+        sync.run()
         pos.disabledPlace = "demo-karlin"
+        pos.hiddenPlace = "demo-letna"
+        pos.placeCalls.clear()
+        clock.advance(Duration.ofMinutes(61))
 
         sync.run()
 
         val venues = venues(connection)
-        assertEquals("Demo · Bar Letná Garden", venues.getValue("demo-letna").name)
-        assertEquals("DISABLED", venues.getValue("demo-karlin").status)
-        assertEquals(3, venues.size)
+        assertEquals(setOf("demo-letna", "demo-karlin"), venues.keys)
+        assertTrue(venues.values.all { it.status == "ACTIVE" }, "the venue and its history stay readable")
+        assertEquals(0, count("select count(*) from pos.venue_link where connection_id = ? and active", connection.id))
+        assertEquals(emptyList(), pos.placeCalls, "no menu, desk or bill calls for inactive links")
+        assertEquals("ACTIVE", jdbc.queryForObject<String>("select status from pos.pos_connection where id = ?", connection.id))
+
+        pos.disabledPlace = null
+        pos.hiddenPlace = null
+        sync.run()
+        assertEquals(2, count("select count(*) from pos.venue_link where connection_id = ? and active", connection.id))
+        assertTrue(pos.placeCalls.any { it == "menu:demo-karlin" })
+    }
+
+    @Test
+    fun `a failing venue is a failed step, the connection and the other venues go on`() {
+        val connection = connection()
+        val next = connection()
+        pos.failingMenuPlace = "demo-karlin"
+
+        sync.run()
+
+        assertEquals("ACTIVE", jdbc.queryForObject<String>("select status from pos.pos_connection where id = ?", connection.id))
+        val (status, steps) = lastJob(connection)
+        assertEquals("FAILED", status)
+        assertTrue("\"IllegalStateException\"" in steps, steps)
+        val karlin = venues(connection).getValue("demo-karlin").id
+        assertEquals(
+            "IllegalStateException",
+            jdbc.queryForObject<String>("select last_error from pos.sync_cursor where venue_id = ? and resource = 'MENU'", karlin),
+        )
+        assertEquals(24, count("select count(*) from pos.product where venue_id = ?", venues(connection).getValue("demo-letna").id))
+        // The next connection (same demo menus, so its Karlín fails too) still syncs.
+        assertEquals(24, count("select count(*) from pos.product where venue_id = ?", venues(next).getValue("demo-letna").id))
+        assertEquals(
+            0,
+            count("select count(*) from pos.sync_job where connection_id in (?, ?) and status = 'RUNNING'", connection.id, next.id),
+        )
+    }
+
+    @Test
+    fun `a failed menu waits an hour before it is fetched again`() {
+        connection()
+        pos.failingMenuPlace = "demo-karlin"
+        sync.run()
+        pos.placeCalls.clear()
+
+        sync.run()
+        assertTrue("menu:demo-karlin" !in pos.placeCalls)
+
+        clock.advance(Duration.ofMinutes(61))
+        sync.run()
+        assertTrue("menu:demo-karlin" in pos.placeCalls)
+    }
+
+    @Test
+    fun `a product with a sub-minor price is skipped, never rounded, and the rest of the menu is stored`() {
+        val connection = connection()
+        pos.subMinorPriceProduct = "demo-product-2"
+
+        sync.run()
+
+        val letna = venues(connection).getValue("demo-letna").id
+        assertEquals(0, count("select count(*) from pos.product where venue_id = ? and external_id = 'demo-product-2'", letna))
+        assertEquals(23, count("select count(*) from pos.product where venue_id = ?", letna))
+        assertEquals(
+            null,
+            jdbc.queryForObject<String>("select last_error from pos.sync_cursor where venue_id = ? and resource = 'MENU'", letna),
+        )
+        assertEquals(
+            1,
+            count("select count(*) from pos.sync_cursor where venue_id = ? and resource = 'MENU' and last_success_at is not null", letna),
+        )
+    }
+
+    @Test
+    fun `a revoked connection stays revoked whatever a running sync reports`() {
+        val connection = connection()
+        jdbc.update("update pos.pos_connection set status = 'REVOKED' where id = ?", connection.id)
+
+        connections.markSynced(connection.id, clock.now)
+        connections.markFailed(connection.id, "IllegalStateException", clock.now)
+
+        assertEquals("REVOKED", jdbc.queryForObject<String>("select status from pos.pos_connection where id = ?", connection.id))
     }
 
     @Test
@@ -274,7 +280,7 @@ class PosSyncCatalogTests {
             jdbc.queryForObject<String>("select last_error from pos.pos_connection where id = ?", broken.id),
         )
         assertEquals("FAILED", lastJob(broken).first)
-        assertEquals(3, venues(healthy).size)
+        assertEquals(2, venues(healthy).size)
 
         pos.failing.clear()
         sync.run()
@@ -318,7 +324,7 @@ class PosSyncCatalogTests {
         val currency: String,
     )
 
-    private fun connection(merchantId: String = "$PREFIX${UUID.randomUUID()}"): Connection {
+    private fun connection(merchantId: String = "${TestPosProvider.PREFIX}${UUID.randomUUID()}"): Connection {
         val organization = requireNotNull(jdbc.queryForObject<UUID>("insert into account.organization (name) values ('Demo') returning id"))
         val id =
             requireNotNull(
@@ -359,8 +365,4 @@ class PosSyncCatalogTests {
         sql: String,
         vararg args: Any,
     ): Int = requireNotNull(jdbc.queryForObject<Int>(sql, *args))
-
-    private companion object {
-        const val PREFIX = "test-demo-"
-    }
 }

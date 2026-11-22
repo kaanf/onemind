@@ -35,12 +35,14 @@ class VenueRegistry(
         currency: Currency,
     ): UUID = registerPosVenues.register(organizationId, details.name, currency, details.addressLine, details.city)
 
-    /** Takes over the place's name and address; `false` if the venue doesn't exist (any more). */
+    /**
+     * Takes over the place's name and address; `false` if the venue doesn't exist (any more). Never
+     * changes the venue's status: a place the POS stops reporting keeps its venue and history.
+     */
     fun update(
         venueId: UUID,
         details: PosVenueDetails,
-        active: Boolean,
-    ): Boolean = registerPosVenues.update(venueId, details.name, details.addressLine, details.city, active)
+    ): Boolean = registerPosVenues.update(venueId, details.name, details.addressLine, details.city)
 
     /** The venue's business-day settings, or `null` if it doesn't exist. */
     fun businessDay(venueId: UUID): VenueBusinessDay? =

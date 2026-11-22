@@ -38,13 +38,12 @@ class VenueRegistryRepository(
             .fetchOne(VENUE.ID)
             ?: error("insert returned no id")
 
-    /** Name, address and status; `false` if the venue doesn't exist. Bumps `version` only on a change. */
+    /** Name and address; `false` if the venue doesn't exist. Bumps `version` only on a change. */
     fun update(
         venueId: UUID,
         name: String,
         addressLine: String?,
         city: String?,
-        status: String,
         now: Instant,
     ): Boolean {
         val v = VENUE
@@ -53,14 +52,12 @@ class VenueRegistryRepository(
                 .isDistinctFrom(name)
                 .or(v.ADDRESS_LINE.isDistinctFrom(addressLine))
                 .or(v.CITY.isDistinctFrom(city))
-                .or(v.STATUS.isDistinctFrom(status))
         val updated =
             dsl
                 .update(v)
                 .set(v.NAME, name)
                 .set(v.ADDRESS_LINE, addressLine)
                 .set(v.CITY, city)
-                .set(v.STATUS, status)
                 .set(v.VERSION, v.VERSION.plus(1))
                 .set(v.UPDATED_AT, now)
                 .where(v.ID.eq(venueId), changed)

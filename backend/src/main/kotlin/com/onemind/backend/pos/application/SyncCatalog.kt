@@ -18,9 +18,10 @@ import java.time.Duration
 import java.util.Currency
 
 /**
- * Menu and desks of an active venue, at most once per [INTERVAL] each (STORYOUS.md, sync strategy).
- * The POS call runs before the transaction; a failure is recorded on the venue's `sync_cursor` and
- * doesn't stop the other resource or venue.
+ * Menu and desks of an active venue, at most once per [INTERVAL] each, also after a failure (STORYOUS.md,
+ * sync strategy). The POS call runs before the transaction; a failure is recorded on the venue's
+ * `sync_cursor` and doesn't stop the other resource or venue. A product row that can't be read exactly
+ * is skipped (its ID logged) and keeps what was stored before.
  */
 @Service
 class SyncCatalog(
@@ -41,20 +42,28 @@ class SyncCatalog(
             step(venue, MENU) {
                 val menu = provider.menu(place)
                 val categories = menu.categories.map { CatalogCategory(it.categoryId, it.name, it.parentId) }
+                val skipped = mutableListOf<String>()
                 val products =
-                    menu.products.map {
-                        CatalogProduct(
-                            externalId = it.productId,
-                            categoryExternalId = it.categoryId,
-                            name = it.name,
-                            measure = it.measure,
-                            ean = it.ean,
-                            vatRate = it.vatRate?.toBigDecimal(),
-                            priceMinor = it.price?.let { price -> PosMoney.minorUnits(price, currency) },
-                            active = it.enabled,
-                        )
+                    menu.products.mapNotNull { product ->
+                        // One bad row (e.g. a sub-minor price, which is never rounded) must not fail the menu.
+                        try {
+                            CatalogProduct(
+                                externalId = product.productId,
+                                categoryExternalId = product.categoryId,
+                                name = product.name,
+                                measure = product.measure,
+                                ean = product.ean,
+                                vatRate = product.vatRate?.trim()?.toBigDecimal(),
+                                priceMinor = product.price?.let { price -> PosMoney.minorUnits(price, currency) },
+                                active = product.enabled,
+                            )
+                        } catch (e: IllegalArgumentException) {
+                            skipped += product.productId
+                            null
+                        }
                     }
-                transactions.executeWithoutResult { catalog.replaceMenu(venue.venueId, categories, products, clock.instant()) }
+                if (skipped.isNotEmpty()) log.warn("POS menu rows skipped: venueId={}, productIds={}", venue.venueId, skipped)
+                transactions.executeWithoutResult { catalog.replaceMenu(venue.venueId, categories, products, skipped, clock.instant()) }
             },
             step(venue, DESKS) {
                 val view = provider.deskView(place)
@@ -71,8 +80,9 @@ class SyncCatalog(
         sync: () -> Unit,
     ): SyncStepRow? {
         val now = clock.instant()
-        val last = cursors.lastSuccess(venue.venueId, resource)
-        if (last != null && last.isAfter(now - INTERVAL)) return null
+        val state = cursors.state(venue.venueId, resource)
+        // Due an hour after the last success, and also an hour after a failure (no refetch every run).
+        if (listOfNotNull(state?.lastSuccessAt, state?.failedAt).any { it.isAfter(now - INTERVAL) }) return null
         val name = "${resource.lowercase()}:${venue.venueId}"
         return try {
             sync()

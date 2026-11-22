@@ -38,37 +38,62 @@ class RunPosSync(
             if (!warnedNoProvider.getAndSet(true)) log.warn("No POS provider configured (onemind.pos.provider): POS sync is skipped")
             return
         }
-        connections.syncable().forEach { sync(it, provider) }
+        connections.syncable().forEach { connection ->
+            try {
+                sync(connection, provider)
+            } catch (e: RuntimeException) {
+                log.error("POS sync of a connection failed: connectionId={}, error={}", connection.id, e.javaClass.simpleName, e)
+            }
+        }
     }
 
+    /**
+     * Places, then every active venue, each venue on its own: a venue that fails is a failed step (and an
+     * error on its cursor), not a failed connection. The job is always finished, whatever is thrown.
+     */
     private fun sync(
         connection: PosConnectionRow,
         provider: PosProvider,
     ) {
         val job = syncJobs.start(connection.id, INCREMENTAL, clock.instant())
         val steps = mutableListOf<SyncStepRow>()
+        var placesError: String? = PLACES_NOT_RUN
         try {
-            val places = syncPlaces.run(connection, provider)
-            steps += SyncStepRow(PLACES, SyncJobRepository.SUCCEEDED)
-            places.venues.filter { it.active }.forEach { venue ->
-                steps += syncCatalog.runIfDue(venue, PosPlaceRef(connection.externalMerchantId, venue.placeId), places.currency, provider)
+            val places =
+                try {
+                    syncPlaces.run(connection, provider).also { placesError = null }
+                } catch (e: RuntimeException) {
+                    placesError = e.javaClass.simpleName
+                    log.warn("POS places sync failed: connectionId={}, error={}", connection.id, placesError, e)
+                    null
+                }
+            steps += SyncStepRow(PLACES, if (places != null) SyncJobRepository.SUCCEEDED else SyncJobRepository.FAILED, placesError)
+            places?.venues?.filter { it.active }?.forEach { venue ->
+                steps +=
+                    try {
+                        syncCatalog.runIfDue(venue, PosPlaceRef(connection.externalMerchantId, venue.placeId), places.currency, provider)
+                    } catch (e: RuntimeException) {
+                        val error = e.javaClass.simpleName
+                        log.warn("POS venue sync failed: venueId={}, error={}", venue.venueId, error, e)
+                        listOf(SyncStepRow("venue:${venue.venueId}", SyncJobRepository.FAILED, error))
+                    }
             }
-        } catch (e: RuntimeException) {
-            val error = e.javaClass.simpleName
-            log.warn("POS places sync failed: connectionId={}, error={}", connection.id, error, e)
-            steps += SyncStepRow(PLACES, SyncJobRepository.FAILED, error)
-        }
-        syncJobs.finish(job, steps, clock.instant())
-        val failed = steps.firstOrNull { it.status != SyncJobRepository.SUCCEEDED }
-        if (failed == null) {
-            connections.markSynced(connection.id, clock.instant())
-        } else {
-            connections.markFailed(connection.id, failed.error ?: failed.name, clock.instant())
+        } finally {
+            syncJobs.finish(job, steps.ifEmpty { listOf(SyncStepRow(PLACES, SyncJobRepository.FAILED, placesError)) }, clock.instant())
+            val error = placesError
+            if (error ==
+                null
+            ) {
+                connections.markSynced(connection.id, clock.instant())
+            } else {
+                connections.markFailed(connection.id, error, clock.instant())
+            }
         }
     }
 
     private companion object {
         const val INCREMENTAL = "INCREMENTAL"
         const val PLACES = "places"
+        const val PLACES_NOT_RUN = "NotRun"
     }
 }

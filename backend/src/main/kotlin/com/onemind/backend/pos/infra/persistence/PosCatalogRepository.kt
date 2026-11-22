@@ -18,7 +18,8 @@ import java.util.UUID
 
 /**
  * Menu and desks of a venue, upserted by `(venue_id, external_id)`. Rows the POS no longer reports are
- * flagged (`active = false`, `removed = true`), never deleted: bills point at them.
+ * flagged (`active = false`, `removed = true`), never deleted: bills point at them. Products the sync
+ * skipped (unreadable row) keep their stored state.
  */
 @Repository
 class PosCatalogRepository(
@@ -28,6 +29,7 @@ class PosCatalogRepository(
         venueId: UUID,
         categories: List<CatalogCategory>,
         products: List<CatalogProduct>,
+        skippedProductIds: Collection<String>,
         now: Instant,
     ) {
         val c = CATEGORY
@@ -81,7 +83,7 @@ class PosCatalogRepository(
             .update(p)
             .set(p.ACTIVE, false)
             .set(p.UPDATED_AT, now)
-            .where(p.VENUE_ID.eq(venueId), p.ACTIVE.isTrue, p.EXTERNAL_ID.notIn(products.map { it.externalId }))
+            .where(p.VENUE_ID.eq(venueId), p.ACTIVE.isTrue, p.EXTERNAL_ID.notIn(products.map { it.externalId } + skippedProductIds))
             .execute()
     }
 

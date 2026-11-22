@@ -33,20 +33,14 @@ class RegisterPosVenues(
         city: String?,
     ): UUID = venues.insert(organizationId, name, currency, addressLine, city)
 
-    /** Takes over the POS name, address and state; `false` if the venue doesn't exist. */
+    /** Takes over the POS name and address; `false` if the venue doesn't exist. The status stays as it is. */
     fun update(
         venueId: UUID,
         name: String,
         addressLine: String?,
         city: String?,
-        active: Boolean,
-    ): Boolean = venues.update(venueId, name, addressLine, city, if (active) ACTIVE else DISABLED, clock.instant())
+    ): Boolean = venues.update(venueId, name, addressLine, city, clock.instant())
 
     fun businessDay(venueId: UUID): VenueBusinessDaySettings? =
         venues.businessDay(venueId)?.let { VenueBusinessDaySettings(ZoneId.of(it.timeZone), it.businessDayStart) }
-
-    private companion object {
-        const val ACTIVE = "ACTIVE"
-        const val DISABLED = "DISABLED"
-    }
 }
