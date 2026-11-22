@@ -5,6 +5,7 @@ import com.onemind.backend.pos.domain.SyncedPerson
 import com.onemind.db.pos.tables.references.BILL
 import com.onemind.db.pos.tables.references.BILL_ITEM
 import com.onemind.db.pos.tables.references.BILL_ITEM_DISCOUNT
+import com.onemind.db.pos.tables.references.BILL_QUARANTINE
 import com.onemind.db.pos.tables.references.DESK
 import com.onemind.db.pos.tables.references.PAYMENT
 import com.onemind.db.pos.tables.references.PRODUCT
@@ -14,11 +15,18 @@ import org.jooq.impl.DSL.excluded
 import org.jooq.impl.DSL.field
 import org.jooq.impl.DSL.select
 import org.springframework.stereotype.Repository
+import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 
+data class StoredBillRow(
+    val externalModifiedAt: Instant,
+    val businessDay: LocalDate,
+)
+
 /**
- * Paid bills of a venue, upserted by `(venue_id, external_id)`. A bill whose POS modification time
+ * Paid bills of a venue, upserted by `(venue_id, external_id)`, and the ones that couldn't be read. A bill whose POS modification time
  * hasn't changed is left alone; a changed one gets its items, discounts and payments replaced (Storyous
  * items have no stable ID, V003).
  */
@@ -26,18 +34,22 @@ import java.util.UUID
 class PosBillRepository(
     private val dsl: DSLContext,
 ) {
-    /** The stored POS modification time per external bill ID, for the given IDs. */
-    fun modifiedAt(
+    /** The stored POS modification time and business day per external bill ID, for the given IDs. */
+    fun stored(
         venueId: UUID,
         externalIds: Collection<String>,
-    ): Map<String, Instant> =
+    ): Map<String, StoredBillRow> =
         dsl
-            .select(BILL.EXTERNAL_ID, BILL.EXTERNAL_MODIFIED_AT)
+            .select(BILL.EXTERNAL_ID, BILL.EXTERNAL_MODIFIED_AT, BILL.BUSINESS_DAY)
             .from(BILL)
             .where(BILL.VENUE_ID.eq(venueId), BILL.EXTERNAL_ID.`in`(externalIds))
             .fetch()
+            // Kotlin's inline map, not jOOQ's RecordMapper: records stay inside this method (R4).
             .toList()
-            .associate { r -> requireNotNull(r.get(BILL.EXTERNAL_ID)) to requireNotNull(r.get(BILL.EXTERNAL_MODIFIED_AT)) }
+            .associate { r ->
+                requireNotNull(r.get(BILL.EXTERNAL_ID)) to
+                    StoredBillRow(requireNotNull(r.get(BILL.EXTERNAL_MODIFIED_AT)), requireNotNull(r.get(BILL.BUSINESS_DAY)))
+            }
 
     /** Staff as the POS names them on bills, per connection; returns their row IDs by external ID. */
     fun upsertStaff(
@@ -97,6 +109,7 @@ class PosBillRepository(
                 .set(b.REFUNDED, bill.refunded)
                 .set(b.DELETED, bill.deleted)
                 .set(b.DESK_ID, deskId)
+                .set(b.EXTERNAL_DESK_ID, bill.deskExternalId)
                 .set(b.CREATED_BY_STAFF_ID, bill.createdBy?.let { staff[it.externalId] })
                 .set(b.PAID_BY_STAFF_ID, bill.paidBy?.let { staff[it.externalId] })
                 .set(b.GUEST_COUNT, bill.guestCount)
@@ -117,6 +130,7 @@ class PosBillRepository(
                 .set(b.REFUNDED, excluded(b.REFUNDED))
                 .set(b.DELETED, excluded(b.DELETED))
                 .set(b.DESK_ID, excluded(b.DESK_ID))
+                .set(b.EXTERNAL_DESK_ID, excluded(b.EXTERNAL_DESK_ID))
                 .set(b.CREATED_BY_STAFF_ID, excluded(b.CREATED_BY_STAFF_ID))
                 .set(b.PAID_BY_STAFF_ID, excluded(b.PAID_BY_STAFF_ID))
                 .set(b.GUEST_COUNT, excluded(b.GUEST_COUNT))
@@ -129,6 +143,65 @@ class PosBillRepository(
         replaceLines(billId, venueId, bill)
         return true
     }
+
+    // Quarantine (V009): bills the sync couldn't read, retried by later runs; their count backs a
+    // "some bills couldn't be read" note (rule 2).
+
+    /** Records a failed read of [externalId]; counts attempts. [reason] is a short code. */
+    fun quarantine(
+        venueId: UUID,
+        externalId: String,
+        reason: String,
+        now: Instant,
+    ) {
+        val q = BILL_QUARANTINE
+        dsl
+            .insertInto(q)
+            .set(q.VENUE_ID, venueId)
+            .set(q.EXTERNAL_ID, externalId)
+            .set(q.REASON, reason)
+            .set(q.FIRST_SEEN_AT, now)
+            .set(q.LAST_ATTEMPT_AT, now)
+            .onConflict(q.VENUE_ID, q.EXTERNAL_ID)
+            .doUpdate()
+            .set(q.REASON, reason)
+            .set(q.LAST_ATTEMPT_AT, now)
+            .set(q.ATTEMPTS, q.ATTEMPTS.plus(1))
+            .execute()
+    }
+
+    fun releaseQuarantine(
+        venueId: UUID,
+        externalIds: Collection<String>,
+    ) {
+        if (externalIds.isEmpty()) return
+        dsl.deleteFrom(BILL_QUARANTINE).where(BILL_QUARANTINE.VENUE_ID.eq(venueId), BILL_QUARANTINE.EXTERNAL_ID.`in`(externalIds)).execute()
+    }
+
+    /**
+     * Up to [limit] bills to retry now, oldest attempt first: every run for the first [eagerAttempts]
+     * attempts, then once per [backoff].
+     */
+    fun quarantineDueForRetry(
+        venueId: UUID,
+        now: Instant,
+        eagerAttempts: Int,
+        backoff: Duration,
+        limit: Int,
+    ): List<String> {
+        val q = BILL_QUARANTINE
+        return dsl
+            .select(q.EXTERNAL_ID)
+            .from(q)
+            .where(q.VENUE_ID.eq(venueId), q.ATTEMPTS.lt(eagerAttempts).or(q.LAST_ATTEMPT_AT.le(now - backoff)))
+            .orderBy(q.LAST_ATTEMPT_AT)
+            .limit(limit)
+            .fetch(q.EXTERNAL_ID)
+            .filterNotNull()
+    }
+
+    /** How many bills of [venueId] couldn't be read, so dashboards can say their figures miss them. */
+    fun quarantineCount(venueId: UUID): Int = dsl.fetchCount(BILL_QUARANTINE, BILL_QUARANTINE.VENUE_ID.eq(venueId))
 
     private fun replaceLines(
         billId: UUID,

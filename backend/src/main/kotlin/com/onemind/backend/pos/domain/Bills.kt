@@ -77,17 +77,42 @@ enum class PaymentKind {
     ;
 
     companion object {
-        /** From a raw POS payment method; the Storyous values are to be verified (STORYOUS.md, assumptions). */
+        /**
+         * From a raw POS payment method, English or Czech ("karta", "hotovost"); the Storyous values are
+         * to be verified (STORYOUS.md, assumptions). Anything else is [OTHER], the raw value is kept.
+         */
         fun of(raw: String): PaymentKind {
             val value = raw.trim().lowercase()
             return when {
-                "card" in value -> CARD
-                "cash" in value -> CASH
+                "card" in value || "kart" in value -> CARD
+                "cash" in value || "hotovost" in value -> CASH
                 else -> OTHER
             }
         }
     }
 }
+
+/** Why a bill was quarantined (`pos.bill_quarantine.reason`) instead of stored. */
+enum class QuarantineReason {
+    /** The POS listed the bill but returned no detail for it. */
+    DETAIL_MISSING,
+
+    /** A money value or quantity that isn't a number. */
+    BAD_AMOUNT,
+
+    /** A money value with more fraction digits than the currency: never rounded (rule 5). */
+    SUB_MINOR_PRICE,
+    BAD_VAT_RATE,
+    BAD_CURRENCY,
+
+    /** A discount with neither an absolute amount nor a percentage of an original price: never 0 (rule 2). */
+    DISCOUNT_AMOUNT_MISSING,
+}
+
+/** A POS bill that can't be stored exactly; it goes to quarantine with [reason]. */
+class UnreadableBillException(
+    val reason: QuarantineReason,
+) : RuntimeException("Unreadable POS bill: $reason")
 
 /**
  * Which business day a bill belongs to. **Open question M1** (`docs/OPEN_QUESTIONS.md`): by close time

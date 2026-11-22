@@ -8,6 +8,7 @@ import com.onemind.backend.pos.infra.client.PosBill
 import com.onemind.backend.pos.infra.client.PosBillQuery
 import com.onemind.backend.pos.infra.client.PosPlaceRef
 import com.onemind.backend.pos.infra.client.mock.MockPosProvider
+import com.onemind.backend.pos.infra.persistence.PosBillRepository
 import com.onemind.backend.testing.MutableClock
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -34,7 +35,14 @@ import kotlin.test.assertTrue
  * autumn DST night, resumable; then `modifiedSince` with deleted bills; `BillsSynced` only for writes.
  */
 @Import(TestcontainersConfiguration::class, PosSyncBillsTests.Config::class)
-@SpringBootTest(properties = ["db-scheduler.enabled=false", "onemind.pos.provider=mock", "onemind.pos.sync.initial-days=$DAYS"])
+@SpringBootTest(
+    properties = [
+        "db-scheduler.enabled=false",
+        "onemind.pos.provider=mock",
+        "onemind.pos.sync.initial-days=$DAYS",
+        "onemind.pos.sync.initial-days-per-run=3",
+    ],
+)
 @RecordApplicationEvents
 class PosSyncBillsTests {
     @TestConfiguration(proxyBeanMethods = false)
@@ -66,6 +74,9 @@ class PosSyncBillsTests {
     @Autowired
     lateinit var events: ApplicationEvents
 
+    @Autowired
+    lateinit var bills: PosBillRepository
+
     private val start = Instant.parse("2026-10-30T21:00:00Z")
     private val prague = ZoneId.of("Europe/Prague")
 
@@ -80,7 +91,7 @@ class PosSyncBillsTests {
     fun `the initial import brings every paid bill of the last days, deleted ones too, with lines and staff`() {
         val connection = connection()
 
-        sync.run()
+        importAll(connection)
 
         val venue = venue(connection, "demo-letna")
         val expected = expectedBills()
@@ -127,7 +138,7 @@ class PosSyncBillsTests {
     fun `business days follow the payment time and the venue cut-off, across midnight and the DST night`() {
         val connection = connection()
 
-        sync.run()
+        importAll(connection)
 
         val venue = venue(connection, "demo-letna")
         val wrongDay =
@@ -152,19 +163,24 @@ class PosSyncBillsTests {
     @Test
     fun `an interrupted import resumes at the day it stopped, without duplicates`() {
         val connection = connection()
-        val stopAt = today().minusDays(3)
+        // Day 3 of the 3 the first run may import.
+        val stopAt = today().minusDays(DAYS.toLong() - 2)
         pos.failDetailsFrom = stopAt
 
         sync.run()
 
         val venue = venue(connection, "demo-letna")
-        assertEquals("ERROR", jdbc.queryForObject<String>("select status from pos.pos_connection where id = ?", connection))
+        assertEquals("ACTIVE", jdbc.queryForObject<String>("select status from pos.pos_connection where id = ?", connection))
+        assertEquals(
+            "IllegalStateException",
+            jdbc.queryForObject<String>("select last_error from pos.sync_cursor where venue_id = ? and resource = 'BILLS'", venue),
+        )
         assertTrue(cursor(venue).startsWith("INITIAL|$stopAt|"), cursor(venue))
         assertEquals(0, count("select count(*) from pos.bill where venue_id = ? and business_day >= ?", venue, stopAt))
         assertTrue(count("select count(*) from pos.bill where venue_id = ?", venue) > 0)
 
         pos.failDetailsFrom = null
-        sync.run()
+        importAll(connection)
 
         assertEquals(expectedBills().size, count("select count(*) from pos.bill where venue_id = ?", venue))
         assertTrue(cursor(venue).startsWith("SINCE|"), cursor(venue))
@@ -174,7 +190,7 @@ class PosSyncBillsTests {
     @Test
     fun `a run with nothing new writes nothing and publishes no BillsSynced`() {
         val connection = connection()
-        sync.run()
+        importAll(connection)
         val venue = venue(connection, "demo-letna")
         assertTrue(events.stream(BillsSynced::class.java).anyMatch { it.venueId == venue })
         val updatedAt = jdbc.queryForObject<Instant>("select max(updated_at) from pos.bill where venue_id = ?", venue)
@@ -189,7 +205,7 @@ class PosSyncBillsTests {
     @Test
     fun `later runs bring new bills, refunds and deletions, and tell which business days changed`() {
         val connection = connection()
-        sync.run()
+        importAll(connection)
         val venue = venue(connection, "demo-letna")
         events.clear()
 
@@ -217,6 +233,167 @@ class PosSyncBillsTests {
         assertTrue(synced.isNotEmpty())
         assertTrue(today() in synced.flatMap { it.businessDays })
         assertTrue(synced.all { it.businessDays == it.businessDays.distinct().sorted() })
+    }
+
+    @Test
+    fun `the initial import takes at most the configured days per run and resumes`() {
+        val connection = connection()
+
+        sync.run()
+
+        val venue = venue(connection, "demo-letna")
+        val firstDay = today().minusDays(DAYS.toLong())
+        assertTrue(cursor(venue).startsWith("INITIAL|${firstDay.plusDays(3)}|"), cursor(venue))
+        assertEquals(
+            firstDay.plusDays(2),
+            jdbc.queryForObject<LocalDate>("select max(business_day) from pos.bill where venue_id = ?", venue),
+        )
+    }
+
+    @Test
+    fun `incremental runs look back, so a bill modified just before the cursor still arrives`() {
+        val connection = connection()
+        importAll(connection)
+        val venue = venue(connection, "demo-letna")
+        val late = expectedBills().filterNot { it.deleted }.maxBy { it.lastModifiedAt }
+        // As if this bill had never been seen and the cursor had already passed it by 5 minutes.
+        jdbc.update("delete from pos.bill where venue_id = ? and external_id = ?", venue, late.billId)
+        jdbc.update(
+            "update pos.sync_cursor set cursor = ? where venue_id = ? and resource = 'BILLS'",
+            "SINCE|${late.lastModifiedAt.toInstant() + Duration.ofMinutes(5)}",
+            venue,
+        )
+
+        sync.run()
+
+        assertEquals(1, count("select count(*) from pos.bill where venue_id = ? and external_id = ?", venue, late.billId))
+    }
+
+    @Test
+    fun `unreadable bills are quarantined, the rest goes on, and they land once readable`() {
+        val connection = connection()
+        val (missing, subMinor) = expectedBills().filterNot { it.deleted }.take(2).map { it.billId }
+        pos.detailOverrides[missing] = { null }
+        pos.detailOverrides[subMinor] = { d -> d?.copy(bill = d.bill.copy(finalPrice = "12.345")) }
+        val discounted =
+            expectedBills()
+                .first { bill ->
+                    bill.billId !in setOf(missing, subMinor) &&
+                        requireNotNull(mock.billDetail(LETNA, bill.billId)).items.any { it.discounts.isNotEmpty() }
+                }.billId
+        pos.detailOverrides[discounted] = { d ->
+            d?.copy(
+                items =
+                    d.items.map { item ->
+                        item.copy(discounts = item.discounts.map { it.copy(absoluteValue = null, percentValue = null) })
+                    },
+            )
+        }
+
+        importAll(connection)
+
+        val venue = venue(connection, "demo-letna")
+        val quarantined =
+            jdbc
+                .queryForList("select external_id, reason from pos.bill_quarantine where venue_id = ?", venue)
+                .associate { it["external_id"] as String to it["reason"] as String }
+        assertEquals(
+            mapOf(missing to "DETAIL_MISSING", subMinor to "SUB_MINOR_PRICE", discounted to "DISCOUNT_AMOUNT_MISSING"),
+            quarantined,
+        )
+        assertEquals(
+            0,
+            count("select count(*) from pos.bill where venue_id = ? and external_id in (?, ?, ?)", venue, missing, subMinor, discounted),
+        )
+        assertEquals(expectedBills().size - 3, count("select count(*) from pos.bill where venue_id = ?", venue))
+        assertEquals(3, quarantineCount(venue))
+
+        // The import took several runs, so the retries are in their hourly backoff by now.
+        pos.detailOverrides.clear()
+        clock.advance(Duration.ofMinutes(61))
+        sync.run()
+
+        assertEquals(0, quarantineCount(venue))
+        assertEquals(expectedBills().size, count("select count(*) from pos.bill where venue_id = ?", venue))
+    }
+
+    @Test
+    fun `a bill that stays unreadable is retried every run three times, then hourly`() {
+        val connection = connection()
+        val broken = expectedBills().filterNot { it.deleted }.first().billId
+        pos.detailOverrides[broken] = { null }
+        importAll(connection)
+        val venue = venue(connection, "demo-letna")
+
+        repeat(4) { sync.run() }
+        assertEquals(3, attempts(venue, broken))
+
+        clock.advance(Duration.ofMinutes(61))
+        sync.run()
+        assertEquals(4, attempts(venue, broken))
+    }
+
+    @Test
+    fun `a bill whose business day changes reports the old day too`() {
+        val connection = connection()
+        importAll(connection)
+        val venue = venue(connection, "demo-letna")
+        val bill = expectedBills().filterNot { it.deleted }.maxBy { it.lastModifiedAt }
+        val oldDay = LocalDate.parse("2026-01-01")
+        jdbc.update(
+            "update pos.bill set business_day = ?, external_modified_at = '2026-01-01T00:00:00Z' where venue_id = ? and external_id = ?",
+            oldDay,
+            venue,
+            bill.billId,
+        )
+        jdbc.update(
+            "update pos.sync_cursor set cursor = ? where venue_id = ? and resource = 'BILLS'",
+            "SINCE|${bill.lastModifiedAt.toInstant()}",
+            venue,
+        )
+        events.clear()
+
+        sync.run()
+
+        val days =
+            events
+                .stream(BillsSynced::class.java)
+                .filter { it.venueId == venue }
+                .toList()
+                .flatMap { it.businessDays }
+        assertTrue(oldDay in days, days.toString())
+    }
+
+    @Test
+    fun `bill lines and bills stored before their product or desk get them after the next catalog sync`() {
+        val connection = connection()
+        importAll(connection)
+        val venue = venue(connection, "demo-letna")
+        jdbc.update("update pos.bill_item set product_id = null where venue_id = ?", venue)
+        jdbc.update("update pos.bill set desk_id = null where venue_id = ?", venue)
+
+        clock.advance(Duration.ofMinutes(61))
+        sync.run()
+
+        assertEquals(0, count("select count(*) from pos.bill_item where venue_id = ? and product_id is null", venue))
+        assertEquals(0, count("select count(*) from pos.bill where venue_id = ? and desk_id is null", venue))
+    }
+
+    private fun attempts(
+        venue: UUID,
+        billId: String,
+    ): Int = count("select attempts from pos.bill_quarantine where venue_id = ? and external_id = ?", venue, billId)
+
+    private fun quarantineCount(venue: UUID): Int = bills.quarantineCount(venue)
+
+    /** Runs the sync until both venues finished their initial import (3 days per run here). */
+    private fun importAll(connection: UUID) {
+        repeat(MAX_RUNS) {
+            sync.run()
+            val done = listOf("demo-letna", "demo-karlin").all { cursor(venue(connection, it)).startsWith("SINCE|") }
+            if (done) return
+        }
+        error("initial import not done after $MAX_RUNS runs")
     }
 
     private fun today() = BusinessDayCalendar.today(clock, prague, BusinessDayCalendar.DEFAULT_BUSINESS_DAY_START)
@@ -274,6 +451,7 @@ class PosSyncBillsTests {
     ): Int = requireNotNull(jdbc.queryForObject<Int>(sql, *args))
 
     private companion object {
+        const val MAX_RUNS = 6
         val LETNA = PosPlaceRef("demo-merchant", "demo-letna")
     }
 }

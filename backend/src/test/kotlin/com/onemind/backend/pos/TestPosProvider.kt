@@ -42,6 +42,9 @@ class TestPosProvider(
     /** Menus of this place fail. */
     var failingMenuPlace: String? = null
 
+    /** Changes what `billDetail` returns for a bill ID (null = no detail). */
+    val detailOverrides = mutableMapOf<String, (PosBillDetail?) -> PosBillDetail?>()
+
     /** Bill details of nights on or after this date fail, as if the POS went away mid-import. */
     var failDetailsFrom: LocalDate? = null
 
@@ -88,7 +91,8 @@ class TestPosProvider(
         call("billDetail", place.merchantId)
         val night = LocalDate.parse(billId.substring(2, 10), DateTimeFormatter.BASIC_ISO_DATE)
         check(failDetailsFrom?.let { night.isBefore(it) } ?: true) { "POS unavailable" }
-        return mock.billDetail(place.demo(), billId)
+        val detail = mock.billDetail(place.demo(), billId)
+        return detailOverrides[billId]?.invoke(detail) ?: detail.takeUnless { billId in detailOverrides }
     }
 
     override fun deskView(place: PosPlaceRef): PosDeskView {
@@ -123,5 +127,6 @@ class TestPosProvider(
         placeCalls.clear()
         subMinorPriceProduct = null
         failingMenuPlace = null
+        detailOverrides.clear()
     }
 }

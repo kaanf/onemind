@@ -60,16 +60,26 @@ class SyncCatalog(
                         } catch (e: IllegalArgumentException) {
                             skipped += product.productId
                             null
+                        } catch (e: ArithmeticException) {
+                            // A price too large for a Long (longValueExact).
+                            skipped += product.productId
+                            null
                         }
                     }
                 if (skipped.isNotEmpty()) log.warn("POS menu rows skipped: venueId={}, productIds={}", venue.venueId, skipped)
-                transactions.executeWithoutResult { catalog.replaceMenu(venue.venueId, categories, products, skipped, clock.instant()) }
+                transactions.executeWithoutResult {
+                    catalog.replaceMenu(venue.venueId, categories, products, skipped, clock.instant())
+                    catalog.backfillBillProducts(venue.venueId)
+                }
             },
             step(venue, DESKS) {
                 val view = provider.deskView(place)
                 val sections = view.sections.map { CatalogSection(it.sectionId, it.name, it.color) }
                 val desks = view.desks.map { CatalogDesk(it.deskId, it.sectionId, it.name, it.code, it.virtual, it.removed) }
-                transactions.executeWithoutResult { catalog.replaceDesks(venue.venueId, sections, desks, clock.instant()) }
+                transactions.executeWithoutResult {
+                    catalog.replaceDesks(venue.venueId, sections, desks, clock.instant())
+                    catalog.backfillBillDesks(venue.venueId)
+                }
             },
         )
 

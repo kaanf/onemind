@@ -138,26 +138,42 @@ most hourly, so a bad menu isn't refetched every run).
 - POS calls never run inside a transaction (tested). Without a configured provider the run does nothing
   and logs one warning.
 
-Bills (`SyncBills`, each run, after menu and desks): the `sync_cursor` `BILLS` cursor is
-`INITIAL|<next business day>|<import start>` while the initial import runs, then `SINCE|<instant>`.
-The initial import fetches `onemind.pos.sync.initial-days` (default 90) business days, one `from`/`till`
-window per day (the venue's zone and cut-off), oldest first; the cursor moves after each finished day,
-so an interrupted import resumes at that day, and ends at `SINCE|<import start>` so nothing changed
-during the import is missed. Then `modifiedSince` = cursor (inclusive), `includeDeleted=true`. For each
-page, only bills whose `lastModifiedAt` differs from the stored one get a `billDetail` call; then one
-transaction upserts staff (`createdBy`/`paidBy`, per connection), upserts the bills by
-`(venue_id, external_id)` (unchanged ones are skipped), replaces the items, discounts and payments of
-changed ones, moves the cursor and publishes `BillsSynced(venueId, businessDays)` for the days written,
-only when something was written. `business_day` comes from `paidAt` (M1 seam:
-`pos/domain/BillAttribution`). Desk, product and staff references resolve by POS ID; unknown ones stay
-null. `raw_payload` is not written yet.
+Bills (`SyncBills`, each run, after menu and desks; settings `onemind.pos.sync.*`):
+
+- **Cursor** (`sync_cursor` `BILLS`): `INITIAL|<next business day>|<import start>` during the initial
+  import, then `SINCE|<instant>`.
+- **Initial import:** `initial-days` (default 90) business days, one `from`/`till` window per day (venue
+  zone and cut-off), oldest first, at most `initial-days-per-run` (default 14) days per run so other
+  venues aren't held up; the cursor moves after each finished day, so it resumes where it stopped. It
+  hands over to `SINCE|<import start>`.
+- **Incremental:** `modifiedSince` = cursor − `lookback` (default 10 min, inclusive),
+  `includeDeleted=true`; bills unchanged since they were stored are skipped, so the overlap is cheap.
+- **Per page:** only new or changed bills get a `billDetail` call (outside any transaction); then one
+  transaction upserts staff (`createdBy`/`paidBy`, per connection), upserts bills by
+  `(venue_id, external_id)`, replaces items, discounts and payments of changed ones, moves the cursor and
+  publishes `BillsSynced(venueId, businessDays)` with the new **and previous** business day of every bill
+  written, only when something was written.
+- **Quarantine** (`pos.bill_quarantine`, V009): a bill with no detail, or with a value that can't be stored
+  exactly (not a number, more fraction digits than the currency, bad VAT rate or currency, a discount
+  without an amount), is never stored with a guessed value: its POS ID and reason are kept, a WARN names
+  the IDs, and the cursor moves on. Quarantined bills are retried every run for 3 attempts, then hourly;
+  once readable they are stored as they are then (refunds and deletions included) and leave the table.
+  **Metrics:** quarantined bills are missing from every figure until resolved; dashboards show
+  "N bills couldn't be read" from `PosBillRepository.quarantineCount` (phase 5).
+- `business_day` comes from `paidAt` (M1 seam: `pos/domain/BillAttribution`). Desk, product and staff
+  references resolve by POS ID; unknown ones stay null and are filled after the next successful catalog
+  sync (`bill.external_desk_id`, `bill_item.external_product_id`). A product skipped for a sub-minor
+  menu price leaves `product_id` null on its bill lines until the owner decides on such prices; the same
+  backfill fills them then. A failing bills sync is an error on the venue's cursor.
+- `raw_payload` is not written yet. Storyous sends no refund time: a refund is only visible as
+  `refunded = true` with a later `lastModifiedAt`, so METRICS can date a refund by its bill only.
 
 Assumptions in the bill mapping, to verify against the real API: item `price` is the unit price with
 VAT and `amount` the quantity; line `total_minor` = price × amount (rounded half-up to the minor unit)
 − the item's discounts; a discount's amount is `absoluteValue`, else `percentValue` % of
-`originalPrice`, else 0 (the raw discount row is still stored); `finalPrice` excludes `tips`;
-`payment.method_kind` is `CARD` / `CASH` when the raw method contains "card" / "cash", else `OTHER`
-(raw value kept in `method_raw`).
+`originalPrice`, else the bill is quarantined (never 0); `finalPrice` excludes `tips`;
+`payment.method_kind` is `CARD` for raw methods containing "card"/"kart" (Czech "karta"), `CASH` for
+"cash"/"hotovost", else `OTHER` (raw value kept in `method_raw`).
 
 Assumptions in the catalog mapping, to verify against the real API: product `price` is the price
 with VAT in the merchant currency; `vatRate` is a percentage (`"21"`) and is stored as given;

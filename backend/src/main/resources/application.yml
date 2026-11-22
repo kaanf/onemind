@@ -79,8 +79,11 @@ onemind:
   pos:
     provider: ${POS_PROVIDER:}
     sync:
-      # Business days of bills imported when a venue is first synced.
+      # Business days of bills imported when a venue is first synced, and at most per run.
       initial-days: 90
+      initial-days-per-run: 14
+      # Incremental runs ask for bills modified since the cursor minus this.
+      lookback: 10m
   # Lowest supported app version per platform; older apps get 426 (ADR 0001). Empty = no check.
   app-version:
     minimum-ios: ${MIN_APP_VERSION_IOS:}
