@@ -77,7 +77,8 @@ estimated or filled with a placeholder (rule 2). Field-level detail: `docs/integ
 | Source | Figures |
 |--------|---------|
 | **Storyous** (verified API fields) | Paid revenue, card/cash split, tips total, guests (`personCount`), average bill, revenue per guest, products sold and gross, discounts by type, refunds, whole deleted bills, tables and sections, revenue per table, staff sales / tips / guests / bills (`createdBy` / `paidBy`) |
-| **Our calculation** (from Storyous data, defined in `docs/domain/METRICS.md`) | Hourly forecast, peak hour, hourly patterns, products by hour (bill session start), loss share, Happy Hour net effect, table heat ramp, estimated table capacity |
+| **Our calculation** (from Storyous data, defined in `docs/domain/METRICS.md` unless noted) | Hourly forecast (*Revenue › Hourly chart*: same hour over the last 4 same weekdays), peak hour, hourly patterns, products by hour (bill session start), loss share, table heat ramp, estimated table capacity (`architecture/DB_SCHEMA.md`, `reporting.desk_capacity`) |
+| **Not shown until defined** | Happy Hour net effect: needs the time-based menu shape (`STORYOUS.md`, 🟡) and a baseline method (`METRICS.md`, open). Happy Hour *discounts* are shown (Storyous `discountType`) |
 | **User input** | Venue time zone and business-day cut-off (`venue.time_zone`, `venue.business_day_start`; Storyous has neither), table capacity override (`reporting.desk_capacity`), stock corrections (phase 6) |
 | **Unavailable** (ask Storyous, P15) | Open tabs, occupancy now, seated now, table *Since* / *Occupied now*, item-level voids and who voided, bills closed without payment, staff shifts / hours / on shift / roles, product cost, card share of tips |
 
