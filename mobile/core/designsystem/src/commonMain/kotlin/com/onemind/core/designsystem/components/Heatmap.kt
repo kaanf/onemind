@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,7 +45,7 @@ data class HeatmapRow(
 
 /**
  * Day × hour grid of selectable cells (28 high, radius 5) coloured by the heat ramp; the selected cell
- * has a 2 px `selection` outline. [selected] is (row, column).
+ * has a 2 px `selection` outline. [selected] is (row, column). Every row has the same number of cells.
  *
  * Touch target exception (DESIGN_SYSTEM.md): with 10 hour columns (17:00 to 02:00, canvas 02b) a cell is about 29 × 28 dp, so 44 × 44
  * isn't possible. Cells stay at least 24 × 24 (WCAG 2.5.8 AA) and one tap handler on the whole cell area
@@ -60,7 +62,11 @@ fun Heatmap(
 ) {
     val colors = OneMindTheme.colors
     val labelStyle = OneMindTheme.typography.caption
-    val columns = rows.maxOfOrNull { it.cells.size } ?: 0
+    val columns = rows.firstOrNull()?.cells?.size ?: 0
+    require(rows.all { it.cells.size == columns }) { "Heatmap rows must all have $columns cells" }
+    // The tap handler lives across recompositions: read the latest rows and callback, not the first ones.
+    val currentRows by rememberUpdatedState(rows)
+    val currentOnSelect by rememberUpdatedState(onSelect)
     Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CELL_GAP)) {
         Column(verticalArrangement = Arrangement.spacedBy(ROW_GAP), modifier = Modifier.width(ROW_LABEL_WIDTH)) {
             Spacer(modifier = Modifier.height(COLUMN_LABEL_HEIGHT))
@@ -85,10 +91,12 @@ fun Heatmap(
             Column(
                 verticalArrangement = Arrangement.spacedBy(ROW_GAP),
                 modifier =
-                    Modifier.pointerInput(rows.size, columns) {
+                    Modifier.pointerInput(Unit) {
                         detectTapGestures { offset ->
-                            nearestCell(offset.x, offset.y, size.width.toFloat(), size.height.toFloat(), rows.size, columns)
-                                ?.let { (row, column) -> if (column < rows[row].cells.size) onSelect(row, column) }
+                            val grid = currentRows
+                            val gridColumns = grid.firstOrNull()?.cells?.size ?: 0
+                            nearestCell(offset.x, offset.y, size.width.toFloat(), size.height.toFloat(), grid.size, gridColumns)
+                                ?.let { (row, column) -> currentOnSelect(row, column) }
                         }
                     },
             ) {
@@ -124,9 +132,12 @@ fun Heatmap(
 }
 
 /**
- * The cell nearest to a touch at ([x], [y]) in a grid area of [width] × [height] px holding [rows] ×
- * [columns] equal cells with gaps: each cell owns its slot plus half of the gaps around it, and touches
- * outside the area clamp to the edge cells. `null` for an empty grid.
+ * The cell for a touch at ([x], [y]) in a cell area of [width] × [height] px with [rows] × [columns]
+ * equal-weight cells and fixed gaps between them. The area is split into equal slots (`width / columns`
+ * by `height / rows`). With equal weights and gaps, every pixel of cell k lies inside slot k, so a touch
+ * on a cell always selects that cell; a touch in a gap goes to one of its two neighbours (the split is
+ * within half a gap of the gap's middle). Touches outside the area clamp to the edge cells. `null` for an
+ * empty grid.
  */
 internal fun nearestCell(
     x: Float,

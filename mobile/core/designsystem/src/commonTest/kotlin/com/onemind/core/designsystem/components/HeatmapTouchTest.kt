@@ -52,6 +52,28 @@ class HeatmapTouchTest {
     }
 
     @Test
+    fun everyPixelOfACellSelectsThatCell() {
+        // The layout: 10 equal-weight cells with 4 px gaps across 350 px (canvas 02b), 7 rows of 28 px with 5 px gaps.
+        val columns = 10
+        val gap = 4f
+        val cellWidth = (width - (columns - 1) * gap) / columns
+        val rowHeight = 28f
+        val rowGap = 5f
+        val gridHeight = 7 * rowHeight + 6 * rowGap
+        for (column in 0 until columns) {
+            val start = column * (cellWidth + gap)
+            for (x in listOf(start, start + cellWidth / 2, start + cellWidth - 0.01f)) {
+                for (row in 0 until 7) {
+                    val top = row * (rowHeight + rowGap)
+                    for (y in listOf(top, top + rowHeight - 0.01f)) {
+                        assertEquals(row to column, nearestCell(x, y, width, gridHeight, rows = 7, columns = columns), "x=$x y=$y")
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     fun emptyGridHasNoCell() {
         assertNull(nearestCell(10f, 10f, width, height, rows = 0, columns = 12))
         assertNull(nearestCell(10f, 10f, 0f, height, rows = 7, columns = 12))
