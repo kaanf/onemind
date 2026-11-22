@@ -154,11 +154,10 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
       scope; onboarding A3–A5 (no OAuth redirect; see `docs/integrations/STORYOUS.md`)
 - [x] Purge job: delete organizations whose `deletion_due_at` has passed (set by `DELETE /me`, #28) (#53)
 - [ ] Indexes on the `ON DELETE SET NULL` FKs (`bill.desk_id`, `bill.created_by_staff_id`,
-      `bill.paid_by_staff_id`, `product.category_id`, `desk.section_id`), additive migration before real
-      data (from the #53 review)
+      `bill.paid_by_staff_id`, `bill_item.product_id`, `product.category_id`, `category.parent_id`,
+      `desk.section_id`), additive migration before real data (from the #53 review)
 - [ ] Alertable signal for an organization the purge job keeps failing on (today: ERROR log), with
-      phase 7 Sentry; stock adds its `OrganizationPurging` listener only after the rule-4 + GDPR
-      retention decision (from the #53 review)
+      phase 7 Sentry (from the #53 review)
 - [ ] Phase-end `REVIEW pr: audit`
 
 ## Phase 5 — Dashboards
@@ -173,6 +172,8 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
 ## Phase 6 — Stock (depends on P13/P14)
 
 - [ ] Decide P13 (dashboards-only first release?) and P14 (stock positioning)
+- [ ] Stock retention decision (rule 4 + GDPR) before stock adds its `OrganizationPurging` listener
+      (from the #53 review)
 - [ ] `stock` schema + migrations; acceptance: the app DB role cannot DELETE/UPDATE stock history
       tables (REVOKE or trigger), proven by a test
 - [ ] Purchase receipts: upload, ISDOC parsing, Claude Haiku 5.5 extraction, review, approve (ADR 0007)

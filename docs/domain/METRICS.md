@@ -42,7 +42,7 @@ Items marked **(?)** need confirmation; see `../OPEN_QUESTIONS.md`.
 | `guests`         | Sum of `guestCount` on bills paid in the period ("since opening" for today). If the POS has no guest count for a bill, count 1 **(?)**. |
 | `averageBill`    | `paidRevenue / number of paid bills`. |
 | `revenuePerGuest`| `paidRevenue / guests`. |
-| Hourly chart (Today) | `paidRevenue` per clock hour from the venue's `business_day_start` (Storyous has no opening hours). Future hours = average of the same hour over the last 4 same weekdays (shown in a lighter colour). |
+| Hourly chart (Today) | `paidRevenue` per clock hour from the venue's opening hour **(?)**: Storyous has no opening hours and `business_day_start` is the cut-off, not the opening (M12). Future hours = average of the same hour over the last 4 same weekdays (shown in a lighter colour). |
 
 ## Occupancy and tables
 
