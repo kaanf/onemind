@@ -228,7 +228,8 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
   `account/api/OrganizationRegistry` (narrow: `createForOwner`, `follow` (own-organization venues only),
   `membershipOf`, `followedVenueIds`) and a `MOCK` connection `demo-merchant/<organizationId>`. It locks
   the user first (one organization per demo onboarding), only the owner of an unfinished demo
-  organization finishes it, and only `PosProviderException` (the POS can't be read) becomes `503`.
+  organization finishes it, and only `PosProviderException` (the POS can't be read) and
+  `PosMerchantNotFoundException` (the POS doesn't know the merchant) become `503`.
   Place syncs lock their connection, so onboarding and the `pos-sync` job never create a venue twice.
 - Storyous client exposes **read methods only**. Gated (`architecture/ProductRules`, rule 1): no
   mutating HTTP call anywhere in `pos`. The real client's recorded-fixture tests must also fail on any
