@@ -196,6 +196,8 @@ RFC 9457 Problem Details with extension members:
 | POST | `/auth/apple` · `/auth/google` | A1 |
 | POST | `/auth/refresh` · `/auth/logout` | – |
 | GET / DELETE | `/me` | – |
+| GET | `/onboarding/demo-places` | A5, interim, dev/demo only (P15) |
+| POST | `/onboarding/demo` | A5, interim, dev/demo only (P15) |
 | POST | `/pos/storyous/connect` | A3 |
 | GET | `/pos/sync/status` | A4 |
 | GET | `/venues` | A5 |

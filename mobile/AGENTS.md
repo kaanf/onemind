@@ -242,6 +242,10 @@ with `./gradlew :core:konsist:test` in CI and checks:
   also has no floating-point literal or `toDouble()`/`toFloat()`;
 - no system clock outside the clock seam (`CoreDataModule.kt`) and no device time zone anywhere
   (product rule 6);
+- feature presentation and `composeApp` main sources have no `Color(0x…)`, no literal `.sp`, no
+  `Text("…")`, `text = "…"` or `contentDescription = "…"` (spoken by screen readers; decorative images
+  pass `null`), also split over lines; `@Preview` functions, comments and test sources are exempt.
+  Not caught yet: `label =`/`title =`/`placeholder =` literals, `Color.Red`/`Color(red = …)`, `.dp`;
 - the scopes are not empty (so the guards can't pass by scanning nothing).
 
 `GuardFixturesTest` runs every rule on planted violations in `src/test/fixtures` (laid out like

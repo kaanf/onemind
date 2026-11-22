@@ -14,6 +14,8 @@ tags:
     description: Sign-in and tokens (ADR 0004).
   - name: Me
     description: The signed-in user's own account.
+  - name: Onboarding
+    description: Interim demo onboarding (dev/demo only) until the Storyous connection exists (P15).
 paths:
   /auth/email/start:
     $ref: ./paths/account/auth-email-start.yaml
@@ -29,6 +31,10 @@ paths:
     $ref: ./paths/account/auth-logout.yaml
   /me:
     $ref: ./paths/account/me.yaml
+  /onboarding/demo-places:
+    $ref: ./paths/onboarding/demo-places.yaml
+  /onboarding/demo:
+    $ref: ./paths/onboarding/demo.yaml
 components:
   securitySchemes:
     bearerAuth:

@@ -45,6 +45,9 @@ version in use.
 | `scheduled_tasks` | db-scheduler task table (DDL from db-scheduler 17.1, `V005`). `db-scheduler.table-name=platform.scheduled_tasks`. |
 | `idempotency_record` | `user_id → account.app_user` (cascade), `key uuid`, `method`, `path`, `request_hash bytea` (SHA-256 of method, path, query and body; multipart: of the parts), `claim_id uuid` (new per claim; only the claiming request may complete or release the row), `status (IN_PROGRESS\|COMPLETED)`, `response_status`, `response_headers jsonb` (`Content-Type`, `Location`), `response_body text` (not `jsonb`: replays send the original bytes), `created_at`, `expires_at` (24 h). PK `(user_id, key)`, index on `expires_at` (`V006`). An `IN_PROGRESS` row older than 5 minutes is taken over by a retry of the same request (crashed instance). A db-scheduler job deletes expired rows hourly. |
 
+Every foreign key has an index led by its columns (partial `where … is not null` is fine for nullable
+ones); `MigrationTests` checks the catalog and fails on a new key without one.
+
 ## `account`
 
 | Table | Key columns | Notes |
@@ -87,7 +90,7 @@ Account deletion (`DELETE /me`, App Store 5.1.1(v), GDPR art. 17):
 
 | Table | Key columns | Notes |
 |-------|-------------|-------|
-| `pos_connection` | `id`, `organization_id`, `provider (STORYOUS)`, `external_merchant_id`, `status (PENDING\|ACTIVE\|ERROR\|REVOKED)`, `last_error`, `last_synced_at` | Storyous uses **our app's** client credentials (server config), so no per-merchant secret is stored. Unique `(provider, external_merchant_id)`. |
+| `pos_connection` | `id`, `organization_id`, `provider (STORYOUS\|MOCK)` (V011; `MOCK` = the demo POS, dev/demo only), `external_merchant_id`, `status (PENDING\|ACTIVE\|ERROR\|REVOKED)`, `last_error`, `last_synced_at` | Storyous uses **our app's** client credentials (server config), so no per-merchant secret is stored. Unique `(provider, external_merchant_id)`. |
 | `venue_link` | `venue_id` (PK), `connection_id`, `external_place_id`, `active` | Unique `(connection_id, external_place_id)`. `active = false` (V008) when the POS reports the place disabled/hidden or stops reporting it: the sync skips the venue, the venue itself stays (pending owner confirmation, `STORYOUS.md`). |
 | `sync_cursor` | `venue_id`, `resource (BILLS\|MENU\|DESKS)`, `cursor text`, `last_success_at`, `last_error` | PK `(venue_id, resource)`. Bills cursor = last `_lastModifiedAt`. |
 | `sync_job` | `id`, `connection_id`, `kind (INITIAL\|INCREMENTAL\|BACKFILL)`, `status (QUEUED\|RUNNING\|SUCCEEDED\|FAILED)`, `started_at`, `finished_at`, `steps jsonb` | Steps = `[{name, state, progress, countLabel}]` for A4. |
@@ -119,14 +122,14 @@ fall-back night the repeated hour is merged into one row.
 
 | Table | Grain (PK) | Columns | Basis |
 |-------|-----------|---------|-------|
-| `hourly_sales` | `venue_id, business_day, hour` | `revenue_minor`, `revenue_without_tax_minor`, `bills`, `guests`, `tips_minor`, `discount_minor`, `card_minor`, `cash_minor`, `other_minor`, `refunded_minor`, `deleted_bills` | Local hour of `paid_at` |
+| `hourly_sales` | `venue_id, business_day, hour` | `revenue_minor`, `revenue_without_tax_minor`, `bills`, `guests`, `tips_minor`, `discount_minor`, `card_minor`, `cash_minor`, `other_minor`, `refunded_minor`, `deleted_bills`, `deleted_minor`, `bills_missing_net`, `bills_payment_mismatch` (V010) | Local hour of `paid_at`. `revenue_minor` = payments without tips, refunded bills included, bills whose payments don't add up left out (counted in `bills_payment_mismatch`); the net figure is incomplete while `bills_missing_net` > 0 |
 | `hourly_activity` | `venue_id, business_day, hour` | `sessions`, `guests` | Local hour of `session_started_at` (hourly patterns, 02b) |
 | `product_hourly_sales` | `venue_id, business_day, hour, product_id` | `quantity`, `gross_minor`, `discount_minor` | Session hour (no per-item order time) |
 | `staff_daily_sales` | `venue_id, business_day, staff_id` | `bills`, `revenue_minor`, `guests`, `discount_minor`, `deleted_bills` (by `created_by`); `tips_minor` (by `paid_by`) | Sales to the person who **opened** the bill, tips to the person who **closed** it (answers M6). Both IDs stay on `pos.bill`, so a per-venue setting can be added later. |
 | `desk_daily_sales` | `venue_id, business_day, desk_id` | `bills`, `revenue_minor`, `guests`, `occupied_minutes` | `occupied_minutes` = Σ(paid_at − session_started_at) |
 | `discount_daily` | `venue_id, business_day, discount_type` | `records`, `amount_minor` | |
 | `desk_capacity` | `venue_id, desk_id` | `estimated`, `override`, `updated_at`, `version` | Estimated = highest guest count seen in 8 weeks; owner can override (labelled "estimated") |
-| `rollup_state` | `venue_id, business_day` | `refreshed_at`, `source_max_modified_at` | Tracks what is up to date |
+| `rollup_state` | `venue_id, business_day` | `refreshed_at`, `source_max_modified_at`, `rollup_version` (V010) | Tracks what is up to date; the rebuild job recomputes days missing here or below `reporting/domain/RollupVersion.CURRENT` |
 
 Sizing: a busy bar has ~300 bills/day → ~100k bills/year per venue. No partitioning for now;
 revisit at millions of rows (range partitioning by `business_day`).

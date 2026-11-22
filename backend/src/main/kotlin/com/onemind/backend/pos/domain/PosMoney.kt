@@ -25,7 +25,8 @@ object PosMoney {
     }
 
     /**
-     * Minor units of a POS **price** (menu product price, bill line unit price), rounded half-up when it
+     * Minor units of a POS **price** (menu product price, bill line unit price, a discount's original
+     * price), rounded half-up when it
      * has more fraction digits than the currency (owner decision 2026-11-22). Only for prices: totals,
      * payments and discounts use the exact [minorUnits]. Fails on a value that isn't a decimal number.
      */
