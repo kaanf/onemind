@@ -38,7 +38,7 @@ Items marked **(?)** need confirmation; see `../OPEN_QUESTIONS.md`.
 | `openTabsTotal`  | Sum of current totals of bills with status `OPEN`. Only for "now". |
 | `openTabsTables` | Number of distinct tables with an open bill. |
 | `cardRevenue`, `cashRevenue` | `paidRevenue` split by payment method. `cardPct = card / (card + cash)`, rounded to an integer; cash% = 100 − card%. Other methods: **(?)** |
-| `tips`           | Sum of tips on payments in the period. *Tips · card 69%* = card tips share. |
+| `tips`           | Sum of tips on payments in the period. *Tips · card 69%* = card tips share; not shown in the first release (Storyous gives tips per bill only, no inference from payments). |
 | `guests`         | Sum of `guestCount` on bills paid in the period ("since opening" for today). If the POS has no guest count for a bill, count 1 **(?)**. |
 | `averageBill`    | `paidRevenue / number of paid bills`. |
 | `revenuePerGuest`| `paidRevenue / guests`. |
@@ -77,7 +77,7 @@ Items marked **(?)** need confirmation; see `../OPEN_QUESTIONS.md`.
 | `refunds` | Sum of refunded amounts. |
 | `unpaidClosed` | Sum of totals of bills closed without payment. |
 | `stockCorrections` | Value at **sale price** **(?)** of corrections logged in S7. |
-| `possibleLoss` | `discounts + deletedItems + refunds + unpaidClosed + stockCorrections`. |
+| `possibleLoss` | `discounts + deletedItems + refunds + unpaidClosed + stockCorrections`. First release: `discounts + refunds + deletedItems` (whole deleted bills only); the screen lists the included components (`product/MVP_SCOPE.md#data-sources-in-the-first-release`). |
 | Loss share | `possibleLoss / paidRevenue` (*6.7% of revenue*). Change shown in **percentage points** (*+0.8 pts*). |
 | Records | Count of individual discount/deleted/refund/unpaid records. |
 

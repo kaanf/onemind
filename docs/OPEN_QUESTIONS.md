@@ -26,7 +26,7 @@ reference the question ID in a code comment / PR. When a question is answered, m
 
 | ID | Question |
 |----|----------|
-| M1 | Business-day cut-off: fixed 05:00, per venue setting, or from POS opening hours? Bill assigned by close time or open time? |
+| M1 | Bill assigned to the business day by close time or open time? (Cut-off: per-venue owner setting, default 05:00, see R28.) |
 | M2 | Revenue gross (incl. VAT) or net? Margins on net price? |
 | M3 | Week/month comparisons: full previous period or same elapsed span? |
 | M4 | Payment methods other than card/cash (vouchers, meal cards, Benefit): how to show? |
@@ -81,3 +81,4 @@ See [architecture/README.md#decisions-to-discuss](architecture/README.md#decisio
 | R26 | Mobile architecture | crew-kmp structure, generated models in `core:api`, DataStore (Room later) (ADR 0011) | 2026-11-20 |
 | R27 | Cross-cutting (ADR 0012) | Structured logs + traceId, local/prod + dev/prod variants, Czech before release, no analytics or flags in first release, CI gates, `dev` → `main` branches | 2026-11-20 |
 | R23 | API design | OpenAPI 3.0.3; BFF dashboards + REST stock + command endpoints; UUIDv7 (not secrets); minor-unit money, decimal-string quantities/rates; codes + English fallback; RFC 9457; PUT + version; Idempotency-Key (ADR 0010) | 2026-11-20 |
+| R28 | Data source of every figure (first release) | Storyous verified fields / our calculation / user input / unavailable, table in `product/MVP_SCOPE.md#data-sources-in-the-first-release`; mock emits verified fields only; unavailable Today cards shown as empty states; business-day cut-off is a per-venue setting | 2026-11-22 |

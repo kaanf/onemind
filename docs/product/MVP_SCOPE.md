@@ -56,7 +56,8 @@ or table seats (`docs/integrations/STORYOUS.md`). In the first release:
 
 - **No shifts or hours.** Staff screens show sales, tips, guests and bills per person (from bill
   `createdBy` / `paidBy`). Shifts come later through a staff clock-in on their own phones.
-- **No live occupancy, open tabs or seated guests.** Today drops those cards; Tables shows only
+- **No live occupancy, open tabs or seated guests.** Today keeps the *Open tabs* and *Occupancy*
+  cards as empty states (owner, 2026-11-22; replaces "drops those cards"); Tables shows only
   *This week* (no *Now* tab). No manual table status entry (it would mean managing two systems).
 - **Deleted items** = whole deleted bills only (`includeDeleted`); item-level voids are not
   available.
@@ -66,4 +67,31 @@ or table seats (`docs/integrations/STORYOUS.md`). In the first release:
   be labelled as estimates and defined in `docs/domain/METRICS.md`.
 - These may change if a Storyous partnership gives access to more data
   (see `docs/product/STORYOUS_PARTNERSHIP.md`).
+
+## Data sources in the first release
+
+Owner decision 2026-11-22. Every figure has exactly one source; "unavailable" figures are never
+estimated or filled with a placeholder (rule 2). Field-level detail: `docs/integrations/STORYOUS.md`
+(*What the design needs vs. what the API gives*).
+
+| Source | Figures |
+|--------|---------|
+| **Storyous** (verified API fields) | Paid revenue, card/cash split, tips total, guests (`personCount`), average bill, revenue per guest, products sold and gross, discounts by type, refunds, whole deleted bills, tables and sections, revenue per table, staff sales / tips / guests / bills (`createdBy` / `paidBy`) |
+| **Our calculation** (from Storyous data, defined in `docs/domain/METRICS.md`) | Hourly forecast, peak hour, hourly patterns, products by hour (bill session start), loss share, Happy Hour net effect, table heat ramp, estimated table capacity |
+| **User input** | Venue time zone and business-day cut-off (`venue.time_zone`, `venue.business_day_start`; Storyous has neither), table capacity override (`reporting.desk_capacity`), stock corrections (phase 6) |
+| **Unavailable** (ask Storyous, P15) | Open tabs, occupancy now, seated now, table *Since* / *Occupied now*, item-level voids and who voided, bills closed without payment, staff shifts / hours / on shift / roles, product cost, card share of tips |
+
+Rules that follow from it:
+
+- **The mock `PosProvider` emits only the verified Storyous fields** above: no open bills, no
+  item-level voids, no shifts. Anything it emits must exist in the real API.
+- **Unavailable figures that the design puts on Today** (*Open tabs*, *Occupancy*) are shown as
+  empty-state cards with "Not available from your POS", never a value. Other unavailable figures
+  are hidden (see the adjustments above).
+- **`possibleLoss`** in the first release = discounts + refunds + whole deleted bills; the screen
+  lists the components it includes. `unpaidClosed` and item-level `deletedItems` join when the data
+  exists; `stockCorrections` joins with phase 6.
+- **Tips** show the total only; the card share is not inferred from payments.
+- **Business day:** the cut-off is a per-venue owner setting (default 05:00) because Storyous has
+  no opening hours. Whether a bill counts by close or open time is still M1.
 
