@@ -27,7 +27,7 @@ reference the question ID in a code comment / PR. When a question is answered, m
 | ID | Question |
 |----|----------|
 | M2 | Revenue gross (incl. VAT) or net? Margins on net price? |
-| M3 | Week/month comparisons: full previous period or same elapsed span? |
+| M3 | Week/month comparisons: full previous period or same elapsed span? Default (first release): an unfinished period vs the same elapsed span (whole days, then the next day up to the same local time; a month past the previous month's last day vs the whole previous month); a finished period vs the whole previous one (`domain/METRICS.md`, periods). Accept? |
 | M4 | Payment methods other than card/cash (vouchers, meal cards, Benefit): how to show? |
 | M5 | Guest count when the POS has none: count 1 per bill, or exclude? |
 | M7 | Happy Hour "extra sales" baseline method. |
@@ -35,8 +35,6 @@ reference the question ID in a code comment / PR. When a question is answered, m
 | M9 | Stock corrections in losses at sale price or cost? |
 | M10 | Order-plan forecast and safety buffer method; idle "very slow" threshold; variance threshold. |
 | M11 | Unit cost: last purchase price or weighted average? |
-| M13 | Refunds: METRICS wants them in the period of the refund, but Storyous has no refund time. Default (first release): in the bill's own paid business day. Accept, or use the bill's last-modified time as the refund time? |
-| M14 | Card/cash split without tips: Storyous gives tips per bill, payments include them. Default: tips off card payments first, then cash. An approximation for bills paid partly by card and partly in cash; accept? |
 
 ## Integration
 
@@ -83,3 +81,5 @@ See [architecture/README.md#decisions-to-discuss](architecture/README.md#decisio
 | R27 | Cross-cutting (ADR 0012) | Structured logs + traceId, local/prod + dev/prod variants, Czech before release, no analytics or flags in first release, CI gates, `dev` → `main` branches | 2026-11-20 |
 | R23 | API design | OpenAPI 3.0.3; BFF dashboards + REST stock + command endpoints; UUIDv7 (not secrets); minor-unit money, decimal-string quantities/rates; codes + English fallback; RFC 9457; PUT + version; Idempotency-Key (ADR 0010) | 2026-11-20 |
 | R28 | Data source of every figure (first release) | Storyous verified fields / our calculation / user input / unavailable, table in `product/MVP_SCOPE.md#data-sources-in-the-first-release`; mock emits verified fields only; unavailable Today cards shown as empty states; business-day cut-off is a per-venue setting | 2026-11-22 |
+| R29 | M13: in which period does a refund count (Storyous has no refund time)? | In the bill's own paid business day (owner, 2026-11-22) | 2026-11-22 |
+| R30 | M14: card/cash split without tips (Storyous gives tips per bill, payments include them) | Tips come off card payments first, then cash, then other; an accepted approximation for bills paid partly by card and partly in cash (owner, 2026-11-22) | 2026-11-22 |

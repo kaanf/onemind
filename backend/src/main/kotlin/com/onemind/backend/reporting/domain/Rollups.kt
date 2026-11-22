@@ -13,7 +13,8 @@ import java.util.UUID
  * job then recomputes every stored day (`rollup_state.rollup_version`).
  */
 object RollupVersion {
-    const val CURRENT = 1
+    /** 2: `paidBills` and the refunded card/cash/other split (V013). */
+    const val CURRENT = 2
 }
 
 // Inputs: the POS facts of one venue and business day (pos/api/PosReadModel), amounts in minor units.
@@ -66,6 +67,8 @@ data class HourlySalesRow(
     /** Bills whose payments don't add up (tips above the payments, or a total without payments): left out of revenue. */
     val billsPaymentMismatch: Int,
     val bills: Int,
+    /** Bills that count in paidRevenue: not deleted, not refunded, no payment mismatch (averageBill). */
+    val paidBills: Int,
     val guests: Int,
     val tipsMinor: Long,
     val discountMinor: Long,
@@ -73,6 +76,10 @@ data class HourlySalesRow(
     val cashMinor: Long,
     val otherMinor: Long,
     val refundedMinor: Long,
+    /** [refundedMinor] by payment kind, so card + cash + other of paidRevenue = card − refundedCard, … */
+    val refundedCardMinor: Long,
+    val refundedCashMinor: Long,
+    val refundedOtherMinor: Long,
     val deletedBills: Int,
     val deletedMinor: Long,
 )
@@ -247,6 +254,7 @@ object RollupCalculator {
             .map { (hour, inHour) ->
                 val kept = inHour.filterNot { it.deleted }
                 val byKind = kept.map { BillRevenue.byKind(it) }
+                val refundedByKind = kept.filter { it.refunded }.map { BillRevenue.byKind(it) }
                 HourlySalesRow(
                     hour = hour,
                     revenueMinor = byKind.sumOf { it.values.sum() },
@@ -254,6 +262,7 @@ object RollupCalculator {
                     billsMissingNet = kept.count { it.totalWithoutTaxMinor == null },
                     billsPaymentMismatch = kept.count { BillRevenue.isPaymentMismatch(it) },
                     bills = kept.size,
+                    paidBills = kept.count { !it.refunded && !BillRevenue.isPaymentMismatch(it) },
                     guests = kept.sumOf { it.guests() },
                     tipsMinor = kept.sumOf { it.tipsMinor },
                     discountMinor = kept.sumOf { it.discountMinor },
@@ -261,6 +270,9 @@ object RollupCalculator {
                     cashMinor = byKind.sumOf { it.getValue(BillRevenue.CASH) },
                     otherMinor = byKind.sumOf { it.getValue(BillRevenue.OTHER) },
                     refundedMinor = kept.filter { it.refunded }.sumOf { BillRevenue.revenue(it) },
+                    refundedCardMinor = refundedByKind.sumOf { it.getValue(BillRevenue.CARD) },
+                    refundedCashMinor = refundedByKind.sumOf { it.getValue(BillRevenue.CASH) },
+                    refundedOtherMinor = refundedByKind.sumOf { it.getValue(BillRevenue.OTHER) },
                     deletedBills = inHour.count { it.deleted },
                     deletedMinor = inHour.filter { it.deleted }.sumOf { it.totalMinor },
                 )

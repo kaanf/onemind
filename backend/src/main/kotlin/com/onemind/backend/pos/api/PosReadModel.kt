@@ -145,11 +145,14 @@ class PosReadModel(
     /** The business days of [venueId] that have bills. */
     fun businessDays(venueId: UUID): List<LocalDate> = facts.businessDays(venueId)
 
-    /** What the venue's figures are missing, so a screen can say so (rule 2). */
+    /**
+     * What the venue's figures are missing, so a screen can say so (rule 2): over [days] (business days,
+     * inclusive) or all of them. Quarantined bills have no stored day, so all of them always count.
+     */
     fun dataGaps(
         venueId: UUID,
-        day: LocalDate? = null,
-    ): DataGaps = facts.dataGaps(venueId, day).let { DataGaps(it.quarantinedBills, it.billsWithoutLines, it.outdatedBills) }
+        days: ClosedRange<LocalDate>? = null,
+    ): DataGaps = facts.dataGaps(venueId, days).let { DataGaps(it.quarantinedBills, it.billsWithoutLines, it.outdatedBills) }
 
     /** When the venue's bills last synced successfully; `null` before the first sync (no data yet, rule 2). */
     fun lastBillsSyncAt(venueId: UUID): Instant? = facts.lastBillsSyncAt(venueId)
