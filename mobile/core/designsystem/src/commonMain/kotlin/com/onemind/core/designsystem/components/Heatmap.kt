@@ -45,7 +45,7 @@ data class HeatmapRow(
  * Day × hour grid of selectable cells (28 high, radius 5) coloured by the heat ramp; the selected cell
  * has a 2 px `selection` outline. [selected] is (row, column).
  *
- * Touch target exception (DESIGN_SYSTEM.md): with 12+ hour columns a cell is about 29 × 28 dp, so 44 × 44
+ * Touch target exception (DESIGN_SYSTEM.md): with 10 hour columns (17:00 to 02:00, canvas 02b) a cell is about 29 × 28 dp, so 44 × 44
  * isn't possible. Cells stay at least 24 × 24 (WCAG 2.5.8 AA) and one tap handler on the whole cell area
  * selects the nearest cell, so there are no dead zones between cells; a drag (vertical scroll) is not a
  * tap and passes through. Each cell is still its own accessibility node with its spoken label.

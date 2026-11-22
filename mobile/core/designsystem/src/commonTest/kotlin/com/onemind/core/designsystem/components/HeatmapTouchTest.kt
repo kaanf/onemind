@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 
 /** The nearest-cell mapping behind the heatmap's touch target exception (DESIGN_SYSTEM.md). */
 class HeatmapTouchTest {
-    // 7 days × 12 hours on a 350 × 231 px cell area: slots of about 29 × 33 px.
+    // 7 days × 12 hours on a 350 × 231 px cell area (more columns than the canvas, to cover longer openings).
     private val width = 350f
     private val height = 231f
 
