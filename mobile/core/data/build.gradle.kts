@@ -23,10 +23,16 @@ val localApiBaseUrl: String? =
     providers
         .fileContents(rootProject.layout.projectDirectory.file("local.properties"))
         .asText
-        .map { text -> Properties().apply { load(text.reader()) }.getProperty("onemind.apiBaseUrl") }
+        .map { text -> Properties().apply { load(text.reader()) }.getProperty("onemind.apiBaseUrl")?.trim() }
         .orNull
+        ?.also { url ->
+            require(Regex("^https?://[^/\\s]+$").matches(url)) {
+                "onemind.apiBaseUrl must be scheme://host[:port] without a path, was '$url'"
+            }
+        }
 
 // API host per environment (ADR 0012 §2); the client appends the spec's `/api/v1`. No secrets here.
+// The unflavored block is dev; the buildkonfig convention plugin fails if prod misses a field.
 buildkonfig {
     defaultConfigs {
         buildConfigField(STRING, "ENVIRONMENT", "dev")

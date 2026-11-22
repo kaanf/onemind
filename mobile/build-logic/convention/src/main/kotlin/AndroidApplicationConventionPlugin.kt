@@ -17,6 +17,7 @@ import java.io.File
  *
  * Flavors `dev` (`com.onemind.app.dev`) and `prod` (ADR 0012 §2). Shared modules are compiled once per
  * build with the BuildKonfig values of `onemind.environment`, so only the matching flavor is enabled.
+ * `devRelease` is disabled too: a release build (and the release signing key) is always `prod`.
  */
 class AndroidApplicationConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
@@ -103,6 +104,9 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             extensions.configure<ApplicationAndroidComponentsExtension> {
                 ENVIRONMENTS.filter { it != environment }.forEach { other ->
                     beforeVariants(selector().withFlavor("environment" to other)) { it.enable = false }
+                }
+                beforeVariants(selector().withFlavor("environment" to "dev").withBuildType("release")) {
+                    it.enable = false
                 }
             }
         }

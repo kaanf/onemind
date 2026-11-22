@@ -3,7 +3,7 @@ PRODUCT_NAME=OneMind
 CURRENT_PROJECT_VERSION=1
 MARKETING_VERSION=0.1.0
 
-// Strips debug-only local-network exceptions from the release Info.plist.
+// Strips the dev-only local-network exception (ONEMIND_DEV, Debug.xcconfig) from the prod Info.plist.
 INFOPLIST_PREPROCESS = YES
 
 DEVELOPMENT_TEAM=SGWP227GBQ

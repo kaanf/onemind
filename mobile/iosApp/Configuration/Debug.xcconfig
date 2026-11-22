@@ -4,3 +4,5 @@
 ONEMIND_ENVIRONMENT=dev
 PRODUCT_BUNDLE_IDENTIFIER=com.onemind.app.dev
 ONEMIND_DISPLAY_NAME=OneMind Dev
+// Keeps the local-networking ATS exception in Info.plist (plain HTTP to the local backend).
+INFOPLIST_PREPROCESSOR_DEFINITIONS=ONEMIND_DEV=1

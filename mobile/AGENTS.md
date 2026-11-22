@@ -132,16 +132,25 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
   `gradle.properties`, `-Ponemind.environment=prod` for prod):
   - it is the BuildKonfig flavor of `core:data`, which generates `ENVIRONMENT` and `API_BASE_URL`
     (host only; the client appends `/api/v1`). Read them through `ApiConfig` (bound in
-    `coreDataModule`), never `BuildKonfig` directly from other modules;
+    `coreDataModule`, environment as `AppEnvironment`), never `BuildKonfig` directly from other
+    modules. The unflavored `defaultConfigs` holds the dev values; the convention plugin fails the
+    build when `defaultConfigs("prod")` misses a field or a module uses unflavored `targetConfigs`;
   - Android has flavors `dev`/`prod`, and only the flavor matching `onemind.environment` is enabled
-    (shared modules are compiled once per build, so a dev APK can never carry prod values). The dev
+    (shared modules are compiled once per build, so a dev APK can never carry prod values).
+    `devRelease` is disabled as well: release builds (and the release key) are always prod, so a
+    plain `assembleRelease` without `-Ponemind.environment=prod` fails with "task not found". The dev
     flavor allows plain HTTP (`src/dev/res/xml/network_security_config.xml`); prod is HTTPS only;
   - iOS: the Debug configuration is dev, Release is prod (`iosApp/Configuration/Debug.xcconfig`,
     `Release.xcconfig`, both including `Config.xcconfig`); the Gradle build phase passes
-    `ONEMIND_ENVIRONMENT` as `-Ponemind.environment`.
+    `ONEMIND_ENVIRONMENT` as `-Ponemind.environment`. `Debug.xcconfig` also sets `ONEMIND_DEV=1`,
+    which keeps the local-networking ATS exception in `Info.plist`. An IDE-driven iOS build
+    (`OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED=YES`) skips that phase and builds the framework with the
+    default `dev`: for a prod build from the IDE, set `onemind.environment=prod` there, or build with
+    Xcode/`xcodebuild -configuration Release`.
 - API hosts: dev is the local docker backend, `http://10.0.2.2:8080` on the Android emulator and
   `http://localhost:8080` on the iOS simulator; a phone on the LAN uses
-  `onemind.apiBaseUrl=http://<ip>:8080` in the git-ignored `local.properties` (dev only). Prod is
+  `onemind.apiBaseUrl=http://<ip>:8080` in the git-ignored `local.properties` (dev only; checked to
+  be `scheme://host[:port]`). Prod is
   `https://api.onemind.app`, a **placeholder** (the JWT issuer of ADR 0004) to be confirmed with
   the hosting setup in phase 7. The app contains no secrets; Sentry DSN joins BuildKonfig with Sentry
   (phase 7).
@@ -210,8 +219,8 @@ It is a guard file (`docs/PARALLEL_WORK.md#guard-files`): never weaken a rule to
 | `cmp.library` | `core:designsystem`, `core:presentation` | `kmp.library` + Compose Multiplatform, Material 3, resources, previews |
 | `cmp.feature` | `feature:*:presentation` | `cmp.library` + `core:presentation`, `core:designsystem`, ViewModel, Navigation, Koin, Turbine |
 | `cmp.application` | `composeApp` | `cmp.library` + the single static iOS framework `ComposeApp` |
-| `android.application(.compose)` | `androidApp` | AGP 9 app (built-in Kotlin), `dev`/`prod` flavors (only the selected one enabled), release signing from `ONEMIND_*` properties/env, Compose |
-| `buildkonfig` | `core:data` | BuildKonfig with the module's package; flavor = `onemind.environment` (`-Pbuildkonfig.flavor` is rejected) |
+| `android.application(.compose)` | `androidApp` | AGP 9 app (built-in Kotlin), `dev`/`prod` flavors (only the selected one enabled, no `devRelease`), release signing from `ONEMIND_*` properties/env, Compose |
+| `buildkonfig` | `core:data` | BuildKonfig with the module's package; flavor = `onemind.environment` (a conflicting `-Pbuildkonfig.flavor` fails); every field set for prod too |
 | `ktlint` | applied by the above | same ktlint setup as the backend |
 
 Namespaces come from the Gradle path (`:feature:sales:presentation` → `com.onemind.sales.presentation`).
