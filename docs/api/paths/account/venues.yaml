@@ -1,0 +1,20 @@
+get:
+  tags:
+    - Me
+  operationId: getMyVenues
+  summary: My venues
+  description: |
+    The venues the signed-in user may open (memberships; disabled venues left out), with what the app
+    needs to show and scope them: time zone, currency, cut-off, whether the user follows it (A5) and the
+    user's role. Every dashboard call takes ids from here (`venueIds`).
+  responses:
+    '200':
+      description: The user's venues.
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/MyVenues.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '426':
+      $ref: ../../components/responses/UpgradeRequired.yaml

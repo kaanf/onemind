@@ -1,0 +1,22 @@
+type: object
+description: |
+  The signed-in user. `displayName` is null when the user hasn't given one (the app shows no invented
+  initials then).
+required:
+  - id
+  - email
+  - memberships
+properties:
+  id:
+    type: string
+    format: uuid
+  email:
+    type: string
+    format: email
+  displayName:
+    type: string
+    nullable: true
+  memberships:
+    type: array
+    items:
+      $ref: ./MyMembership.yaml

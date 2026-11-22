@@ -1,0 +1,38 @@
+type: object
+description: |
+  A venue the signed-in user may open (a member of its organization; disabled venues are left out).
+required:
+  - id
+  - name
+  - timeZone
+  - currency
+  - businessDayStart
+  - followed
+  - role
+properties:
+  id:
+    type: string
+    format: uuid
+  name:
+    type: string
+    description: The venue name; demo venues are named as demo ("Demo · …", product rule 2).
+  timeZone:
+    type: string
+    example: Europe/Prague
+  currency:
+    type: string
+    pattern: '^[A-Z]{3}$'
+  businessDayStart:
+    type: string
+    pattern: '^\d{2}:\d{2}$'
+    description: The business-day cut-off in the venue's time zone (`docs/domain/METRICS.md#business-day`).
+    example: '05:00'
+  followed:
+    type: boolean
+    description: Shown in Today and Sales (A5); the app's default venue set.
+  role:
+    type: string
+    description: The user's role in the venue's organization.
+    enum:
+      - OWNER
+      - STAFF

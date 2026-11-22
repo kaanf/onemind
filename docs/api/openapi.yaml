@@ -33,6 +33,8 @@ paths:
     $ref: ./paths/account/auth-logout.yaml
   /me:
     $ref: ./paths/account/me.yaml
+  /venues:
+    $ref: ./paths/account/venues.yaml
   /onboarding/demo-places:
     $ref: ./paths/onboarding/demo-places.yaml
   /onboarding/demo:
