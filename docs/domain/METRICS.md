@@ -19,7 +19,9 @@ Items marked **(?)** need confirmation; see `../OPEN_QUESTIONS.md`.
   `business_day_start` setting, R28); reading the system clock anywhere else fails the build (`architecture/ProductRules`).
 - Rollups store the business date (and local hour) computed by `BusinessDayCalendar` in Kotlin as
   columns. SQL date functions (`date_trunc`, `AT TIME ZONE`, `::date`) never decide a business day or
-  an hour bucket.
+  an hour bucket. Gated by `backend/…/architecture/DateFunctionRules`: migrations, SQL text in Kotlin
+  and jOOQ date functions (`DSL.trunc`/`extract`/`hour`/`timezone…`, `DatePart`, casts to date/time
+  `SQLDataType`s).
 
 ## Periods and comparisons
 
