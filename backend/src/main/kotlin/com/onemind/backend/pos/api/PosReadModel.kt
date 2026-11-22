@@ -59,6 +59,24 @@ data class BillLineFact(
     val discounts: List<DiscountFact>,
 )
 
+data class ProductFact(
+    val productId: UUID,
+    val name: String,
+    val categoryId: UUID?,
+)
+
+data class CategoryFact(
+    val categoryId: UUID,
+    val name: String,
+    val parentId: UUID?,
+)
+
+/** Names for screens: the products asked for (also ones off the menu now) and the venue's categories. */
+data class MenuFacts(
+    val products: List<ProductFact>,
+    val categories: List<CategoryFact>,
+)
+
 data class DataGaps(
     /** Bills that couldn't be read at all: missing from every figure. */
     val quarantinedBills: Int,
@@ -138,6 +156,16 @@ class PosReadModel(
             }
         return FactPage(items, items.lastOrNull()?.lineId?.takeIf { items.size == size })
     }
+
+    /** The menu names of [productIds] and every category of the venue (read-only, small). */
+    fun menu(
+        venueId: UUID,
+        productIds: Collection<UUID>,
+    ): MenuFacts =
+        MenuFacts(
+            products = facts.products(venueId, productIds).map { ProductFact(it.productId, it.name, it.categoryId) },
+            categories = facts.categories(venueId).map { CategoryFact(it.categoryId, it.name, it.parentId) },
+        )
 
     /** Every venue the POS sync has linked, also ones it no longer syncs (their history stays). */
     fun syncedVenueIds(): List<UUID> = facts.syncedVenueIds()

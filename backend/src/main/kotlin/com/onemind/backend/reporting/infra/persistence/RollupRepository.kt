@@ -3,6 +3,7 @@ package com.onemind.backend.reporting.infra.persistence
 import com.onemind.backend.common.lock.infra.persistence.advisoryXactLock
 import com.onemind.backend.reporting.domain.DayRollups
 import com.onemind.backend.reporting.domain.HourTotals
+import com.onemind.backend.reporting.domain.ProductHour
 import com.onemind.backend.reporting.domain.TypedDiscountDay
 import com.onemind.db.reporting.tables.references.DESK_DAILY_SALES
 import com.onemind.db.reporting.tables.references.DISCOUNT_DAILY
@@ -224,6 +225,28 @@ class RollupRepository(
                     type = requireNotNull(r.discountType),
                     records = requireNotNull(r.records),
                     amountMinor = requireNotNull(r.amountMinor),
+                )
+            }
+    }
+
+    /** The stored product hours of [venueId] on [day]. */
+    fun productHours(
+        venueId: UUID,
+        day: LocalDate,
+    ): List<ProductHour> {
+        val p = PRODUCT_HOURLY_SALES
+        return dsl
+            .selectFrom(p)
+            .where(p.VENUE_ID.eq(venueId), p.BUSINESS_DAY.eq(day))
+            .fetch()
+            // Kotlin's inline map, not jOOQ's RecordMapper: records stay inside this method (R4).
+            .toList()
+            .map { r ->
+                ProductHour(
+                    productId = requireNotNull(r.productId),
+                    hour = requireNotNull(r.hour).toInt(),
+                    quantity = requireNotNull(r.quantity),
+                    grossMinor = requireNotNull(r.grossMinor),
                 )
             }
     }

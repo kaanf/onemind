@@ -1,0 +1,43 @@
+type: object
+description: |
+  One product of one venue (POS product ids are per venue; products are never merged across venues by
+  name). Hours are the hour the bill was opened (Storyous has no per-item order time).
+required:
+  - venueId
+  - productId
+  - name
+  - sold
+  - gross
+  - hourly
+  - peakHour
+properties:
+  venueId:
+    type: string
+    format: uuid
+  productId:
+    type: string
+    format: uuid
+  name:
+    type: string
+  categoryId:
+    type: string
+    format: uuid
+    nullable: true
+  sold:
+    type: string
+    description: Quantity sold, decimal string; deleted bills not counted.
+    example: '42'
+  gross:
+    allOf:
+      - $ref: ./Money.yaml
+    description: Sum of line totals (quantity × unit price − discount).
+  hourly:
+    type: array
+    description: Hours with a quantity, in business-day order.
+    items:
+      $ref: ./ProductQuantity.yaml
+  peakHour:
+    type: integer
+    minimum: 0
+    maximum: 23
+    description: The hour with the most sold; the first in business-day order on ties.

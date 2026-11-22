@@ -1,0 +1,51 @@
+type: object
+description: |
+  Screen 02a for one business day. `products`, `hours` and `categories` are null when no requested venue
+  has data yet (`status NO_DATA_YET`); on a day without product sales they are empty lists (`READY`).
+  Products are sorted by gross, largest first, then by name, then by product id. The Happy Hour band on
+  the chart is not sent until the time-based menu is defined (`product/MVP_SCOPE.md`).
+required:
+  - status
+  - currency
+  - businessDay
+  - venues
+  - pendingVenueIds
+  - dataGaps
+properties:
+  status:
+    $ref: ./DataStatus.yaml
+  currency:
+    type: string
+    pattern: '^[A-Z]{3}$'
+  businessDay:
+    type: string
+    format: date
+    description: The day shown.
+  venues:
+    type: array
+    items:
+      $ref: ./TodayVenue.yaml
+  pendingVenueIds:
+    type: array
+    items:
+      type: string
+      format: uuid
+  hours:
+    type: array
+    nullable: true
+    description: The day's local hours with product sales, in business-day order.
+    items:
+      type: integer
+  categories:
+    type: array
+    nullable: true
+    description: Categories of the listed products and their ancestors, by name.
+    items:
+      $ref: ./ProductCategory.yaml
+  products:
+    type: array
+    nullable: true
+    items:
+      $ref: ./ProductSales.yaml
+  dataGaps:
+    $ref: ./DataGaps.yaml

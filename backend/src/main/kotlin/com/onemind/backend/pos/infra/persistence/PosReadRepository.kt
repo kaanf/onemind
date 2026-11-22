@@ -2,13 +2,17 @@ package com.onemind.backend.pos.infra.persistence
 
 import com.onemind.backend.pos.domain.StoredBill
 import com.onemind.backend.pos.domain.StoredBillLine
+import com.onemind.backend.pos.domain.StoredCategory
 import com.onemind.backend.pos.domain.StoredDiscount
 import com.onemind.backend.pos.domain.StoredPayment
+import com.onemind.backend.pos.domain.StoredProduct
 import com.onemind.db.pos.tables.references.BILL
 import com.onemind.db.pos.tables.references.BILL_ITEM
 import com.onemind.db.pos.tables.references.BILL_ITEM_DISCOUNT
 import com.onemind.db.pos.tables.references.BILL_QUARANTINE
+import com.onemind.db.pos.tables.references.CATEGORY
 import com.onemind.db.pos.tables.references.PAYMENT
+import com.onemind.db.pos.tables.references.PRODUCT
 import com.onemind.db.pos.tables.references.SYNC_CURSOR
 import com.onemind.db.pos.tables.references.VENUE_LINK
 import org.jooq.DSLContext
@@ -147,6 +151,31 @@ class PosReadRepository(
             .orderBy(VENUE_LINK.VENUE_ID)
             .fetch(VENUE_LINK.VENUE_ID)
             .filterNotNull()
+
+    /** The venue's products among [productIds], also ones no longer on the menu. */
+    fun products(
+        venueId: UUID,
+        productIds: Collection<UUID>,
+    ): List<StoredProduct> =
+        dsl
+            .select(PRODUCT.ID, PRODUCT.NAME, PRODUCT.CATEGORY_ID)
+            .from(PRODUCT)
+            .where(PRODUCT.VENUE_ID.eq(venueId), PRODUCT.ID.`in`(productIds))
+            .fetch()
+            .toList()
+            .map { r -> StoredProduct(requireNotNull(r.get(PRODUCT.ID)), requireNotNull(r.get(PRODUCT.NAME)), r.get(PRODUCT.CATEGORY_ID)) }
+
+    /** Every category of the venue's menu (a small list). */
+    fun categories(venueId: UUID): List<StoredCategory> =
+        dsl
+            .select(CATEGORY.ID, CATEGORY.NAME, CATEGORY.PARENT_ID)
+            .from(CATEGORY)
+            .where(CATEGORY.VENUE_ID.eq(venueId))
+            .fetch()
+            .toList()
+            .map { r ->
+                StoredCategory(requireNotNull(r.get(CATEGORY.ID)), requireNotNull(r.get(CATEGORY.NAME)), r.get(CATEGORY.PARENT_ID))
+            }
 
     /** The business days of [venueId] that have bills. */
     fun businessDays(venueId: UUID): List<LocalDate> =

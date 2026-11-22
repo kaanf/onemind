@@ -1,0 +1,13 @@
+type: object
+required:
+  - hour
+  - quantity
+properties:
+  hour:
+    type: integer
+    minimum: 0
+    maximum: 23
+  quantity:
+    type: string
+    description: Decimal string ("12", "1.5").
+    example: '12'

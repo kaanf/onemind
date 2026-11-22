@@ -12,6 +12,10 @@ import com.onemind.api.v1.model.LossesSummary
 import com.onemind.api.v1.model.Money
 import com.onemind.api.v1.model.PaymentSplit
 import com.onemind.api.v1.model.PossibleLoss
+import com.onemind.api.v1.model.ProductCategory
+import com.onemind.api.v1.model.ProductQuantity
+import com.onemind.api.v1.model.ProductSales
+import com.onemind.api.v1.model.ProductsSummary
 import com.onemind.api.v1.model.SalesComparison
 import com.onemind.api.v1.model.SalesRange
 import com.onemind.api.v1.model.SalesSummary
@@ -25,9 +29,11 @@ import com.onemind.api.v1.web.DashboardApi
 import com.onemind.backend.common.security.CurrentUser
 import com.onemind.backend.common.web.ETagResponses
 import com.onemind.backend.reporting.application.GetLosses
+import com.onemind.backend.reporting.application.GetProducts
 import com.onemind.backend.reporting.application.GetSales
 import com.onemind.backend.reporting.application.GetTodaySummary
 import com.onemind.backend.reporting.application.LossesView
+import com.onemind.backend.reporting.application.ProductsView
 import com.onemind.backend.reporting.application.SalesPeriodUnknownException
 import com.onemind.backend.reporting.application.SalesView
 import com.onemind.backend.reporting.application.ScopedVenue
@@ -38,6 +44,7 @@ import com.onemind.backend.reporting.domain.LossTotals
 import com.onemind.backend.reporting.domain.SalesPeriod
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
+import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.Currency
@@ -48,6 +55,7 @@ class DashboardController(
     private val getTodaySummary: GetTodaySummary,
     private val getSales: GetSales,
     private val getLosses: GetLosses,
+    private val getProducts: GetProducts,
     private val eTags: ETagResponses,
 ) : DashboardApi {
     override fun getToday(
@@ -113,6 +121,43 @@ class DashboardController(
             deletedBills = figures?.deletedBills?.let { LossRecords(money(it.amountMinor), it.records) },
         )
     }
+
+    override fun getProducts(
+        venueIds: List<UUID>,
+        date: LocalDate?,
+        ifNoneMatch: String?,
+    ): ResponseEntity<ProductsSummary> = eTags.ok(getProducts.get(CurrentUser.id(), venueIds, date).toDto(), ifNoneMatch)
+
+    private fun ProductsView.toDto(): ProductsSummary {
+        val code = currency.currencyCode
+        val figures = figures
+        return ProductsSummary(
+            status = if (figures != null) DataStatus.READY else DataStatus.NO_DATA_YET,
+            currency = code,
+            businessDay = businessDay,
+            venues = venues.map { it.toDto(today, timeZone) },
+            pendingVenueIds = venues.filterNot { it.ready }.map { it.venueId },
+            dataGaps = gaps.toDto(),
+            hours = figures?.hours,
+            categories = figures?.categories?.map { ProductCategory(it.categoryId, it.name, it.parentId) },
+            products =
+                figures?.products?.map { product ->
+                    ProductSales(
+                        venueId = product.venueId,
+                        productId = product.productId,
+                        name = product.name,
+                        sold = product.sold.decimalString(),
+                        gross = Money(product.grossMinor, code),
+                        hourly = product.hourly.map { ProductQuantity(it.hour, it.quantity.decimalString()) },
+                        peakHour = product.peakHour,
+                        categoryId = product.categoryId,
+                    )
+                },
+        )
+    }
+
+    /** A quantity as the API's decimal string, without trailing zeros ("12", "1.5"). */
+    private fun BigDecimal.decimalString(): String = stripTrailingZeros().toPlainString()
 
     private fun SalesView.toDto(): SalesSummary {
         val code = currency.currencyCode
