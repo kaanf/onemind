@@ -66,8 +66,18 @@ Account deletion (`DELETE /me`, App Store 5.1.1(v), GDPR art. 17):
   and all its data (venues, POS read model incl. staff names, reporting, stock) is deleted by a
   background job after **30 days** (inside GDPR's one-month window). During those 30 days an
   accidental deletion can be reversed through support. Legal wording to be confirmed. The mark is
-  `organization.deletion_due_at` (V007); the purge job comes with the organization data (phase 4).
-  A support reversal clears `deletion_due_at` (and restores an owner membership) before it passes.
+  `organization.deletion_due_at` (V007). A support reversal clears `deletion_due_at` (and restores an
+  owner membership) before it passes.
+- The purge job (`account/application/PurgeDueOrganizations`, hourly) deletes each due organization
+  in its own transaction: it re-checks the mark under a row lock, locks the venues (a concurrent sync
+  insert waits and then fails instead of blocking the venue delete), publishes the synchronous
+  `OrganizationPurging` event, in which every module deletes its rows of the organization and its
+  venues (`pos`: the whole read model incl. connections, their venue links and staff; `reporting`: all rollups), then
+  deletes the venues (followed venues cascade) and the organization (remaining memberships cascade).
+  Other members stay users. A failing organization is rolled back whole, stays marked and is tried
+  again next hour. A module that adds a venue- or organization-scoped table deletes it in its
+  listener; `OrganizationPurgeTests` fails until the table is seeded there. Stock history needs a
+  retention decision under product rule 4 and GDPR when the `stock` schema is added.
 - History and audit tables that record who did something (stock movements, counts, receipts,
   corrections) reference `app_user` with **`on delete set null`, never `cascade`**: deleting a user
   must not delete stock history (product rule 4). Only the user's own data (identities, tokens,

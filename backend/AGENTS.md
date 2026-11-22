@@ -89,6 +89,10 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
   registry (`@ApplicationModuleListener`). Delivery is at least once: **every listener must be
   idempotent**, with a test that delivers the same event twice. Failed publications are resubmitted
   by a job (`common/events/EventPublicationJobs`), so a listener may see the same event again later.
+- Organization purge (account deletion): every module that stores venue- or organization-scoped
+  data deletes it in a plain `@EventListener` for `account/api/events/OrganizationPurging`
+  (synchronous, inside the purge transaction; ADR 0013 §6). A new table also gets a row in
+  `account/OrganizationPurgeTests`, which fails until it does.
 - Background jobs use **db-scheduler**. Jobs must be idempotent and safe to retry. Register a job
   as a task bean (`Tasks.recurring(...)` / `Tasks.oneTime(...)`) in `application` (in `common`: at
   the area's root) and keep its body in a plain method you can test without the scheduler.
