@@ -116,9 +116,9 @@ to `web`. Allowed dependencies inside a module, and nothing else:
 |--------|------|----------------------|-----|
 | `common` | open | – | Shared kernel; every module may use every `common` package. `common` itself uses no business module. |
 | `account` | base | – | Users, venues and memberships. The others depend on it; it depends on none of them. |
-| `pos` | – | `account::api` | Registers the venues it discovers and checks venue access for sync status. Uses no other business module. |
-| `reporting` | – | `account::api`, `pos::api`, `pos::events`, `stock::api`, `stock::events` | Venue access; reads POS facts through the pos read API; refreshes rollups on `BillsSynced`; `possibleLoss` includes `stockCorrections` (METRICS), read through `stock::api` and refreshed on stock correction events. Without stock in the first release (P13) that part is an empty state, never 0. |
-| `stock` | – | `account::api`, `pos::api`, `pos::events` | Venue access; sold items and the product catalog for usage and recipes; deducts usage on `BillsSynced`. |
+| `pos` | – | `account::api`, `account::events` | Registers the venues it discovers and checks venue access for sync status; deletes its data on `OrganizationPurging`. Uses no other business module. |
+| `reporting` | – | `account::api`, `account::events`, `pos::api`, `pos::events`, `stock::api`, `stock::events` | Venue access; deletes its rollups on `OrganizationPurging`; reads POS facts through the pos read API; refreshes rollups on `BillsSynced`; `possibleLoss` includes `stockCorrections` (METRICS), read through `stock::api` and refreshed on stock correction events. Without stock in the first release (P13) that part is an empty state, never 0. |
+| `stock` | – | `account::api`, `account::events`, `pos::api`, `pos::events` | Venue access; deletes its data on `OrganizationPurging`; sold items and the product catalog for usage and recipes; deducts usage on `BillsSynced`. |
 
 Every module also lists `common` in `allowedDependencies`: it is open, but an explicit list replaces
 Spring Modulith's default, so it must be named. `api` and `api/events` are named interfaces (`::api`,
@@ -164,7 +164,7 @@ already grouped by hour and product). The SQL stays inside `pos`.
 
 - **Events:** Spring Modulith JDBC event publication registry (outbox in the same transaction,
   delivered after commit, resubmitted by a job). Delivery is at least once, so every listener is
-  idempotent and has a duplicate-delivery test.
+  idempotent and has a duplicate-delivery test. **Exception (owner, 2026-11-22):** `account/api/events/OrganizationPurging` is synchronous: published inside the organization purge transaction and handled by plain `@EventListener`s that delete the module's rows before the venues go (`docs/architecture/DB_SCHEMA.md`, account deletion).
 - **Jobs:** db-scheduler, PostgreSQL-backed, started when the context is ready. Jobs are
   idempotent; their bodies are plain methods testable without the scheduler.
 - **Errors:** expected outcomes are sealed return types; rule violations and failures are
@@ -278,3 +278,12 @@ Every ArchUnit rule gets a fixture that violates it and a test proving the rule 
    `TransactionTemplate` are exempt through a fixed allowlist in the gate.
 4. **POS data:** mock data only for now; `PosProvider` gets a mock/fixture implementation, the real
    Storyous client later behind the same interface.
+
+### Owner decisions (2026-11-22)
+
+1. **Module graph:** `pos`, `reporting` and `stock` also depend on `account::events`, so they can
+   handle `OrganizationPurging` (organization purge after account deletion). `account` still depends
+   on no business module, so the graph has no cycle.
+2. **Synchronous event:** `OrganizationPurging` is the one event handled in the publisher's
+   transaction (§6); chosen over an R9 interface exception and over `ON DELETE CASCADE` on venue
+   foreign keys (which would later cascade into stock history, product rule 4).

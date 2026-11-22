@@ -40,7 +40,11 @@ class ModuleBoundaryTests {
                 "common.web.ApiPathConfig",
                 "common.money.Money",
                 "pos.package-info",
+                "pos.application.PurgeOrganizationPosData",
+                "pos.infra.persistence.PosOrganizationDataRepository",
                 "reporting.package-info",
+                "reporting.application.PurgeOrganizationReportingData",
+                "reporting.infra.persistence.ReportingOrganizationDataRepository",
                 "stock.package-info",
             )
 
@@ -74,9 +78,18 @@ class ModuleBoundaryTests {
         val graph =
             mapOf(
                 "account" to listOf("common"),
-                "pos" to listOf("common", "account::api"),
-                "reporting" to listOf("common", "account::api", "pos::api", "pos::events", "stock::api", "stock::events"),
-                "stock" to listOf("common", "account::api", "pos::api", "pos::events"),
+                "pos" to listOf("common", "account::api", "account::events"),
+                "reporting" to
+                    listOf(
+                        "common",
+                        "account::api",
+                        "account::events",
+                        "pos::api",
+                        "pos::events",
+                        "stock::api",
+                        "stock::events",
+                    ),
+                "stock" to listOf("common", "account::api", "account::events", "pos::api", "pos::events"),
             )
 
         graph.forEach { (module, allowed) ->
