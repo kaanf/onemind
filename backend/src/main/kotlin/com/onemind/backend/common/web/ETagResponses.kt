@@ -20,10 +20,13 @@ class ETagResponses(
         ifNoneMatch: String?,
     ): ResponseEntity<T> {
         val tag = tagOf(body)
-        val matches = ifNoneMatch?.split(',')?.map { it.trim() }?.any { it == tag || it == "*" } == true
+        // Weak comparison (RFC 9110): W/"x" and "x" name the same version.
+        val matches = ifNoneMatch?.split(',')?.map { it.trim() }?.any { it == "*" || opaque(it) == opaque(tag) } == true
         val response = if (matches) ResponseEntity.status(HttpStatus.NOT_MODIFIED) else ResponseEntity.ok()
         return response.eTag(tag).body(body.takeUnless { matches })
     }
+
+    private fun opaque(tag: String) = tag.removePrefix("W/")
 
     private fun tagOf(body: Any): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(json.writeValueAsBytes(body))

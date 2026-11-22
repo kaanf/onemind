@@ -51,7 +51,11 @@ is 0 or missing.
 - **Today (Day period):** "up to the same time" is the same **local clock time** on the business day 7
   days earlier (`BusinessDayCalendar.sameLocalTimeDaysEarlier`, so a DST change in between doesn't
   shift it). Hourly rollups can't cut mid-hour, so the earlier figure is computed from that day's POS
-  facts with the same per-bill revenue rule as the rollups (`reporting/domain/BillRevenue`).
+  facts with the same per-bill revenue rule as the rollups (`reporting/domain/BillRevenue`). It covers
+  the same venues on both sides: only those that have that earlier day (a venue synced since would
+  make up growth); the response names them, and without any there is no comparison.
+- Several venues share one Today only when they share one time zone and cut-off (one chart, one
+  clock; `422 BUSINESS_DAYS_DIFFER` otherwise) and one currency: a first-release limit.
 - Week and month comparisons (M3) stay open; they come with the Sales screen.
 
 ## Revenue
@@ -66,7 +70,7 @@ is 0 or missing.
 | `guests`         | Sum of `guestCount` on bills paid in the period ("since opening" for today). If the POS has no guest count for a bill, count 1 **(?, M5)**. |
 | `averageBill`    | `paidRevenue / number of paid bills`. |
 | `revenuePerGuest`| `paidRevenue / guests`. |
-| Hourly chart (Today) | `paidRevenue` per local clock hour over the hours that have sales at the venue(s) (owner decision 2026-11-22, M12 closed): every hour with paid revenue today or on any of the last 4 same weekdays, contiguous from the first to the last in business-day order (from the cut-off), plus the current hour. Past hours = paid in that hour; current hour = paid so far; future hours = the average of that hour over those of the last 4 same weekdays that have data (an hour without sales on such a day counts 0), rounded half-up; no forecast without any earlier same weekday. Several venues add up hour by hour (forecast = sum of each venue's average). |
+| Hourly chart (Today) | `paidRevenue` per local clock hour over the hours that have sales at the venue(s) (owner decision 2026-11-22, M12 closed): every hour with paid revenue today or on any of the last 4 same weekdays, contiguous from the first to the last in business-day order (the day's own local hours: the hour skipped on the spring DST day has no bar), plus the current hour. Past hours = paid in that hour; current hour = paid so far; future hours = the average of that hour over those of the last 4 same weekdays that have data (an hour without sales on such a day counts 0), rounded half-up; no forecast without any earlier same weekday. Several venues add up hour by hour (forecast = sum of each venue's average). |
 
 ## Occupancy and tables
 

@@ -1,11 +1,14 @@
 package com.onemind.backend.reporting
 
+import com.onemind.backend.common.time.BusinessDayCalendar
 import com.onemind.backend.reporting.domain.BarKind
 import com.onemind.backend.reporting.domain.HourTotals
 import com.onemind.backend.reporting.domain.TodayCalculator
 import com.onemind.backend.reporting.domain.VenueToday
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -13,6 +16,8 @@ import kotlin.test.assertNull
 /** Screen 01 definitions (`docs/domain/METRICS.md`), on the 05:00 cut-off. */
 class TodayCalculatorTest {
     private val today = LocalDate.parse("2026-11-20")
+    private val prague = ZoneId.of("Europe/Prague")
+    private val normalDay = BusinessDayCalendar.localHours(today, prague, LocalTime.of(5, 0))
 
     private fun hour(
         hour: Int,
@@ -29,7 +34,7 @@ class TodayCalculatorTest {
     fun `the axis runs over the hours with sales in business-day order, across midnight`() {
         val venue = VenueToday(today = listOf(hour(18, 1_000), hour(19, 2_000), hour(0, 500)), sameWeekdays = emptyMap())
 
-        val bars = TodayCalculator.compute(listOf(venue), currentHour = 20, cutOffHour = 5).bars
+        val bars = TodayCalculator.compute(listOf(venue), currentHour = 20, dayHours = normalDay).bars
 
         assertEquals(listOf(18, 19, 20, 21, 22, 23, 0), bars.map { it.hour })
         assertEquals(listOf(BarKind.PAST, BarKind.PAST, BarKind.CURRENT), bars.take(3).map { it.kind })
@@ -50,7 +55,7 @@ class TodayCalculatorTest {
                     ),
             )
 
-        val bars = TodayCalculator.compute(listOf(venue), currentHour = 19, cutOffHour = 5).bars.associateBy { it.hour }
+        val bars = TodayCalculator.compute(listOf(venue), currentHour = 19, dayHours = normalDay).bars.associateBy { it.hour }
 
         // (3 001 + 0) / 2 = 1 500.5 → 1 501 (half-up).
         assertEquals(1_501L, bars.getValue(22).amountMinor)
@@ -64,7 +69,7 @@ class TodayCalculatorTest {
         val a = VenueToday(listOf(hour(20, 1_000)), mapOf(weeksAgo(1) to listOf(hour(21, 400, weeksAgo(1)))))
         val b = VenueToday(listOf(hour(20, 500)), emptyMap())
 
-        val figures = TodayCalculator.compute(listOf(a, b), currentHour = 20, cutOffHour = 5)
+        val figures = TodayCalculator.compute(listOf(a, b), currentHour = 20, dayHours = normalDay)
 
         assertEquals(1_500, figures.paidMinor)
         assertEquals(1_500L, figures.bars.first { it.hour == 20 }.amountMinor)
@@ -75,13 +80,13 @@ class TodayCalculatorTest {
     fun `paid so far leaves out refunds, per guest is rounded half-up and absent without guests`() {
         val venue = VenueToday(listOf(hour(20, 1_000, refunded = 300, guests = 3, tips = 50)), emptyMap())
 
-        val figures = TodayCalculator.compute(listOf(venue), currentHour = 21, cutOffHour = 5)
+        val figures = TodayCalculator.compute(listOf(venue), currentHour = 21, dayHours = normalDay)
 
         assertEquals(1_000, figures.paidMinor)
         assertEquals(333, figures.perGuestMinor)
         assertEquals(300, figures.loss.refundsMinor)
         assertEquals(50, figures.tipsMinor)
-        assertNull(TodayCalculator.compute(listOf(VenueToday(listOf(hour(20, 1_000)), emptyMap())), 21, 5).perGuestMinor)
+        assertNull(TodayCalculator.compute(listOf(VenueToday(listOf(hour(20, 1_000)), emptyMap())), 21, normalDay).perGuestMinor)
     }
 
     @Test
@@ -95,6 +100,21 @@ class TodayCalculatorTest {
 
     @Test
     fun `no sales anywhere means no axis`() {
-        assertEquals(emptyList(), TodayCalculator.compute(listOf(VenueToday(emptyList(), emptyMap())), 20, 5).bars)
+        assertEquals(emptyList(), TodayCalculator.compute(listOf(VenueToday(emptyList(), emptyMap())), 20, normalDay).bars)
+    }
+
+    @Test
+    fun `the spring DST day has no bar for the skipped hour, the autumn one has the repeated hour once`() {
+        // Business day 2026-03-28 runs to 05:00 on the 29th, when 02:00 jumps to 03:00.
+        val spring = BusinessDayCalendar.localHours(LocalDate.parse("2026-03-28"), prague, LocalTime.of(5, 0))
+        val venue = VenueToday(listOf(hour(1, 700), hour(3, 300)), emptyMap())
+
+        val bars = TodayCalculator.compute(listOf(venue), currentHour = 4, dayHours = spring).bars
+
+        assertEquals(23, spring.size)
+        assertEquals(listOf(1, 3, 4), bars.map { it.hour })
+        val autumn = BusinessDayCalendar.localHours(LocalDate.parse("2026-10-24"), prague, LocalTime.of(5, 0))
+        assertEquals(24, autumn.size)
+        assertEquals(1, autumn.count { it == 2 })
     }
 }

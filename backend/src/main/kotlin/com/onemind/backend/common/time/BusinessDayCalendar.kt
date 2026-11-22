@@ -50,6 +50,24 @@ object BusinessDayCalendar {
     ): Int = at.atZone(zone).hour
 
     /**
+     * The local clock hours of a business date in order, each once: 24 on a normal day, 23 on the spring
+     * DST day (the skipped hour is missing), 24 on the autumn one (the repeated hour is one, as in the
+     * hourly rollups).
+     */
+    fun localHours(
+        date: LocalDate,
+        zone: ZoneId,
+        businessDayStart: LocalTime,
+    ): List<Int> {
+        val day = range(date, zone, businessDayStart)
+        return generateSequence(day.start) { it.plus(Duration.ofHours(1)) }
+            .takeWhile { it.isBefore(day.end) }
+            .map { localHour(it, zone) }
+            .distinct()
+            .toList()
+    }
+
+    /**
      * The instant [days] days before [at] at the same local clock time in [zone] ("last Friday, up to the
      * same time"), so a DST change in between doesn't shift it by an hour.
      */

@@ -19,6 +19,12 @@ import java.time.LocalDate
 import java.util.Currency
 import java.util.UUID
 
+class BusinessDaysDifferException :
+    RuleViolationException(
+        code = "BUSINESS_DAYS_DIFFER",
+        detail = "These venues don't share one time zone and cut-off, so their hours can't share one chart.",
+    )
+
 class CurrenciesDifferException :
     RuleViolationException(
         code = "CURRENCIES_DIFFER",
@@ -34,9 +40,12 @@ data class TodayVenueView(
     val dataAsOf: Instant?,
 )
 
+/** Paid so far of [venueIds] against the same venues last week; venues without that day are left out of both. */
 data class TodayComparisonView(
     val previousBusinessDay: LocalDate,
-    val previousMinor: Long?,
+    val venueIds: List<UUID>,
+    val currentMinor: Long,
+    val previousMinor: Long,
     val deltaPercent: BigDecimal?,
 )
 
@@ -63,9 +72,10 @@ data class TodayView(
  * counted as 0 (rule 2). Each venue's business day is its own (zone and cut-off, rule 6). Amounts of
  * different currencies are never added up: `422 CURRENCIES_DIFFER`.
  *
- * The comparison is "same weekday last week, up to the same local time": hourly rollups can't cut at
- * that minute, so the earlier figure comes from that day's POS facts with the one revenue rule
- * ([BillRevenue.paid]).
+ * The comparison is "same weekday last week, up to the same local time", over the venues that have
+ * that day: hourly rollups can't cut at that minute, so the earlier figure comes from that day's POS
+ * facts with the one revenue rule ([BillRevenue.paid]). Venues on different zones or cut-offs are
+ * `422 BUSINESS_DAYS_DIFFER` (one chart, one clock; a first-release limit).
  */
 @Service
 class GetTodaySummary(
@@ -80,6 +90,7 @@ class GetTodaySummary(
         venueIds: Collection<UUID>,
     ): TodayView {
         val ids = venueIds.distinct()
+        require(ids.isNotEmpty()) { "at least one venue (the API validates it)" }
         ids.forEach { venueAccess.requireAccess(userId, it) }
         val settings = ids.associateWith { requireNotNull(venueRegistry.businessDay(it)) { "an accessible venue has settings" } }
         val currency =
@@ -87,6 +98,14 @@ class GetTodaySummary(
                 .map { it.currency }
                 .distinct()
                 .singleOrNull() ?: throw CurrenciesDifferException()
+        // One chart, one clock: venues on different zones or cut-offs are a first-release limit (rule 6).
+        if (settings.values
+                .map { it.zone to it.businessDayStart }
+                .distinct()
+                .size > 1
+        ) {
+            throw BusinessDaysDifferException()
+        }
         val now = clock.instant()
 
         val venues =
@@ -96,17 +115,17 @@ class GetTodaySummary(
                 TodayVenueView(id, today(venue, now), venue.zone.id, ready = dataAsOf != null, dataAsOf = dataAsOf)
             }
         val ready = venues.filter { it.ready }
-        // The hour axis follows the first venue with data (venues usually share a zone and cut-off).
-        val axis = settings.getValue((ready.firstOrNull() ?: venues.first()).venueId)
-        val currentHour = BusinessDayCalendar.localHour(now, axis.zone)
+        val shared = settings.getValue(venues.first().venueId)
+        val currentHour = BusinessDayCalendar.localHour(now, shared.zone)
+        val dayHours = BusinessDayCalendar.localHours(venues.first().businessDay, shared.zone, shared.businessDayStart)
 
-        val inputs = ready.map { venue -> venueToday(venue) }
-        val figures = if (ready.isEmpty()) null else TodayCalculator.compute(inputs, currentHour, axis.businessDayStart.hour)
+        val inputs = ready.associateWith { venue -> venueToday(venue) }
+        val figures = if (ready.isEmpty()) null else TodayCalculator.compute(inputs.values.toList(), currentHour, dayHours)
         return TodayView(
             currency = currency,
             venues = venues,
             figures = figures,
-            comparison = figures?.let { comparison(ready, settings, now, it.paidMinor) },
+            comparison = comparison(inputs, shared, now),
             currentHour = currentHour,
             gaps = gaps(ready, figures),
         )
@@ -127,26 +146,36 @@ class GetTodaySummary(
         )
     }
 
-    /** Paid so far against the same weekday last week up to the same local time, from that day's POS facts. */
+    /**
+     * Paid so far against the same weekday last week up to the same local time, over the same venues: only
+     * those that have that day (a venue synced since would make up growth). `null` when none has it.
+     */
     private fun comparison(
-        ready: List<TodayVenueView>,
-        settings: Map<UUID, VenueBusinessDay>,
+        inputs: Map<TodayVenueView, VenueToday>,
+        shared: VenueBusinessDay,
         now: Instant,
-        paidMinor: Long,
-    ): TodayComparisonView {
+    ): TodayComparisonView? {
+        val cut = BusinessDayCalendar.sameLocalTimeDaysEarlier(now, shared.zone, DAYS_IN_WEEK)
+        val compared =
+            inputs.filterKeys { venue -> rollups.daysWithRollups(venue.venueId, listOf(venue.businessDay.minusWeeks(1))).isNotEmpty() }
+        if (compared.isEmpty()) return null
         val previous =
-            ready.mapNotNull { venue ->
-                val previousDay = venue.businessDay.minusWeeks(1)
-                if (rollups.daysWithRollups(venue.venueId, listOf(previousDay)).isEmpty()) return@mapNotNull null
-                val cut = BusinessDayCalendar.sameLocalTimeDaysEarlier(now, settings.getValue(venue.venueId).zone, DAYS_IN_WEEK)
-                val bills = allPages { after -> pos.bills(venue.venueId, listOf(previousDay), after).let { it.items to it.next } }
+            compared.keys.sumOf { venue ->
+                val day = venue.businessDay.minusWeeks(1)
+                val bills = allPages { after -> pos.bills(venue.venueId, listOf(day), after).let { it.items to it.next } }
                 BillRevenue.paid(bills.filter { it.paidAt.isBefore(cut) }.map { it.toRollup() })
             }
-        val previousMinor = if (previous.isEmpty()) null else previous.sum()
+        val current = compared.values.sumOf { venue -> venue.today.sumOf { it.paidMinor } }
         return TodayComparisonView(
-            previousBusinessDay = ready.first().businessDay.minusWeeks(1),
-            previousMinor = previousMinor,
-            deltaPercent = TodayCalculator.deltaPercent(paidMinor, previousMinor),
+            previousBusinessDay =
+                compared.keys
+                    .first()
+                    .businessDay
+                    .minusWeeks(1),
+            venueIds = compared.keys.map { it.venueId },
+            currentMinor = current,
+            previousMinor = previous,
+            deltaPercent = TodayCalculator.deltaPercent(current, previous),
         )
     }
 

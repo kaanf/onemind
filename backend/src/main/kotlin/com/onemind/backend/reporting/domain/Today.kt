@@ -61,17 +61,18 @@ data class TodayFigures(
  *   without guests), rounded half-up to the minor unit.
  * - Possible loss = discounts + refunds + whole deleted bills (first release components).
  * - Hourly chart (M12 closed): the hours that have sales, i.e. the hours with paid revenue today or on
- *   any of the last 4 same weekdays, from the first to the last in business-day order (from the
- *   cut-off), plus the current hour. Hours before the current one are `PAST`, the current one `CURRENT`
+ *   any of the last 4 same weekdays, from the first to the last in business-day order (the day's own
+ *   local hours: none for the hour skipped on the spring DST day), plus the current hour. Hours before the current one are `PAST`, the current one `CURRENT`
  *   (paid so far), later ones `FORECAST`: the average of that hour over those of the last 4 same
  *   weekdays that have data (a day with data but no sale in the hour counts 0), rounded half-up; null
  *   when there is no such day. For several venues the forecast is the sum of each venue's average.
  */
 object TodayCalculator {
+    /** [dayHours]: the local hours of the business day in order (`BusinessDayCalendar.localHours`). */
     fun compute(
         venues: List<VenueToday>,
         currentHour: Int,
-        cutOffHour: Int,
+        dayHours: List<Int>,
     ): TodayFigures {
         val todayHours = venues.flatMap { it.today }
         val paid = todayHours.sumOf { it.paidMinor }
@@ -87,7 +88,7 @@ object TodayCalculator {
                     refundsMinor = todayHours.sumOf { it.refundedMinor },
                     deletedBillsMinor = todayHours.sumOf { it.deletedMinor },
                 ),
-            bars = bars(venues, currentHour, cutOffHour),
+            bars = bars(venues, currentHour, dayHours),
             paymentMismatchBills = todayHours.sumOf { it.paymentMismatchBills },
         )
     }
@@ -107,9 +108,10 @@ object TodayCalculator {
     private fun bars(
         venues: List<VenueToday>,
         currentHour: Int,
-        cutOffHour: Int,
+        dayHours: List<Int>,
     ): List<Bar> {
-        val position = { hour: Int -> (hour - cutOffHour + HOURS) % HOURS }
+        // Business-day order; an hour the day doesn't have (spring DST) never gets a bar.
+        val position = { hour: Int -> dayHours.indexOf(hour) }
         val today = venues.flatMap { it.today }.groupBy { it.hour }.mapValues { (_, hours) -> hours.sumOf { it.paidMinor } }
         val forecasts = venues.map { forecast(it) }
         val withSales =
@@ -121,9 +123,10 @@ object TodayCalculator {
                         .map { it.hour }
                 }
         if (withSales.isEmpty()) return emptyList()
-        val positions = (withSales + currentHour).map(position)
+        val positions = (withSales + currentHour).map(position).filter { it >= 0 }
+        if (positions.isEmpty()) return emptyList()
         return (positions.min()..positions.max()).map { at ->
-            val hour = (at + cutOffHour) % HOURS
+            val hour = dayHours[at]
             when {
                 at < position(currentHour) -> {
                     Bar(hour, BarKind.PAST, today[hour] ?: 0)
@@ -158,6 +161,4 @@ object TodayCalculator {
         amount: Long,
         divisor: Long,
     ): Long = BigDecimal.valueOf(amount).divide(BigDecimal.valueOf(divisor), 0, RoundingMode.HALF_UP).longValueExact()
-
-    private const val HOURS = 24
 }

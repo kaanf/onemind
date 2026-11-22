@@ -10,8 +10,9 @@ get:
     Figures the POS can't give are listed in `unavailable` and never sent as a value (product rule 2).
     Polling: send the last `ETag` as `If-None-Match`; an unchanged answer is `304` (ADR 0005).
 
-    Errors: `404 VENUE_NOT_FOUND` for a venue that isn't the caller's; `422 CURRENCIES_DIFFER` when the
-    venues don't share one currency (amounts are never converted).
+    Errors: `400 VALIDATION_FAILED` without a venue; `404 VENUE_NOT_FOUND` for a venue that isn't the caller's; `422 CURRENCIES_DIFFER` when the
+    venues don't share one currency (amounts are never converted); `422 BUSINESS_DAYS_DIFFER` when they
+    don't share one time zone and cut-off (one chart, one clock: a first-release limit).
   parameters:
     - $ref: ../../components/parameters/VenueIds.yaml
     - $ref: ../../components/parameters/IfNoneMatch.yaml

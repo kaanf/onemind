@@ -131,6 +131,51 @@ class TodayApiTests {
     }
 
     @Test
+    fun `the comparison covers only the venues that have last week's day`() {
+        val (owner, letna) = syncedOwner()
+        val karlin = venueOf(owner, "demo-karlin")
+        // As if Karlín had only just been synced: no rollups for last Friday.
+        jdbc.update("delete from reporting.rollup_state where venue_id = ? and business_day = '2026-11-13'", karlin)
+
+        val both = get(owner, letna, karlin)
+
+        val letnaToday = "venue_id = '$letna' and business_day = '2026-11-20'"
+        val comparison = both["comparison"]
+        assertEquals(listOf(letna.toString()), comparison["venueIds"].toList().map { it.asString() })
+        assertEquals(paid(letnaToday), comparison["current"]["amountMinor"].asLong())
+        assertEquals(
+            paid("venue_id = '$letna' and business_day = '2026-11-13' and paid_at < timestamptz '2026-11-13T20:40:00Z'"),
+            comparison["previous"]["amountMinor"].asLong(),
+        )
+        assertEquals(
+            paid(letnaToday) + paid("venue_id = '$karlin' and business_day = '2026-11-20'"),
+            both["paidSoFar"]["amountMinor"].asLong(),
+        )
+    }
+
+    @Test
+    fun `venues on different time zones or cut-offs don't share one chart`() {
+        val (owner, letna) = syncedOwner()
+        val karlin = venueOf(owner, "demo-karlin")
+
+        jdbc.update("update account.venue set business_day_start = '06:00' where id = ?", karlin)
+        expectProblem(owner, 422, "BUSINESS_DAYS_DIFFER", letna, karlin)
+        jdbc.update("update account.venue set business_day_start = '05:00', time_zone = 'Europe/London' where id = ?", karlin)
+        expectProblem(owner, 422, "BUSINESS_DAYS_DIFFER", letna, karlin)
+    }
+
+    @Test
+    fun `no venue at all is a bad request`() {
+        val (owner, _) = syncedOwner()
+
+        mockMvc.get("/api/v1/dashboard/today?venueIds=") { bearer(owner) }.andExpect {
+            status { isBadRequest() }
+            jsonPath("$.code") { value("VALIDATION_FAILED") }
+            jsonPath("$.errors[0].field") { value("venueIds") }
+        }
+    }
+
+    @Test
     fun `an unchanged answer is 304 for its ETag`() {
         val (owner, venue) = syncedOwner()
         val first = mockMvc.get("/api/v1/dashboard/today?venueIds=$venue") { bearer(owner) }.andReturn().response
@@ -144,6 +189,12 @@ class TodayApiTests {
                 status { isNotModified() }
                 header { string("ETag", tag) }
             }
+        // Weak comparison: the same version without the W/ prefix matches too.
+        mockMvc
+            .get("/api/v1/dashboard/today?venueIds=$venue") {
+                bearer(owner)
+                header("If-None-Match", tag.removePrefix("W/"))
+            }.andExpect { status { isNotModified() } }
     }
 
     @Test
@@ -199,14 +250,45 @@ class TodayApiTests {
                     connection,
                 ),
             )
+        // Rollups come asynchronously (BillsSynced listener): wait for every venue of the connection.
         val deadline = System.nanoTime() + 120_000_000_000
-        while (count("select count(distinct business_day) from pos.bill where venue_id = '$venue'") !=
-            count("select count(*) from reporting.rollup_state where venue_id = '$venue'")
-        ) {
+        val pending =
+            "select count(*) from pos.venue_link l where l.connection_id = '$connection' and " +
+                "(select count(distinct business_day) from pos.bill b where b.venue_id = l.venue_id) <> " +
+                "(select count(*) from reporting.rollup_state r where r.venue_id = l.venue_id)"
+        while (count(pending) > 0) {
             check(System.nanoTime() < deadline) { "rollups not refreshed" }
             Thread.sleep(250)
         }
         return owner to venue
+    }
+
+    private fun venueOf(
+        owner: UUID,
+        placeId: String,
+    ): UUID =
+        requireNotNull(
+            jdbc.queryForObject<UUID>(
+                """
+                select l.venue_id from pos.venue_link l join account.venue v on v.id = l.venue_id
+                join account.membership m on m.organization_id = v.organization_id
+                where m.user_id = ? and l.external_place_id = ?
+                """.trimIndent(),
+                owner,
+                placeId,
+            ),
+        )
+
+    private fun expectProblem(
+        owner: UUID,
+        status: Int,
+        code: String,
+        vararg venues: UUID,
+    ) {
+        mockMvc.get("/api/v1/dashboard/today?venueIds=${venues.joinToString(",")}") { bearer(owner) }.andExpect {
+            status { isEqualTo(status) }
+            jsonPath("$.code") { value(code) }
+        }
     }
 
     private fun newVenue(

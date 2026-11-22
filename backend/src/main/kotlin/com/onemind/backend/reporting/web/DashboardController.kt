@@ -63,7 +63,13 @@ class DashboardController(
             paidSoFar = figures?.let { money(it.paidMinor) },
             comparison =
                 comparison?.let {
-                    TodayComparison(it.previousBusinessDay, it.previousMinor?.let(::money), it.deltaPercent?.toPlainString())
+                    TodayComparison(
+                        previousBusinessDay = it.previousBusinessDay,
+                        venueIds = it.venueIds,
+                        current = money(it.currentMinor),
+                        previous = money(it.previousMinor),
+                        deltaPercent = it.deltaPercent?.toPlainString(),
+                    )
                 },
             tips = figures?.let { money(it.tipsMinor) },
             guests = figures?.guests,
