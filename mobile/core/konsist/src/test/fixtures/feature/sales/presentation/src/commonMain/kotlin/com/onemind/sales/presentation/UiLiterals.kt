@@ -14,7 +14,8 @@ fun SalesHeader(state: SalesState) {
     // Compliant lookalikes:
     Text(stringResource(Res.string.sales_title))
     Text(text = state.title.asString())
-    Icon(contentDescription = "decorative") // not a text = argument
+    Icon(contentDescription = "Back")
+    Icon(contentDescription = null)
     val url = "https://example.com/text = \"x\""
 }
 
@@ -24,4 +25,16 @@ private fun SalesHeaderPreview() {
     Text("Preview sample")
     Label(text = "Preview label", fontSize = 18.sp)
     Box(Modifier.background(Color(0xFFFFFFFF)))
+}
+
+// The same body as the preview above, but not a preview: must be reported.
+@Composable
+private fun SalesHeaderCopy() {
+    Text("Preview sample")
+}
+
+@Preview
+@Composable
+private fun SalesHeaderCopyPreview() {
+    Text("Preview sample")
 }

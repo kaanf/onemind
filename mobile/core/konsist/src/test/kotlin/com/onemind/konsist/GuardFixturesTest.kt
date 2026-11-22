@@ -112,6 +112,8 @@ class GuardFixturesTest {
             "UiLiterals.kt:11: literal text",
             "UiLiterals.kt:12: hard-coded colour",
             "UiLiterals.kt:13: literal sp size",
+            "UiLiterals.kt:17: literal content description",
+            "UiLiterals.kt:33: literal text",
         )
 
     private fun assertOffenders(
