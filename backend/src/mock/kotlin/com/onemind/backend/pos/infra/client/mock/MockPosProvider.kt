@@ -32,7 +32,8 @@ import java.time.LocalDate
 class MockPosProvider(
     private val clock: Clock,
 ) : PosProvider {
-    override fun merchant(merchantId: String): PosMerchant? = MockCatalog.MERCHANT.takeIf { merchantId == MockCatalog.MERCHANT_ID }
+    override fun merchant(merchantId: String): PosMerchant? =
+        MockCatalog.MERCHANT.copy(merchantId = merchantId).takeIf { MockCatalog.isDemoMerchant(merchantId) }
 
     override fun bills(
         place: PosPlaceRef,
@@ -94,7 +95,7 @@ class MockPosProvider(
 
     override fun menu(place: PosPlaceRef): PosMenu = if (known(place) != null) MockCatalog.MENU else PosMenu(emptyList(), emptyList())
 
-    private fun known(place: PosPlaceRef) = MockCatalog.place(place.placeId)?.takeIf { place.merchantId == MockCatalog.MERCHANT_ID }
+    private fun known(place: PosPlaceRef) = MockCatalog.place(place.placeId)?.takeIf { MockCatalog.isDemoMerchant(place.merchantId) }
 
     // A disabled place has no bills.
     private fun active(place: PosPlaceRef) = known(place)?.takeIf { it.place.state == PosPlaceState.ACTIVE }

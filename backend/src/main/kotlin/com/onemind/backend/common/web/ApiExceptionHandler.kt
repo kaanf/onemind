@@ -8,6 +8,7 @@ import com.onemind.backend.common.error.InvalidRequestException
 import com.onemind.backend.common.error.NotFoundException
 import com.onemind.backend.common.error.Problems
 import com.onemind.backend.common.error.RuleViolationException
+import com.onemind.backend.common.error.ServiceUnavailableException
 import com.onemind.backend.common.error.TooManyRequestsException
 import com.onemind.backend.common.error.UnauthorizedException
 import com.onemind.backend.common.error.UpgradeRequiredException
@@ -49,6 +50,7 @@ class ApiExceptionHandler(
                 is RuleViolationException -> HttpStatus.UNPROCESSABLE_CONTENT
                 is TooManyRequestsException -> HttpStatus.TOO_MANY_REQUESTS
                 is UpgradeRequiredException -> HttpStatus.UPGRADE_REQUIRED
+                is ServiceUnavailableException -> HttpStatus.SERVICE_UNAVAILABLE
             }
         // Code only: detail and params may carry business data.
         log.info("Request failed with {} {}", status.value(), e.code)

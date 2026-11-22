@@ -87,7 +87,7 @@ Account deletion (`DELETE /me`, App Store 5.1.1(v), GDPR art. 17):
 
 | Table | Key columns | Notes |
 |-------|-------------|-------|
-| `pos_connection` | `id`, `organization_id`, `provider (STORYOUS)`, `external_merchant_id`, `status (PENDING\|ACTIVE\|ERROR\|REVOKED)`, `last_error`, `last_synced_at` | Storyous uses **our app's** client credentials (server config), so no per-merchant secret is stored. Unique `(provider, external_merchant_id)`. |
+| `pos_connection` | `id`, `organization_id`, `provider (STORYOUS\|MOCK)` (V011; `MOCK` = the demo POS, dev/demo only), `external_merchant_id`, `status (PENDING\|ACTIVE\|ERROR\|REVOKED)`, `last_error`, `last_synced_at` | Storyous uses **our app's** client credentials (server config), so no per-merchant secret is stored. Unique `(provider, external_merchant_id)`. |
 | `venue_link` | `venue_id` (PK), `connection_id`, `external_place_id`, `active` | Unique `(connection_id, external_place_id)`. `active = false` (V008) when the POS reports the place disabled/hidden or stops reporting it: the sync skips the venue, the venue itself stays (pending owner confirmation, `STORYOUS.md`). |
 | `sync_cursor` | `venue_id`, `resource (BILLS\|MENU\|DESKS)`, `cursor text`, `last_success_at`, `last_error` | PK `(venue_id, resource)`. Bills cursor = last `_lastModifiedAt`. |
 | `sync_job` | `id`, `connection_id`, `kind (INITIAL\|INCREMENTAL\|BACKFILL)`, `status (QUEUED\|RUNNING\|SUCCEEDED\|FAILED)`, `started_at`, `finished_at`, `steps jsonb` | Steps = `[{name, state, progress, countLabel}]` for A4. |

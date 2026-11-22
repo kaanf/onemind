@@ -155,7 +155,7 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
   from the sealed `DomainException` hierarchy (stable error codes), mapped once to RFC 9457 Problem
   Details in `common/web/ApiExceptionHandler`. A module's exception extends one of the categories
   in `common/error/DomainException.kt` (`InvalidRequestException` 400, `ForbiddenException` 403,
-  `NotFoundException` 404, `ConflictException` 409, `RuleViolationException` 422) with its own
+  `NotFoundException` 404, `ConflictException` 409, `RuleViolationException` 422, `ServiceUnavailableException` 503) with its own
   `code`, an English `detail` without personal data and optional `params`. A servlet filter that
   must reject a request passes the exception to the `handlerExceptionResolver` bean
   (`resolveException(request, response, null, e)`), so the problem looks like any other. No Arrow,
@@ -216,6 +216,14 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
   (`src/mock`, with `application-local.yml`; on the bootRun and test classpaths, never in the boot jar,
   checked by `verifyBootJarExcludesMock`); never created in `prod`, and a prod start with `mock` fails. The mock emits only verified Storyous
   fields (`docs/integrations/STORYOUS.md`, *Mock provider*); don't add a field the real API lacks.
+- Interim demo onboarding (`pos/application/DemoOnboarding`, `pos/web/OnboardingController`): only with
+  the demo POS (`PosProviderConfig.isMock`, the same reading as the prod guard), else
+  `404 FEATURE_UNAVAILABLE`. It creates the organization and follows venues through
+  `account/api/OrganizationRegistry` (narrow: `createForOwner`, `follow` (own-organization venues only),
+  `membershipOf`, `followedVenueIds`) and a `MOCK` connection `demo-merchant/<organizationId>`. It locks
+  the user first (one organization per demo onboarding), only the owner of an unfinished demo
+  organization finishes it, and only `PosProviderException` (the POS can't be read) becomes `503`.
+  Place syncs lock their connection, so onboarding and the `pos-sync` job never create a venue twice.
 - Storyous client exposes **read methods only**. Gated (`architecture/ProductRules`, rule 1): no
   mutating HTTP call anywhere in `pos`. The real client's recorded-fixture tests must also fail on any
   non-GET request.

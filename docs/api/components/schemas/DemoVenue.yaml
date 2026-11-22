@@ -1,0 +1,19 @@
+type: object
+description: A venue created from a demo place.
+required:
+  - venueId
+  - name
+  - followed
+  - demo
+properties:
+  venueId:
+    type: string
+    format: uuid
+  name:
+    type: string
+  followed:
+    type: boolean
+    description: Picked on A5.
+  demo:
+    type: boolean
+    description: Always true; the app shows a "Demo data" badge.
