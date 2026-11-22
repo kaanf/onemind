@@ -111,7 +111,7 @@ Treat accent as a single token so it can be switched.
 | **Checklist row** | Checkbox 24 (accent when checked), name with strike-through when done. |
 | **Chat bubble** | User: dark bubble right, radius 16 16 4 16. Assistant: plain text + cards. Source chips under answers. |
 | **Composer** | Attach button, input with accent border (1.5), send button 48 accent. |
-| **OTP input** | 6 boxes 56 high, radius 12, focused box accent border. Tapping a filled box selects its digit (the next one typed replaces it); tapping an empty box goes to the end. |
+| **OTP input** | 6 boxes 56 high, radius 12, focused box accent border. Tapping a filled box selects its digit (the next one typed replaces it, and in a full code the following digit is selected next, so digits are corrected in a row); tapping an empty box goes to the end. |
 | **Text field** | Label 13 medium above; field 52 high, radius 12, white, `borderStrong` border, 1.5 accent border while focused; placeholder `textPlaceholder`. |
 
 Icons: simple stroke icons (1.75–2 stroke, round caps), 22 px in the tab bar. Use one icon set

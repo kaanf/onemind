@@ -36,7 +36,8 @@ import com.onemind.core.designsystem.theme.OneMindTheme
 /**
  * One-time code input: [length] boxes 56 high, radius 12; the box that receives the next digit has an
  * accent border. Tapping a filled box selects that digit, so the next one typed replaces it (and
- * backspace deletes it); tapping an empty box goes to the end. Only digits are accepted.
+ * backspace deletes it); in a full code the following digit is then selected too, so several digits can
+ * be corrected in a row. Tapping an empty box goes to the end. Only digits are accepted.
  * [contentDescription] labels the field (*Code*). Disabled (while a code is being checked) it keeps its
  * value and takes no input.
  */
@@ -53,15 +54,15 @@ fun OtpInput(
     val colors = OneMindTheme.colors
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    var selection by remember { mutableStateOf(TextRange(value.length)) }
-    // The value can change from outside (cleared after a wrong code): keep the selection inside it.
-    val fieldValue = TextFieldValue(value, selection.coerceInOtp(value))
+    // The last text and selection this field produced; a different value came from outside.
+    var own by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
+    val fieldValue = TextFieldValue(value, otpSelection(value, own))
     BasicTextField(
         value = fieldValue,
         onValueChange = { input ->
-            val digits = sanitizeOtp(input.text, length)
-            selection = TextRange(input.selection.start.coerceIn(0, digits.length))
-            onValueChange(digits)
+            own = otpEdit(input, length)
+            // A cursor move alone isn't a new code (it mustn't clear the screen's error).
+            if (own.text != value) onValueChange(own.text)
         },
         singleLine = true,
         enabled = enabled,
@@ -88,7 +89,7 @@ fun OtpInput(
                                 .pointerInput(enabled, value) {
                                     if (!enabled) return@pointerInput
                                     detectTapGestures {
-                                        selection = otpSelectionForTap(index, value)
+                                        own = TextFieldValue(value, otpSelectionForTap(index, value))
                                         focusRequester.requestFocus()
                                         keyboard?.show()
                                     }
@@ -124,7 +125,29 @@ internal fun otpActiveBox(
     length: Int,
 ): Int = selection.start.coerceIn(0, value.length).coerceAtMost(length - 1)
 
-internal fun TextRange.coerceInOtp(value: String): TextRange = TextRange(start.coerceIn(0, value.length), end.coerceIn(0, value.length))
+/**
+ * The selection to show for [value]: the field's own while [value] is what the field last produced,
+ * else the end of [value] (it was set from outside: cleared after a wrong code, or filled by the screen).
+ */
+internal fun otpSelection(
+    value: String,
+    own: TextFieldValue,
+): TextRange = if (own.text == value) own.selection else TextRange(value.length)
+
+/**
+ * Applies one edit of the text field: digits only, at most [length], the cursor kept inside. In a full
+ * code with the cursor before the end, the next digit is selected (overwrite), so typing corrects digit
+ * after digit instead of inserting and pushing the last one out.
+ */
+internal fun otpEdit(
+    input: TextFieldValue,
+    length: Int,
+): TextFieldValue {
+    val digits = sanitizeOtp(input.text, length)
+    val cursor = input.selection.start.coerceIn(0, digits.length)
+    val selection = if (digits.length == length && cursor < length) TextRange(cursor, cursor + 1) else TextRange(cursor)
+    return TextFieldValue(digits, selection)
+}
 
 /** Keeps digits only, at most [length]; pasted codes with spaces or dashes still work. */
 internal fun sanitizeOtp(

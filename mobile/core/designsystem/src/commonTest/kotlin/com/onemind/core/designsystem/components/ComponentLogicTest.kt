@@ -1,6 +1,7 @@
 package com.onemind.core.designsystem.components
 
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import com.onemind.core.designsystem.theme.LightColors
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -33,10 +34,33 @@ class ComponentLogicTest {
     }
 
     @Test
-    fun aClearedOtpValueResetsTheSelection() {
-        // After a wrong code the screen clears the value; an old selection must not point past it.
-        assertEquals(TextRange(0), TextRange(3, 4).coerceInOtp(""))
-        assertEquals(TextRange(2, 2), TextRange(4, 5).coerceInOtp("48"))
+    fun twoDigitsCanBeCorrectedInARow() {
+        // 482913: tap box 2 (selects "8"), type 7, then 5. The IME replaces the selection each time.
+        var field = TextFieldValue("482913", otpSelectionForTap(1, "482913"))
+        field = otpEdit(TextFieldValue("472913", TextRange(2)), 6)
+        assertEquals(TextFieldValue("472913", TextRange(2, 3)), field)
+        field = otpEdit(TextFieldValue("475913", TextRange(3)), 6)
+        assertEquals("475913", field.text)
+        assertEquals(TextRange(3, 4), field.selection)
+    }
+
+    @Test
+    fun anOtpEditKeepsDigitsAndTheCursorInside() {
+        // Backspace on a selected digit: not full any more, plain cursor.
+        assertEquals(TextFieldValue("42913", TextRange(1)), otpEdit(TextFieldValue("42913", TextRange(1)), 6))
+        // Typing at the end of a full code: the extra digit is dropped, the cursor stays at the end.
+        assertEquals(TextFieldValue("482913", TextRange(6)), otpEdit(TextFieldValue("4829134", TextRange(7)), 6))
+        // A paste with separators.
+        assertEquals(TextFieldValue("4829", TextRange(4)), otpEdit(TextFieldValue("48-29", TextRange(5)), 6))
+    }
+
+    @Test
+    fun aValueSetFromOutsideMovesTheCursorToItsEnd() {
+        val own = TextFieldValue("482913", TextRange(1, 2))
+        assertEquals(TextRange(1, 2), otpSelection("482913", own))
+        // Cleared after a wrong code, or filled by the screen.
+        assertEquals(TextRange(0), otpSelection("", own))
+        assertEquals(TextRange(3), otpSelection("123", own))
     }
 
     @Test
