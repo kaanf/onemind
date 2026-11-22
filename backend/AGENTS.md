@@ -283,6 +283,10 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
 - Use jOOQ's DSL for all SQL, including reports (window functions, CTEs). No raw SQL strings except
   in migrations.
 - Bulk sync writes: `insertInto(...).onConflict(...).doUpdate()` with batching.
+- Serialising work on a key (a venue's day, a connection, a user): transaction-scoped advisory lock
+  through `common/lock/infra/persistence/advisoryXactLock` (`dsl.advisoryXactLock("<area>:<id>")`), never
+  a hand-written `pg_advisory_*` call (the auth locks in `account/infra/persistence/AuthRepositories` still
+  have their own copy until an auth change moves them).
 - Reports read from hourly rollup tables refreshed after each sync batch; "now" values come from
   base tables. Rollups must be rebuildable from base tables.
 - Snake_case table and column names. Every venue-scoped table has `venue_id` with an index.
