@@ -1,0 +1,13 @@
+type: object
+required:
+  - organizationId
+  - organizationName
+  - role
+properties:
+  organizationId:
+    type: string
+    format: uuid
+  organizationName:
+    type: string
+  role:
+    $ref: ./MembershipRole.yaml

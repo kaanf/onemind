@@ -24,7 +24,8 @@ import com.onemind.core.designsystem.theme.OneMindTheme
 
 /**
  * One-time code input: [length] boxes 56 high, radius 12; the box that receives the next digit has an
- * accent border. Only digits are accepted. [contentDescription] labels the field (*Code*).
+ * accent border. Only digits are accepted. [contentDescription] labels the field (*Code*). Disabled
+ * (while a code is being checked) it keeps its value and takes no input.
  */
 @Composable
 fun OtpInput(
@@ -33,6 +34,7 @@ fun OtpInput(
     contentDescription: String,
     modifier: Modifier = Modifier,
     length: Int = 6,
+    enabled: Boolean = true,
     onDone: (() -> Unit)? = null,
 ) {
     val colors = OneMindTheme.colors
@@ -40,6 +42,7 @@ fun OtpInput(
         value = value,
         onValueChange = { input -> onValueChange(sanitizeOtp(input, length)) },
         singleLine = true,
+        enabled = enabled,
         keyboardOptions =
             KeyboardOptions(
                 keyboardType = KeyboardType.NumberPassword,

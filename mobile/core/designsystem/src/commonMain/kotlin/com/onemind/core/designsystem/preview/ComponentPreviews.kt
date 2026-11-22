@@ -24,6 +24,7 @@ import com.onemind.core.designsystem.components.ListRow
 import com.onemind.core.designsystem.components.OneMindCard
 import com.onemind.core.designsystem.components.OneMindFilterChip
 import com.onemind.core.designsystem.components.OneMindListCard
+import com.onemind.core.designsystem.components.OneMindTextField
 import com.onemind.core.designsystem.components.OtpInput
 import com.onemind.core.designsystem.components.OutlineButton
 import com.onemind.core.designsystem.components.PlaceholderScreen
@@ -120,6 +121,7 @@ private fun ContentPreview() {
 @Composable
 private fun InputPreview() {
     PreviewSurface {
+        OneMindTextField(value = "", onValueChange = {}, label = "Work email", placeholder = "owner@yourbar.cz")
         OtpInput(value = "482", onValueChange = {}, contentDescription = "Code")
         PrimaryButton(text = "Send me a code", onClick = {})
         PrimaryButton(text = "Continue with Apple", onClick = {}, style = PrimaryButtonStyle.Dark)

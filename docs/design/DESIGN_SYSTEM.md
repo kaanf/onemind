@@ -64,16 +64,24 @@ Treat accent as a single token so it can be switched.
 | `title`        | Inter Tight 28 / 600, −0.02em | Screen titles on tabs (*Today*) |
 | `figure`       | Inter Tight 22 / 600      | Stat tile values (*18:40*, *3 940*) |
 | `headline`     | Inter 17 / 600            | Detail screen titles, card titles |
+| `bodyLarge`    | Inter 16 / 400, line height 1.5 | Lead paragraph and input text on sign-in |
 | `body`         | Inter 15 / 400–500        | Rows, chat text (line height 1.4–1.5); section titles 15 / 600 |
 | `bodySmall`    | Inter 13–14 / 400–500     | Secondary rows, buttons in chips |
 | `caption`      | Inter 12 / 400            | Meta lines |
 | `overline`     | Inter 11 / 600–700, letter-spacing 0.08em, UPPERCASE | Section labels (*PAID SO FAR*, *TONIGHT'S BRIEFING*) |
 | `tabLabel`     | Inter 11 / 500 (active 600) | Tab bar |
 | `chartLabel`   | Inter 10 / 400            | Chart value and axis labels (bar values, heatmap hours) |
+| `label`        | Inter 13 / 500            | Field and group labels (*Work email*, *Code*) |
+| `button`       | Inter 16 / 600            | Button text |
+| `brand`        | Inter Tight 20 / 700, −0.02em | *OneMind* wordmark next to the brand mark |
 
 ## Shape and spacing
 
-- Screen side padding **20**. Gap between sections **14–16**. Row gap in cards **12**.
+- Screen side padding **20** (also on sign-in, where the canvas shows 24). Gap between sections
+  **14–16**. Row gap in cards **12**.
+- Full-screen flows without a tab bar (sign-in, update): top **48**, bottom **32**; blocks of a form
+  **28** apart; title to supporting text **8**; top bar with back button **56** high
+  (`OneMindTheme.spacing.screenTop`, `screenBottom`, `blockGap`, `textGap`, `topBarHeight`).
 - Radius: cards **16**, inner panels **14**, buttons and inputs **12**, chips **10**, small tags
   **6–8**, checkboxes **7**, table tiles **10**, heat cells **5**.
 - Card: `surface` + 1 px `border`, no shadow.
@@ -104,6 +112,7 @@ Treat accent as a single token so it can be switched.
 | **Chat bubble** | User: dark bubble right, radius 16 16 4 16. Assistant: plain text + cards. Source chips under answers. |
 | **Composer** | Attach button, input with accent border (1.5), send button 48 accent. |
 | **OTP input** | 6 boxes 56 high, radius 12, focused box accent border. |
+| **Text field** | Label 13 medium above; field 52 high, radius 12, white, `borderStrong` border, 1.5 accent border while focused; placeholder `textPlaceholder`. |
 
 Icons: simple stroke icons (1.75–2 stroke, round caps), 22 px in the tab bar. Use one icon set
 consistently (e.g. Lucide-like). Never emoji. In the app they are `OneMindIcons` (`ImageVector`s
@@ -129,6 +138,9 @@ built from the canvas SVG paths); add new ones there rather than adding an icon 
 | Floor plan | `FloorPlan` + `FloorTile`, `TileTone` |
 | Progress row | `ProgressRow` + `ProgressStatus` |
 | OTP input | `OtpInput` |
+| Text field | `OneMindTextField` |
+| Inline error | `InlineError` (`negativeText`, 13, announced when it appears) |
+| Brand mark | `BrandMark` (glass on a dark 36 box + wordmark, A1) |
 | Placeholder screen (temporary, not in the design) | `PlaceholderScreen`: tab title + one line, for tabs whose screen is not built yet |
 
 Not built yet: **Stepper**, **Fraction picker**, **Checklist row** (with the stock screens, phase 6) and

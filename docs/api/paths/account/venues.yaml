@@ -1,0 +1,22 @@
+get:
+  tags:
+    - Me
+  operationId: getMyVenues
+  summary: My venues
+  description: |
+    The venues the signed-in user may open (memberships; disabled venues and organizations scheduled for
+    deletion left out, as in every venue-scoped call), with what the app
+    needs to show and scope them: time zone, currency, cut-off, whether the user follows it (A5) and the
+    user's role. Every dashboard call takes ids from here (`venueIds`).
+    A still-valid token of a deleted user is `401` (as `GET /me`), never an empty list.
+  responses:
+    '200':
+      description: The user's venues.
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/MyVenues.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '426':
+      $ref: ../../components/responses/UpgradeRequired.yaml

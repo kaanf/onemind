@@ -8,6 +8,13 @@ kotlin {
             implementation(projects.feature.auth.domain)
             implementation(projects.core.data)
             implementation(projects.core.api)
+
+            implementation(libs.koin.core)
+            implementation(libs.ktor.client.core)
+        }
+        commonTest.dependencies {
+            implementation(libs.ktor.client.mock)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }
