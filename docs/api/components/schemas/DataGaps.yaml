@@ -1,0 +1,21 @@
+type: object
+description: |
+  What the figures are missing (product rule 2); the app shows a note whenever a count isn't 0.
+required:
+  - quarantinedBillCount
+  - linelessBillCount
+  - outdatedBillCount
+  - paymentMismatchBillCount
+properties:
+  quarantinedBillCount:
+    type: integer
+    description: "Bills that couldn't be read at all (any day, not stored); missing from every figure."
+  linelessBillCount:
+    type: integer
+    description: "Today's bills stored without lines; in these figures, missing from product figures."
+  outdatedBillCount:
+    type: integer
+    description: Today's bills whose newer version couldn't be read; their figures may be out of date.
+  paymentMismatchBillCount:
+    type: integer
+    description: Today's bills whose payments don't add up; left out of paid so far.

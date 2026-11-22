@@ -203,7 +203,9 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
 
 ## Live data and streaming ([ADR 0005](../docs/architecture/adr/0005_POLLING_AND_SSE.md))
 
-- Live read endpoints return `ETag` and honour `If-None-Match` (`304`), and include `dataAsOf`.
+- Live read endpoints return `ETag` and honour `If-None-Match` (`304`), and include `dataAsOf`: use
+  `common/web/ETagResponses.ok(body, ifNoneMatch)` (weak ETag over the JSON). Example: `reporting/web/DashboardController`
+  (`GET /dashboard/today`, `reporting/application/GetTodaySummary`, `reporting/domain/TodayCalculator`).
 - Assistant answers stream as SSE (`SseEmitter`, virtual threads): events `delta`, `block`,
   `citation`, `suggestedReplies`, `done`, `error`. Persist the final message so it can be reloaded.
 

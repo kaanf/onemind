@@ -4,6 +4,7 @@ import com.onemind.backend.pos.domain.StoredBill
 import com.onemind.backend.pos.domain.StoredBillLine
 import com.onemind.backend.pos.infra.persistence.PosReadRepository
 import org.springframework.stereotype.Service
+import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
@@ -40,8 +41,13 @@ class ReadPosFacts(
 
     fun businessDays(venueId: UUID): List<LocalDate> = reads.businessDays(venueId)
 
-    fun dataGaps(venueId: UUID): PosDataGaps =
-        PosDataGaps(reads.quarantinedBills(venueId), reads.billsWithoutLines(venueId), reads.outdatedBills(venueId))
+    /** Gaps of the venue; lineless and outdated bills of [day] only when given (quarantined ones have no day). */
+    fun dataGaps(
+        venueId: UUID,
+        day: LocalDate? = null,
+    ): PosDataGaps = PosDataGaps(reads.quarantinedBills(venueId), reads.billsWithoutLines(venueId, day), reads.outdatedBills(venueId, day))
+
+    fun lastBillsSyncAt(venueId: UUID): Instant? = reads.lastBillsSyncAt(venueId)
 
     companion object {
         const val MAX_PAGE = 1000

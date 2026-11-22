@@ -35,6 +35,9 @@ class GuardsTest {
     @Test
     fun deviceTimeZoneNeverUsed() = assertNone(Guards.deviceTimeZoneNeverUsed(app))
 
+    @Test
+    fun uiHasNoLiterals() = assertNone(Guards.uiHasNoLiterals(app))
+
     private fun assertNone(offenders: List<String>) =
         assertTrue(offenders.isEmpty(), "Guard violations (never weaken the guard to pass):\n" + offenders.joinToString("\n"))
 }

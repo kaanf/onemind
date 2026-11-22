@@ -1,0 +1,25 @@
+type: object
+required:
+  - hour
+  - kind
+properties:
+  hour:
+    type: integer
+    minimum: 0
+    maximum: 23
+    description: Local clock hour.
+  kind:
+    type: string
+    description: |
+      `PAST`: paid in that hour. `CURRENT`: paid so far this hour. `FORECAST`: the average of that hour
+      over the last 4 same weekdays with data (METRICS, hourly chart).
+    enum:
+      - PAST
+      - CURRENT
+      - FORECAST
+  amount:
+    type: object
+    allOf:
+      - $ref: ./Money.yaml
+    nullable: true
+    description: Null only for a forecast without any earlier same weekday.

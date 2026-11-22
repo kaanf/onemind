@@ -104,6 +104,10 @@ Live overview of the current business day for the selected venue (or all venues)
   stay on screen as empty-state cards ("Not available from your POS"), with no value; *Tips · card
   69%* drops the card share and shows only the tips total; *On shift* is hidden; *Possible loss*
   names the components it includes. Tapping the *Occupancy* card still opens 01a on *This week*.
+- API (`GET /dashboard/today`): the app draws the *Open tabs* / *Occupancy* empty states and hides
+  *On shift* and the card share from `unavailable`; it shows "N venues still syncing" for
+  `pendingVenueIds` and a "N bills couldn't be read" note when a `dataGaps` count isn't 0; before the
+  first sync (`status NO_DATA_YET`) every figure is empty, never 0.
 
 ## 01a · Tables — `AltTables` (opened from Today › Occupancy)
 

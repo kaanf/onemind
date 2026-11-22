@@ -12,6 +12,7 @@ import java.util.UUID
 data class VenueBusinessDaySettings(
     val zone: ZoneId,
     val businessDayStart: LocalTime,
+    val currency: Currency,
 )
 
 /**
@@ -42,5 +43,5 @@ class RegisterPosVenues(
     ): Boolean = venues.update(venueId, name, addressLine, city, clock.instant())
 
     fun businessDay(venueId: UUID): VenueBusinessDaySettings? =
-        venues.businessDay(venueId)?.let { VenueBusinessDaySettings(ZoneId.of(it.timeZone), it.businessDayStart) }
+        venues.businessDay(venueId)?.let { VenueBusinessDaySettings(ZoneId.of(it.timeZone), it.businessDayStart, it.currency) }
 }

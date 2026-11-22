@@ -1,0 +1,10 @@
+type: string
+description: |
+  A figure of the design the POS can't give (`product/MVP_SCOPE.md`, data sources, "Unavailable"). The
+  app shows the empty-state card for `OPEN_TABS` and `OCCUPANCY_NOW` ("Not available from your POS")
+  and hides the others; never a value.
+enum:
+  - OPEN_TABS
+  - OCCUPANCY_NOW
+  - STAFF_ON_SHIFT
+  - TIPS_CARD_SHARE
