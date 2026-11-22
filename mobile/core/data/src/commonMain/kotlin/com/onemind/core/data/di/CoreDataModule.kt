@@ -1,5 +1,6 @@
 package com.onemind.core.data.di
 
+import com.onemind.core.data.config.ApiConfig
 import com.onemind.core.data.venue.InMemoryVenueScopeRepository
 import com.onemind.core.domain.venue.VenueScopeRepository
 import org.koin.core.module.dsl.singleOf
@@ -12,5 +13,6 @@ val coreDataModule =
         // The clock seam: the only place that reads the system clock (`:core:konsist` guards this).
         // Everything else injects Clock, so tests can pass a fixed one.
         single<Clock> { Clock.System }
+        single { ApiConfig.fromBuild() }
         singleOf(::InMemoryVenueScopeRepository) bind VenueScopeRepository::class
     }

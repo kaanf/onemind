@@ -1,0 +1,8 @@
+#include "Config.xcconfig"
+
+// dev variant (ADR 0012 §2): installs next to prod, talks to the dev API (core:data BuildKonfig).
+ONEMIND_ENVIRONMENT=dev
+PRODUCT_BUNDLE_IDENTIFIER=com.onemind.app.dev
+ONEMIND_DISPLAY_NAME=OneMind Dev
+// Keeps the local-networking ATS exception in Info.plist (plain HTTP to the local backend).
+INFOPLIST_PREPROCESSOR_DEFINITIONS=ONEMIND_DEV=1

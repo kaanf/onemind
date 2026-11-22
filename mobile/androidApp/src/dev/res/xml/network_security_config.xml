@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- dev flavor only: plain HTTP to the local backend (emulator 10.0.2.2, or a LAN address set as
+     onemind.apiBaseUrl in local.properties). prod keeps the platform default (HTTPS only). -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
