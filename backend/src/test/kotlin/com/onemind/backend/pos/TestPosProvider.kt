@@ -1,5 +1,6 @@
 package com.onemind.backend.pos
 
+import com.onemind.backend.pos.infra.client.PosBill
 import com.onemind.backend.pos.infra.client.PosBillDetail
 import com.onemind.backend.pos.infra.client.PosBillPage
 import com.onemind.backend.pos.infra.client.PosBillQuery
@@ -39,8 +40,17 @@ class TestPosProvider(
     /** This product's price comes with more fraction digits than the currency has. */
     var subMinorPriceProduct: String? = null
 
+    /** This product's VAT rate isn't a number. */
+    var badVatRateProduct: String? = null
+
     /** Menus of this place fail. */
     var failingMenuPlace: String? = null
+
+    /** Changes a bill's header in the `bills` listing. */
+    val headerOverrides = mutableMapOf<String, (PosBill) -> PosBill>()
+
+    /** Changes what `billDetail` returns for a bill ID (null = no detail). */
+    val detailOverrides = mutableMapOf<String, (PosBillDetail?) -> PosBillDetail?>()
 
     /** Bill details of nights on or after this date fail, as if the POS went away mid-import. */
     var failDetailsFrom: LocalDate? = null
@@ -78,7 +88,8 @@ class TestPosProvider(
     ): PosBillPage {
         call("bills", place.merchantId)
         placeCalls += "bills:${place.placeId}"
-        return mock.bills(place.demo(), query)
+        val page = mock.bills(place.demo(), query)
+        return page.copy(bills = page.bills.map { bill -> headerOverrides[bill.billId]?.invoke(bill) ?: bill })
     }
 
     override fun billDetail(
@@ -88,7 +99,8 @@ class TestPosProvider(
         call("billDetail", place.merchantId)
         val night = LocalDate.parse(billId.substring(2, 10), DateTimeFormatter.BASIC_ISO_DATE)
         check(failDetailsFrom?.let { night.isBefore(it) } ?: true) { "POS unavailable" }
-        return mock.billDetail(place.demo(), billId)
+        val detail = mock.billDetail(place.demo(), billId)
+        return detailOverrides[billId]?.invoke(detail) ?: detail.takeUnless { billId in detailOverrides }
     }
 
     override fun deskView(place: PosPlaceRef): PosDeskView {
@@ -107,7 +119,8 @@ class TestPosProvider(
             products =
                 menu.products
                     .filterNot { it.productId == droppedProduct }
-                    .map { if (it.productId == subMinorPriceProduct) it.copy(price = "12.345") else it },
+                    .map { if (it.productId == subMinorPriceProduct) it.copy(price = "12.345") else it }
+                    .map { if (it.productId == badVatRateProduct) it.copy(vatRate = "21%") else it },
         )
     }
 
@@ -122,6 +135,9 @@ class TestPosProvider(
         failDetailsFrom = null
         placeCalls.clear()
         subMinorPriceProduct = null
+        badVatRateProduct = null
         failingMenuPlace = null
+        detailOverrides.clear()
+        headerOverrides.clear()
     }
 }

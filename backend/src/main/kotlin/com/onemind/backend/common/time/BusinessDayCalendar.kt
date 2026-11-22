@@ -16,7 +16,7 @@ import java.time.ZonedDateTime
  * either. "Now" comes from the injected [Clock] ([ClockConfig]).
  */
 object BusinessDayCalendar {
-    /** The cut-off until the venue sets its own; whether it stays fixed is open question M1. */
+    /** The cut-off until the venue sets its own (R28); a bill belongs to its paid business day (owner decision 2026-11-22). */
     val DEFAULT_BUSINESS_DAY_START: LocalTime = LocalTime.of(5, 0)
 
     /** The business date an instant belongs to: the local date, minus one day before the cut-off. */

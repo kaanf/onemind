@@ -2,6 +2,7 @@ package com.onemind.backend.pos.infra.persistence
 
 import com.onemind.db.pos.tables.references.BILL
 import com.onemind.db.pos.tables.references.BILL_ITEM
+import com.onemind.db.pos.tables.references.BILL_QUARANTINE
 import com.onemind.db.pos.tables.references.CATEGORY
 import com.onemind.db.pos.tables.references.DESK
 import com.onemind.db.pos.tables.references.POS_CONNECTION
@@ -29,6 +30,7 @@ class PosOrganizationDataRepository(
         dsl.deleteFrom(BILL_ITEM).where(BILL_ITEM.VENUE_ID.`in`(venueIds)).execute()
         dsl.deleteFrom(BILL).where(BILL.VENUE_ID.`in`(venueIds)).execute()
         dsl.deleteFrom(RAW_PAYLOAD).where(RAW_PAYLOAD.VENUE_ID.`in`(venueIds)).execute()
+        dsl.deleteFrom(BILL_QUARANTINE).where(BILL_QUARANTINE.VENUE_ID.`in`(venueIds)).execute()
         dsl.deleteFrom(DESK).where(DESK.VENUE_ID.`in`(venueIds)).execute()
         dsl.deleteFrom(SECTION).where(SECTION.VENUE_ID.`in`(venueIds)).execute()
         dsl.deleteFrom(PRODUCT).where(PRODUCT.VENUE_ID.`in`(venueIds)).execute()

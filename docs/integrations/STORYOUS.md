@@ -92,8 +92,9 @@ Until P15 the only `PosProvider` is `pos/infra/client/mock/MockPosProvider` (own
   opaque `nextPage` cursor, which the mock keys on (sort key, bill ID) so changes between pages
   shift nothing), `billDetail`, `deskView`, `menu`. There is no staff endpoint: staff exist only
   as `createdBy` / `paidBy` on bills. Provider types (`PosModels.kt`) carry only the verified fields
-  above, money as decimal strings; `pos/domain/PosMoney` turns them into minor units (fails on
-  sub-minor values, never rounds).
+  above, money as decimal strings; `pos/domain/PosMoney` turns them into minor units: exactly for
+  totals, payments and discounts (fails on sub-minor values), rounded half-up for prices only
+  (`minorUnitsRounded`, owner decision 2026-11-22).
 - **Gating:** `onemind.pos.provider` (`POS_PROVIDER`), empty by default (no provider: the sync is
   skipped). The mock lives in the dev-only `mock` source set (`src/mock`), with `application-local.yml`
   setting `mock`: it is on the `bootRun` (profile `local` by default) and test classpaths, never in the
@@ -128,9 +129,10 @@ most hourly, so a bad menu isn't refetched every run).
   only its link becomes inactive (`venue_link.active`, V008), the sync skips it and the owner keeps
   reading its history. Reported active again → link active again.
 - **Catalog:** rows upserted by `(venue_id, external_id)`; products and desks the POS stops reporting get
-  `active = false` / `removed = true`, never deleted. A product row that can't be read exactly (e.g. a
-  sub-minor price, which is never rounded) is skipped, its ID logged, and keeps what was stored; the
-  rest of the menu is stored and the step counts as a success.
+  `active = false` / `removed = true`, never deleted. A product row that can't be read (e.g. a VAT
+  rate that isn't a number) is skipped, its ID logged, and keeps what was stored; the rest of the menu
+  is stored and the step counts as a success. A price with more fraction digits than the currency is
+  rounded half-up to minor units (owner decision 2026-11-22), its ID logged at INFO.
 - **Failures:** each run writes a `sync_job` with its steps and always finishes it. A places failure
   marks the connection `ERROR` (`last_error` = exception class, never POS text); a venue failure is a
   failed step and an error on that venue's cursor only. A revoked connection is never set back to
@@ -138,10 +140,54 @@ most hourly, so a bad menu isn't refetched every run).
 - POS calls never run inside a transaction (tested). Without a configured provider the run does nothing
   and logs one warning.
 
+Bills (`SyncBills`, each run, after menu and desks; settings `onemind.pos.sync.*`):
+
+- **Cursor** (`sync_cursor` `BILLS`): `INITIAL|<next business day>|<import start>` during the initial
+  import, then `SINCE|<instant>`.
+- **Initial import:** `initial-days` (default 90) business days, one `from`/`till` window per day (venue
+  zone and cut-off), oldest first, at most `initial-days-per-run` (default 14) days per run so other
+  venues aren't held up; the cursor moves after each finished day, so it resumes where it stopped. It
+  hands over to `SINCE|<import start>`.
+- **Incremental:** `modifiedSince` = cursor − `lookback` (default 10 min, inclusive),
+  `includeDeleted=true`; bills unchanged since they were stored are skipped, so the overlap is cheap.
+- **Per page:** only new or changed bills get a `billDetail` call (outside any transaction); then one
+  transaction upserts staff (`createdBy`/`paidBy`, per connection), upserts bills by
+  `(venue_id, external_id)`, replaces items, discounts and payments of changed ones, moves the cursor and
+  publishes `BillsSynced(venueId, businessDays)` with the new **and previous** business day of every bill
+  written, only when something was written.
+- **Quarantine** (`pos.bill_quarantine`, V009): a bill with no detail, or with a value that can't be stored
+  exactly (not a number, a total, payment or discount with more fraction digits than the currency, bad
+  VAT rate or currency, a discount without an amount; line unit prices are rounded instead, owner
+  decision 2026-11-22), is never stored with a guessed value: its POS ID and reason are kept, a WARN names
+  the IDs, and the cursor moves on. When only the detail or its items fail, the bill is still stored
+  **from its listing header** (totals, refunded/deleted flags, payments) with `items_unreadable = true`
+  and no lines, so its revenue, refund or deletion counts; the detail stays quarantined. Only a bill
+  whose header doesn't read either is left out entirely. Quarantined bills are retried every run for 3 attempts, then hourly;
+  once readable they are stored as they are then (refunds and deletions included) and leave the table.
+  **Metrics:** bills stored from their header count in bill-level figures (revenue, payments, tips,
+  guests, refunds, deleted bills) but not in product or discount-line figures; bills quarantined whole
+  are missing from every figure. Both are data gaps a dashboard must name ("N bills couldn't be read",
+  phase 5) from the quarantine count and the `items_unreadable` count.
+- `business_day` is the bill's **paid** business day (owner decision 2026-11-22, M1 closed;
+  `pos/domain/BillAttribution`). Desk, product and staff
+  references resolve by POS ID; unknown ones stay null and are filled after the next successful catalog
+  sync (`bill.external_desk_id`, `bill_item.external_product_id`). A product skipped for an unreadable
+  row leaves `product_id` null on its bill lines; the same backfill fills them once it reads. A failing bills sync is an error on the venue's cursor.
+- `raw_payload` is not written yet. Storyous sends no refund time: a refund is only visible as
+  `refunded = true` with a later `lastModifiedAt`, so METRICS can date a refund by its bill only.
+
+Assumptions in the bill mapping, to verify against the real API: **detail availability for deleted and
+refunded bills** (if Storyous answers 404 for them, they are stored from their header, flagged); a discount's `originalPrice` is the pre-discount line price (rounded half-up like other prices; the discount amount itself stays exact); item `price` is the unit price with
+VAT and `amount` the quantity; line `total_minor` = price × amount (rounded half-up to the minor unit)
+− the item's discounts; a discount's amount is `absoluteValue`, else `percentValue` % of
+`originalPrice`, else the bill is quarantined (never 0); `finalPrice` excludes `tips`;
+`payment.method_kind` is `CARD` for raw methods containing "card"/"kart" (Czech "karta"), `CASH` for
+"cash"/"hotovost", else `OTHER` (raw value kept in `method_raw`).
+
 Assumptions in the catalog mapping, to verify against the real API: product `price` is the price
 with VAT in the merchant currency; `vatRate` is a percentage (`"21"`) and is stored as given;
-**sub-minor menu prices** (more fraction digits than the currency) are not expected; such a product is
-skipped until the owner decides how to treat them.
+prices with more fraction digits than the currency (menu and bill lines) are rounded half-up (owner
+decision 2026-11-22).
 
 - **Polling only.** Per place: bills with `modifiedSince` = last seen `_lastModifiedAt`, paging with
   `nextPage` / `lastBillId`; fetch details for new/changed bills (items). Menu and desks refreshed
