@@ -8,10 +8,13 @@ import org.jooq.DSLContext
 import org.jooq.Field
 import org.jooq.Record
 import org.jooq.impl.DSL.excluded
+import org.jooq.impl.DSL.function
+import org.jooq.impl.DSL.inline
 import org.jooq.impl.DSL.jsonbArray
 import org.jooq.impl.DSL.jsonbObject
 import org.jooq.impl.DSL.key
 import org.jooq.impl.DSL.value
+import org.jooq.impl.SQLDataType
 import org.springframework.stereotype.Repository
 import java.time.Instant
 import java.util.UUID
@@ -47,6 +50,9 @@ class PosConnectionRepository(
                 )
             }
     }
+
+    /** Serialises demo onboarding of [userId] until the transaction ends (two taps, two devices). */
+    fun lockOnboarding(userId: UUID) = advisoryLock(dsl, "pos-onboarding:$userId")
 
     /** A new connection of [organizationId]; `PENDING` until its first sync. */
     fun insert(
@@ -136,6 +142,12 @@ data class VenueLinkRow(
 class VenueLinkRepository(
     private val dsl: DSLContext,
 ) {
+    /**
+     * Serialises place syncs of one connection until the transaction ends (onboarding and the `pos-sync`
+     * job), so a place never gets two venues.
+     */
+    fun lockConnection(connectionId: UUID) = advisoryLock(dsl, "pos-connection:$connectionId")
+
     fun linked(connectionId: UUID): List<VenueLinkRow> =
         dsl
             .select(VENUE_LINK.VENUE_ID, VENUE_LINK.EXTERNAL_PLACE_ID, VENUE_LINK.ACTIVE)
@@ -324,3 +336,14 @@ class SyncJobRepository(
 }
 
 private fun <T> Record.required(field: Field<T?>): T = get(field) ?: error("${field.name} is null")
+
+// A hash collision between two keys only makes them wait for each other.
+private fun advisoryLock(
+    dsl: DSLContext,
+    key: String,
+) {
+    dsl
+        .select(
+            function("pg_advisory_xact_lock", SQLDataType.OTHER, function("hashtextextended", SQLDataType.BIGINT, value(key), inline(0L))),
+        ).fetch()
+}

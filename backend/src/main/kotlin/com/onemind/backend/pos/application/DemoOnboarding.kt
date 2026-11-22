@@ -1,6 +1,7 @@
 package com.onemind.backend.pos.application
 
 import com.onemind.backend.account.api.OrganizationRegistry
+import com.onemind.backend.account.api.VenueRole
 import com.onemind.backend.common.error.ConflictException
 import com.onemind.backend.common.error.NotFoundException
 import com.onemind.backend.common.error.RuleViolationException
@@ -9,7 +10,9 @@ import com.onemind.backend.pos.infra.client.PosMerchant
 import com.onemind.backend.pos.infra.client.PosPlaceState
 import com.onemind.backend.pos.infra.client.PosProvider
 import com.onemind.backend.pos.infra.client.PosProviderConfig
+import com.onemind.backend.pos.infra.client.PosProviderException
 import com.onemind.backend.pos.infra.persistence.PosConnectionRepository
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.stereotype.Service
 import org.springframework.transaction.support.TransactionTemplate
@@ -23,8 +26,9 @@ class UnknownDemoPlaceException(
     placeId: String,
 ) : RuleViolationException(code = "UNKNOWN_DEMO_PLACE", detail = "This isn't an active demo place.", params = mapOf("placeId" to placeId))
 
-class PosUnavailableException :
-    ServiceUnavailableException(code = "POS_UNAVAILABLE", detail = "The POS couldn't be reached. Try again in a moment.")
+class PosUnavailableException(
+    cause: Throwable? = null,
+) : ServiceUnavailableException(code = "POS_UNAVAILABLE", detail = "The POS couldn't be reached. Try again in a moment.", cause = cause)
 
 /** A demo place as A5 lists it. */
 data class DemoPlaceView(
@@ -57,9 +61,10 @@ data class DemoOnboardingView(
  * `404 FEATURE_UNAVAILABLE`.
  *
  * Steps: organization + connection (one transaction), places → venues ([SyncPlaces], POS call outside
- * a transaction), follow (one transaction). If the places step fails, the organization stays and a
- * repeat call finishes the job; `409 ALREADY_ONBOARDED` only once the caller follows venues, or when
- * their organization isn't a demo one.
+ * a transaction), follow (one transaction). The first step locks the user, so parallel starts make one
+ * organization. If the places step fails (the POS can't be read), the organization stays and a repeat
+ * call by its owner finishes the job; `409 ALREADY_ONBOARDED` once the caller follows venues, when their
+ * organization isn't a demo one, or when they aren't its owner.
  */
 @Service
 class DemoOnboarding(
@@ -70,6 +75,8 @@ class DemoOnboarding(
     private val syncPlaces: SyncPlaces,
     private val transactions: TransactionTemplate,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     fun places(): DemoPlacesView {
         val merchant = demoMerchant(demoProvider())
         return DemoPlacesView(merchant.name, merchant.places.map { DemoPlaceView(it.placeId, it.name, it.state == PosPlaceState.ACTIVE) })
@@ -87,18 +94,22 @@ class DemoOnboarding(
         val connection =
             requireNotNull(
                 transactions.execute {
-                    when (val organizationId = organizations.organizationOf(userId)) {
+                    // Two taps or two devices: the second waits here and then sees the first one's organization.
+                    connections.lockOnboarding(userId)
+                    when (val membership = organizations.membershipOf(userId)) {
                         null -> {
                             val created = organizations.createForOwner(userId, DEMO_ORGANIZATION_NAME)
                             connections.insert(created, MOCK_PROVIDER, PosProviderConfig.demoMerchantFor(created))
                         }
 
                         else -> {
-                            // A repeat after a failed places step finishes the job; anything else is done or isn't ours.
-                            val existing = connections.forOrganization(organizationId)
-                            if (existing?.provider != MOCK_PROVIDER || organizations.followedVenueIds(userId).isNotEmpty()) {
-                                throw AlreadyOnboardedException()
-                            }
+                            // Only the owner of a demo organization that follows nothing yet finishes a failed start.
+                            val existing = connections.forOrganization(membership.organizationId)
+                            val unfinished =
+                                membership.role == VenueRole.OWNER &&
+                                    existing?.provider == MOCK_PROVIDER &&
+                                    organizations.followedVenueIds(userId).isEmpty()
+                            if (!unfinished || existing == null) throw AlreadyOnboardedException()
                             existing
                         }
                     }
@@ -107,8 +118,12 @@ class DemoOnboarding(
         val places =
             try {
                 syncPlaces.run(connection, provider)
-            } catch (e: RuntimeException) {
-                throw PosUnavailableException()
+            } catch (e: PosProviderException) {
+                log.warn("Demo onboarding couldn't read the POS: connectionId={}, error={}", connection.id, e.javaClass.simpleName)
+                throw PosUnavailableException(e)
+            } catch (e: PosMerchantNotFoundException) {
+                log.warn("Demo onboarding couldn't read the POS: connectionId={}, error={}", connection.id, e.javaClass.simpleName)
+                throw PosUnavailableException(e)
             }
         val picked =
             places.venues

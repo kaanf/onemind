@@ -98,7 +98,8 @@ abstract class ServiceUnavailableException(
     code: String,
     detail: String,
     params: Map<String, Any> = emptyMap(),
-) : DomainException(code, detail, params)
+    cause: Throwable? = null,
+) : DomainException(code, detail, params, cause)
 
 /** A rate limit without a more specific code. */
 class RateLimitedException(

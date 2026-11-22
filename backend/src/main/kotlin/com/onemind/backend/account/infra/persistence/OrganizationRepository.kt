@@ -9,6 +9,11 @@ import org.jooq.impl.DSL.inline
 import org.springframework.stereotype.Repository
 import java.util.UUID
 
+data class MembershipRow(
+    val organizationId: UUID,
+    val role: String,
+)
+
 /** Organizations, memberships and followed venues as onboarding creates them. */
 @Repository
 class OrganizationRepository(
@@ -34,15 +39,19 @@ class OrganizationRepository(
         return organizationId
     }
 
-    /** The organization the user is a member of; the first release has one per user. */
-    fun organizationOf(userId: UUID): UUID? =
+    /**
+     * The user's first membership (organization and role). Demo onboarding creates at most one per user
+     * (it locks the user and checks this first); other memberships may come later with invitations.
+     */
+    fun membershipOf(userId: UUID): MembershipRow? =
         dsl
-            .select(MEMBERSHIP.ORGANIZATION_ID)
+            .select(MEMBERSHIP.ORGANIZATION_ID, MEMBERSHIP.ROLE)
             .from(MEMBERSHIP)
             .where(MEMBERSHIP.USER_ID.eq(userId))
             .orderBy(MEMBERSHIP.ID)
             .limit(1)
-            .fetchOne(MEMBERSHIP.ORGANIZATION_ID)
+            .fetchOne()
+            ?.let { r -> MembershipRow(requireNotNull(r.get(MEMBERSHIP.ORGANIZATION_ID)), requireNotNull(r.get(MEMBERSHIP.ROLE))) }
 
     /** Follows those of [venueIds] that belong to an organization the user is a member of; already followed ones stay. */
     fun follow(

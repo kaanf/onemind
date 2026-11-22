@@ -1,5 +1,6 @@
 package com.onemind.backend.account.application
 
+import com.onemind.backend.account.domain.MembershipRole
 import com.onemind.backend.account.infra.persistence.OrganizationRepository
 import org.springframework.stereotype.Service
 import java.util.UUID
@@ -18,7 +19,8 @@ class ManageOrganizations(
         name: String,
     ): UUID = organizations.insertWithOwner(name, ownerId)
 
-    fun organizationOf(userId: UUID): UUID? = organizations.organizationOf(userId)
+    fun membershipOf(userId: UUID): Pair<UUID, MembershipRole>? =
+        organizations.membershipOf(userId)?.let { it.organizationId to MembershipRole.valueOf(it.role) }
 
     fun follow(
         userId: UUID,
