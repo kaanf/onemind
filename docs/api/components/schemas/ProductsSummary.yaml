@@ -1,0 +1,54 @@
+type: object
+description: |
+  Screen 02a for one business day. `products`, `hours` and `categories` are null when no requested venue
+  has data **for that day** (`status NO_DATA_YET`: not synced yet, or the day is before its data starts);
+  on a covered day without product sales they are empty lists (`READY`). `dataGaps.paymentMismatchBillCount`
+  is always 0 here: a bill whose payments don't add up still has its lines in these figures.
+  Products are sorted by gross, largest first, then by name, then by product id. The Happy Hour band on
+  the chart is not sent until the time-based menu is defined (`product/MVP_SCOPE.md`).
+required:
+  - status
+  - currency
+  - businessDay
+  - venues
+  - pendingVenueIds
+  - dataGaps
+properties:
+  status:
+    $ref: ./DataStatus.yaml
+  currency:
+    type: string
+    pattern: '^[A-Z]{3}$'
+  businessDay:
+    type: string
+    format: date
+    description: The day shown.
+  venues:
+    type: array
+    items:
+      $ref: ./TodayVenue.yaml
+  pendingVenueIds:
+    type: array
+    description: Requested venues without data for the day (not synced yet, or the day is before their data starts).
+    items:
+      type: string
+      format: uuid
+  hours:
+    type: array
+    nullable: true
+    description: The day's local hours with product sales, in business-day order.
+    items:
+      type: integer
+  categories:
+    type: array
+    nullable: true
+    description: Categories of the listed products and their ancestors, by name.
+    items:
+      $ref: ./ProductCategory.yaml
+  products:
+    type: array
+    nullable: true
+    items:
+      $ref: ./ProductSales.yaml
+  dataGaps:
+    $ref: ./DataGaps.yaml

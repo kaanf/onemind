@@ -48,3 +48,17 @@ data class StoredBillLine(
     val totalMinor: Long,
     val discounts: List<StoredDiscount>,
 )
+
+/** A product of the venue's POS menu as stored; kept after it leaves the menu, so old sales keep their name. */
+data class StoredProduct(
+    val productId: UUID,
+    val name: String,
+    val categoryId: UUID?,
+)
+
+/** A category of the venue's POS menu as stored. */
+data class StoredCategory(
+    val categoryId: UUID,
+    val name: String,
+    val parentId: UUID?,
+)
