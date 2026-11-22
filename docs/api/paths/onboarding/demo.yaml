@@ -1,0 +1,45 @@
+post:
+  tags:
+    - Onboarding
+  operationId: startDemoOnboarding
+  summary: Start with demo venues (dev/demo only)
+  description: |
+    Interim onboarding (A5) until the Storyous connection exists (P15). Creates the caller's
+    organization ("Demo organization") with the caller as owner, connects it to the demo POS, creates
+    a venue per active demo place and follows the picked ones. Menu and bills arrive with the next
+    POS sync (about two minutes); until then the screens show empty states. Dev/demo only (product
+    rule 2): venues are named "Demo · …" and have `demo: true`.
+
+    Errors: `404 FEATURE_UNAVAILABLE` without a demo POS (always in production); `409
+    ALREADY_ONBOARDED` when the caller's onboarding is complete or their organization isn't a demo
+    one; `422 UNKNOWN_DEMO_PLACE` for a place that isn't an active demo place; `503 POS_UNAVAILABLE`
+    when the demo POS couldn't be read: the organization stays, and repeating the call finishes it.
+  parameters:
+    - $ref: ../../components/parameters/IdempotencyKey.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/DemoOnboardingRequest.yaml
+  responses:
+    '201':
+      description: Onboarded; the picked venues are followed.
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/DemoOnboardingResult.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml
+    '422':
+      $ref: ../../components/responses/UnprocessableEntity.yaml
+    '426':
+      $ref: ../../components/responses/UpgradeRequired.yaml
+    '503':
+      $ref: ../../components/responses/ServiceUnavailable.yaml

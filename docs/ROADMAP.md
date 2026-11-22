@@ -21,7 +21,9 @@ Last updated: 2026-11-22.
   Konsist guard module (#39), gate follow-ups (#47, #48), the end-to-end auth smoke test (#49) and
   JWT clock skew 0 s for own tokens (#50), mobile `dev`/`prod` variants (#52), the organization purge
   job (#53) and the first-release data-source table (#54, R28) are in `dev`. Phase 4 runs on mock POS data (owner,
-  2026-11-21).
+  2026-11-21): the read-only `PosProvider` + demo mock (#57) and the POS sync for places, menu, desks
+  (#59) and bills (#61) are in `dev`. Mobile auth core (API client, secure session, refresh) is in
+  `dev` (#58); the A1/A2 screens wait for the owner's device check (#60).
 - **Blockers outside the code:** Storyous partnership / API credentials (P15, owner; not needed
   until the real client is connected); design
   additions for the first-release Stock tab landing and location form (owner, only needed in
@@ -113,6 +115,10 @@ real code in that job with a scope proven non-empty (owner, 2026-11-21).
 - [x] Backend: email code (start/verify), Apple, Google, JWT access + rotating refresh, logout,
       `DELETE /me` (ADR 0004)
 - [ ] Mobile: A1 sign in, A2 email code, secure token storage, refresh on 401, update screen on 426
+      (core: API client, Keystore/Keychain session store, single-flight refresh, 426 state, iOS
+      Keychain tests in CI (#58); screens and gate: #60, after the owner's device check)
+- [ ] Android instrumented test for the Keystore session store (real device/emulator), before the
+      first release (from the #58 review; the iOS Keychain store is tested in CI)
 - [ ] Mobile: Sign in with Apple / Google (A1): native SDKs + client IDs; buttons hidden behind the
       `SignInProviders` seam until then (deferred from mobile auth, 2026-11-22)
 - [x] Backend: minimum app version (`X-App-Version` / `X-Platform`) → `426 Upgrade Required` (#36)
@@ -146,25 +152,31 @@ real code in that job with a scope proven non-empty (owner, 2026-11-21).
 Owner decision 2026-11-21: the real Storyous API is not connected for now; everything runs on mock
 data behind `PosProvider`. Mock data is dev/demo only: never shown as a real venue's figures (rule 2).
 
-- [ ] `PosProvider` + mock provider: deterministic, realistic venues, menu, desks, staff and bills
+- [x] `PosProvider` + mock provider: deterministic, realistic venues, menu, desks, staff and bills
       (bills across midnight, Europe/Prague DST days, discounts, refunds, whole deleted bills), shaped
       like the Storyous API in `docs/integrations/STORYOUS.md` and emitting only its verified fields: no
       open bills, item-level voids or shifts (`product/MVP_SCOPE.md#data-sources-in-the-first-release`). Acceptance (rule 2): enabled only in the
       local/dev profile; prod startup fails if it is configured (test); mock venues are visibly
       named as demo; no fixture data is packaged into the prod artifact; the `pos` scope anchor in
       `ModuleBoundaryTests` becomes a real class (same for `reporting`/`stock` in their first code PR)
+      (#57)
 - [ ] Interim onboarding: after verify, a new account picks mock places on A5 (dev/demo only), which
       creates the organization, venues and membership; update `docs/product/SCREENS.md`
-- [ ] Sync jobs (db-scheduler) fed by `PosProvider`: places → venues, menu, desks, bills
-      (`modifiedSince`), initial 90-day import, `BillsSynced` event
+- [x] Sync jobs (db-scheduler) fed by `PosProvider`: places → venues, menu, desks, bills
+      (`modifiedSince`), initial 90-day import, `BillsSynced` event (#59, #61)
+- [ ] Owner confirmation: a place the POS hides, disables or stops reporting keeps its venue and
+      history readable and only stops syncing (`pos.venue_link.active`, #59; STORYOUS.md "pending
+      owner confirmation")
+- [ ] Retention for `pos.sync_job` (one row per connection every 2 min, about 720 a day): keep N
+      days, purge job (from the #59 review)
 - [ ] Reporting rollups refreshed from `BillsSynced`; rebuild job. Acceptance: a gate that fails when
       date functions decide a business day or hour (`METRICS.md`), scanning both Flyway/raw SQL
       (`date_trunc`, `AT TIME ZONE`, `::date`) and the jOOQ DSL equivalents (`DSL.trunc`, casts to
       `SQLDataType.DATE`, `atTimeZone`)
 - [ ] Later (P15): read-only Storyous client behind `PosProvider` (client credentials, token cache,
-      paging), built and tested against recorded fixtures that fail on any non-GET call; drop
-      `allowEmptyShould(true)` from `ProductRules.posIsReadOnly` so the gate proves a non-empty
-      scope; onboarding A3–A5 (no OAuth redirect; see `docs/integrations/STORYOUS.md`)
+      paging), built and tested against recorded fixtures that fail on any non-GET call (the
+      `posIsReadOnly` gate already has a non-empty scope since #57); verify the STORYOUS.md
+      "assumptions to verify" list against the real API; onboarding A3–A5 (no OAuth redirect; see `docs/integrations/STORYOUS.md`)
 - [x] Purge job: delete organizations whose `deletion_due_at` has passed (set by `DELETE /me`, #28) (#53)
 - [ ] Indexes on the `ON DELETE SET NULL` FKs (`bill.desk_id`, `bill.created_by_staff_id`,
       `bill.paid_by_staff_id`, `bill_item.product_id`, `product.category_id`, `category.parent_id`,
@@ -176,6 +188,10 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
 ## Phase 5 — Dashboards
 
 - [ ] Today (01) and Tables "This week" (01a)
+- [ ] Data gaps on Today and Sales: an "N bills couldn't be read" note whenever
+      `RollupReads.dataGaps` is above 0 (quarantined bills, bills without lines, outdated bills,
+      payment mismatches);
+      net revenue hidden while `bills_missing_net` > 0 (rule 2)
 - [ ] Sales (02), Products by hour (02a), Hourly patterns (02b), Discounts & losses (02c)
 - [ ] Staff (03), Waiter detail (03a)
 - [ ] Rule-based hint cards (codes + params), venue switcher / all-venues view
