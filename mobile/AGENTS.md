@@ -279,6 +279,11 @@ Navigation versions must stay aligned with the Compose Multiplatform version.
 Run from `mobile/`. Needs JDK 21, Node.js (`npx`, for the `core:api` spec bundle), the Android SDK
 (`ANDROID_HOME` or `local.properties` with `sdk.dir`) and Xcode with an iOS simulator runtime.
 
+The OpenAPI bundle task finds `npx` when it runs (not at configuration): on `PATH`, then in
+`/opt/homebrew/bin` and `/usr/local/bin`, for IDE builds whose environment omits Homebrew. For another Node installation,
+set `onemind.nodeBinDir=/absolute/path/to/bin` in `~/.gradle/gradle.properties`; that directory
+must contain both `node` and `npx`.
+
 ```sh
 ./gradlew :build-logic:convention:build                    # compile + validate convention plugins
 ./gradlew ktlintCheck                                      # lint every module (ktlintFormat to fix)
