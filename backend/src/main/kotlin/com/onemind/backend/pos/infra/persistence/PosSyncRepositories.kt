@@ -159,6 +159,36 @@ class SyncCursorRepository(
             ?.let { r -> SyncCursorState(r.get(s.LAST_SUCCESS_AT), r.get(s.UPDATED_AT)?.takeIf { r.get(s.LAST_ERROR) != null }) }
     }
 
+    fun cursor(
+        venueId: UUID,
+        resource: String,
+    ): String? =
+        dsl
+            .select(SYNC_CURSOR.CURSOR)
+            .from(SYNC_CURSOR)
+            .where(SYNC_CURSOR.VENUE_ID.eq(venueId), SYNC_CURSOR.RESOURCE.eq(resource))
+            .fetchOne(SYNC_CURSOR.CURSOR)
+
+    /** Stores how far the sync of [resource] got; runs in the transaction that wrote up to there. */
+    fun moveCursor(
+        venueId: UUID,
+        resource: String,
+        cursor: String,
+        now: Instant,
+    ) {
+        val s = SYNC_CURSOR
+        dsl
+            .insertInto(s)
+            .set(s.VENUE_ID, venueId)
+            .set(s.RESOURCE, resource)
+            .set(s.CURSOR, cursor)
+            .onConflict(s.VENUE_ID, s.RESOURCE)
+            .doUpdate()
+            .set(s.CURSOR, excluded(s.CURSOR))
+            .set(s.UPDATED_AT, now)
+            .execute()
+    }
+
     fun succeeded(
         venueId: UUID,
         resource: String,

@@ -34,4 +34,13 @@ class PosMoneyTest {
         assertEquals("500", PosMoney.decimal(500, jpy))
         assertEquals(12345, PosMoney.minorUnits(PosMoney.decimal(12345, czk), czk))
     }
+
+    @Test
+    fun `prices round half-up to minor units, other amounts never round`() {
+        assertEquals(1235, PosMoney.minorUnitsRounded("12.345", czk))
+        assertEquals(1234, PosMoney.minorUnitsRounded("12.3449", czk))
+        assertEquals(12900, PosMoney.minorUnitsRounded("129", czk))
+        assertFailsWith<IllegalArgumentException> { PosMoney.minorUnitsRounded("ten", czk) }
+        assertFailsWith<IllegalArgumentException> { PosMoney.minorUnits("12.345", czk) }
+    }
 }

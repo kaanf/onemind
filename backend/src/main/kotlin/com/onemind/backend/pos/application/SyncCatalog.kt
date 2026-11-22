@@ -20,8 +20,9 @@ import java.util.Currency
 /**
  * Menu and desks of an active venue, at most once per [INTERVAL] each, also after a failure (STORYOUS.md,
  * sync strategy). The POS call runs before the transaction; a failure is recorded on the venue's
- * `sync_cursor` and doesn't stop the other resource or venue. A product row that can't be read exactly
- * is skipped (its ID logged) and keeps what was stored before.
+ * `sync_cursor` and doesn't stop the other resource or venue. A product row that can't be read is
+ * skipped (its ID logged) and keeps what was stored before; prices finer than the currency are rounded
+ * half-up (owner decision 2026-11-22).
  */
 @Service
 class SyncCatalog(
@@ -43,9 +44,10 @@ class SyncCatalog(
                 val menu = provider.menu(place)
                 val categories = menu.categories.map { CatalogCategory(it.categoryId, it.name, it.parentId) }
                 val skipped = mutableListOf<String>()
+                val rounded = mutableListOf<String>()
                 val products =
                     menu.products.mapNotNull { product ->
-                        // One bad row (e.g. a sub-minor price, which is never rounded) must not fail the menu.
+                        // One bad row must not fail the menu. Sub-minor prices are rounded (owner decision 2026-11-22).
                         try {
                             CatalogProduct(
                                 externalId = product.productId,
@@ -54,22 +56,43 @@ class SyncCatalog(
                                 measure = product.measure,
                                 ean = product.ean,
                                 vatRate = product.vatRate?.trim()?.toBigDecimal(),
-                                priceMinor = product.price?.let { price -> PosMoney.minorUnits(price, currency) },
+                                priceMinor =
+                                    product.price?.let { price ->
+                                        if (PosMoney.needsRounding(price, currency)) rounded += product.productId
+                                        PosMoney.minorUnitsRounded(price, currency)
+                                    },
                                 active = product.enabled,
                             )
                         } catch (e: IllegalArgumentException) {
                             skipped += product.productId
                             null
+                        } catch (e: ArithmeticException) {
+                            // A price too large for a Long (longValueExact).
+                            skipped += product.productId
+                            null
                         }
                     }
                 if (skipped.isNotEmpty()) log.warn("POS menu rows skipped: venueId={}, productIds={}", venue.venueId, skipped)
-                transactions.executeWithoutResult { catalog.replaceMenu(venue.venueId, categories, products, skipped, clock.instant()) }
+                if (rounded.isNotEmpty()) {
+                    log.info(
+                        "POS menu prices rounded to minor units: venueId={}, productIds={}",
+                        venue.venueId,
+                        rounded,
+                    )
+                }
+                transactions.executeWithoutResult {
+                    catalog.replaceMenu(venue.venueId, categories, products, skipped, clock.instant())
+                    catalog.backfillBillProducts(venue.venueId)
+                }
             },
             step(venue, DESKS) {
                 val view = provider.deskView(place)
                 val sections = view.sections.map { CatalogSection(it.sectionId, it.name, it.color) }
                 val desks = view.desks.map { CatalogDesk(it.deskId, it.sectionId, it.name, it.code, it.virtual, it.removed) }
-                transactions.executeWithoutResult { catalog.replaceDesks(venue.venueId, sections, desks, clock.instant()) }
+                transactions.executeWithoutResult {
+                    catalog.replaceDesks(venue.venueId, sections, desks, clock.instant())
+                    catalog.backfillBillDesks(venue.venueId)
+                }
             },
         )
 

@@ -59,7 +59,7 @@ class MockPosProvider(
         val matching =
             generateSequence(first) { it.plusDays(1) }
                 .takeWhile { !it.isAfter(last) }
-                .flatMap { MockBillGenerator.night(known, it) }
+                .flatMap { night(known, it) }
                 .mapNotNull { it.asOf(now)?.bill }
                 .filter { query.includeDeleted || !it.deleted }
                 .filter { bill -> query.from?.let { !bill.paidAtInstant().isBefore(it) } ?: true }
@@ -87,7 +87,7 @@ class MockPosProvider(
         val (billPlace, date) = MockBillGenerator.parseBillId(billId) ?: return null
         val now = clock.instant()
         if (billPlace !== known || date.isBefore(businessDate(now).minusDays(HISTORY_DAYS))) return null
-        return MockBillGenerator.night(known, date).find { it.billId == billId }?.asOf(now)
+        return night(known, date).find { it.billId == billId }?.asOf(now)
     }
 
     override fun deskView(place: PosPlaceRef): PosDeskView = known(place)?.deskView ?: PosDeskView(emptyList(), emptyList())
@@ -118,12 +118,28 @@ class MockPosProvider(
         id: (PosBill) -> String,
     ): Int = compareValues(key(bill), cursor.keyMillis).takeIf { it != 0 } ?: compareValues(id(bill), cursor.billId)
 
+    // Nights are pure functions of (place, date): a few are kept, so a sync asking for every bill's detail
+    // doesn't regenerate the night each time.
+    private val nights =
+        object : LinkedHashMap<Pair<String, LocalDate>, List<MockBillGenerator.GeneratedBill>>(16, 0.75f, true) {
+            override fun removeEldestEntry(
+                eldest: MutableMap.MutableEntry<Pair<String, LocalDate>, List<MockBillGenerator.GeneratedBill>>,
+            ) = size > CACHED_NIGHTS
+        }
+
+    private fun night(
+        place: MockCatalog.Place,
+        date: LocalDate,
+    ): List<MockBillGenerator.GeneratedBill> =
+        synchronized(nights) { nights.getOrPut(place.place.placeId to date) { MockBillGenerator.night(place, date) } }
+
     private fun businessDate(at: Instant): LocalDate =
         BusinessDayCalendar.businessDate(at, MockCatalog.ZONE, BusinessDayCalendar.DEFAULT_BUSINESS_DAY_START)
 
     companion object {
         const val HISTORY_DAYS = 120L
         private const val CURSOR_SEPARATOR = "|"
+        private const val CACHED_NIGHTS = 8
     }
 }
 

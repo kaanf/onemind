@@ -4,6 +4,8 @@ import com.onemind.backend.pos.domain.CatalogCategory
 import com.onemind.backend.pos.domain.CatalogDesk
 import com.onemind.backend.pos.domain.CatalogProduct
 import com.onemind.backend.pos.domain.CatalogSection
+import com.onemind.db.pos.tables.references.BILL
+import com.onemind.db.pos.tables.references.BILL_ITEM
 import com.onemind.db.pos.tables.references.CATEGORY
 import com.onemind.db.pos.tables.references.DESK
 import com.onemind.db.pos.tables.references.PRODUCT
@@ -155,4 +157,26 @@ class PosCatalogRepository(
         venueId: UUID,
         externalId: String?,
     ) = field(select(SECTION.ID).from(SECTION).where(SECTION.VENUE_ID.eq(venueId), SECTION.EXTERNAL_ID.eq(externalId)))
+
+    /** Bill lines stored before their product was synced get it now, by POS product ID. */
+    fun backfillBillProducts(venueId: UUID) {
+        val i = BILL_ITEM
+        dsl
+            .update(i)
+            .set(
+                i.PRODUCT_ID,
+                field(select(PRODUCT.ID).from(PRODUCT).where(PRODUCT.VENUE_ID.eq(venueId), PRODUCT.EXTERNAL_ID.eq(i.EXTERNAL_PRODUCT_ID))),
+            ).where(i.VENUE_ID.eq(venueId), i.PRODUCT_ID.isNull, i.EXTERNAL_PRODUCT_ID.isNotNull)
+            .execute()
+    }
+
+    /** Bills stored before their desk was synced get it now, by POS desk ID. */
+    fun backfillBillDesks(venueId: UUID) {
+        val b = BILL
+        dsl
+            .update(b)
+            .set(b.DESK_ID, field(select(DESK.ID).from(DESK).where(DESK.VENUE_ID.eq(venueId), DESK.EXTERNAL_ID.eq(b.EXTERNAL_DESK_ID))))
+            .where(b.VENUE_ID.eq(venueId), b.DESK_ID.isNull, b.EXTERNAL_DESK_ID.isNotNull)
+            .execute()
+    }
 }

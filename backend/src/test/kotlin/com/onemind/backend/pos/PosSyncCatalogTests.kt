@@ -27,7 +27,7 @@ import kotlin.test.assertTrue
 
 /** Places → venues and menu/desks sync (STORYOUS.md, sync strategy) against the demo POS. */
 @Import(TestcontainersConfiguration::class, PosSyncCatalogTests.Config::class)
-@SpringBootTest(properties = ["db-scheduler.enabled=false", "onemind.pos.provider=mock"])
+@SpringBootTest(properties = ["db-scheduler.enabled=false", "onemind.pos.provider=mock", "onemind.pos.sync.initial-days=1"])
 class PosSyncCatalogTests {
     @TestConfiguration(proxyBeanMethods = false)
     class Config {
@@ -236,9 +236,24 @@ class PosSyncCatalogTests {
     }
 
     @Test
-    fun `a product with a sub-minor price is skipped, never rounded, and the rest of the menu is stored`() {
+    fun `a sub-minor menu price is rounded half-up to minor units`() {
         val connection = connection()
         pos.subMinorPriceProduct = "demo-product-2"
+
+        sync.run()
+
+        val letna = venues(connection).getValue("demo-letna").id
+        assertEquals(
+            1235L,
+            jdbc.queryForObject<Long>("select price_minor from pos.product where venue_id = ? and external_id = 'demo-product-2'", letna),
+        )
+        assertEquals(24, count("select count(*) from pos.product where venue_id = ?", letna))
+    }
+
+    @Test
+    fun `an unreadable product row is skipped and the rest of the menu is stored`() {
+        val connection = connection()
+        pos.badVatRateProduct = "demo-product-2"
 
         sync.run()
 

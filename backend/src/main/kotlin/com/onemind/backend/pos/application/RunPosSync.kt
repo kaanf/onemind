@@ -24,7 +24,7 @@ class RunPosSync(
     private val connections: PosConnectionRepository,
     private val syncJobs: SyncJobRepository,
     private val syncPlaces: SyncPlaces,
-    private val syncCatalog: SyncCatalog,
+    private val syncVenue: SyncVenue,
     private val providers: ObjectProvider<PosProvider>,
     private val clock: Clock,
 ) {
@@ -71,7 +71,13 @@ class RunPosSync(
             places?.venues?.filter { it.active }?.forEach { venue ->
                 steps +=
                     try {
-                        syncCatalog.runIfDue(venue, PosPlaceRef(connection.externalMerchantId, venue.placeId), places.currency, provider)
+                        syncVenue.run(
+                            connection.id,
+                            venue,
+                            PosPlaceRef(connection.externalMerchantId, venue.placeId),
+                            places.currency,
+                            provider,
+                        )
                     } catch (e: RuntimeException) {
                         val error = e.javaClass.simpleName
                         log.warn("POS venue sync failed: venueId={}, error={}", venue.venueId, error, e)

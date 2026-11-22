@@ -284,6 +284,11 @@ class OrganizationPurgeTests {
         jdbc.update("insert into pos.bill_item_discount (bill_item_id) values (?)", billItem)
         jdbc.update("insert into pos.payment (bill_id, method_raw, method_kind, amount_minor) values (?, 'card', 'CARD', 100)", bill)
         jdbc.update("insert into pos.raw_payload (venue_id, resource, external_id, payload) values (?, 'bills', ?, '{}')", venue, ext)
+        jdbc.update(
+            "insert into pos.bill_quarantine (venue_id, external_id, reason, first_seen_at, last_attempt_at) values (?, ?, 'DETAIL_MISSING', now(), now())",
+            venue,
+            ext,
+        )
 
         jdbc.update("insert into reporting.hourly_sales (venue_id, business_day, hour) values (?, current_date, 12)", venue)
         jdbc.update("insert into reporting.hourly_activity (venue_id, business_day, hour) values (?, current_date, 12)", venue)
@@ -332,6 +337,7 @@ class OrganizationPurgeTests {
                 "pos.bill_item_discount" to Scope("bill_item_id") { it.billItemId },
                 "pos.payment" to Scope("bill_id") { it.billId },
                 "pos.raw_payload" to byVenue,
+                "pos.bill_quarantine" to byVenue,
                 "reporting.hourly_sales" to byVenue,
                 "reporting.hourly_activity" to byVenue,
                 "reporting.product_hourly_sales" to byVenue,

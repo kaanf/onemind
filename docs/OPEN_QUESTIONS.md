@@ -26,7 +26,6 @@ reference the question ID in a code comment / PR. When a question is answered, m
 
 | ID | Question |
 |----|----------|
-| M1 | Bill assigned to the business day by close time or open time? (Cut-off: per-venue owner setting, default 05:00, see R28.) |
 | M2 | Revenue gross (incl. VAT) or net? Margins on net price? |
 | M3 | Week/month comparisons: full previous period or same elapsed span? |
 | M4 | Payment methods other than card/cash (vouchers, meal cards, Benefit): how to show? |

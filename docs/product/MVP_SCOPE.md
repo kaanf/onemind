@@ -94,5 +94,5 @@ Rules that follow from it:
   exists; `stockCorrections` joins with phase 6.
 - **Tips** show the total only; the card share is not inferred from payments.
 - **Business day:** the cut-off is a per-venue owner setting (default 05:00) because Storyous has
-  no opening hours. Whether a bill counts by close or open time is still M1.
+  no opening hours. A bill counts in its paid business day (owner decision 2026-11-22).
 
