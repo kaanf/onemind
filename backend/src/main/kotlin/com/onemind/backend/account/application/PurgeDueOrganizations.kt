@@ -49,7 +49,7 @@ class PurgeDueOrganizations(
     ): Boolean =
         transactions.execute {
             if (!organizations.lockIfDue(organizationId, now)) return@execute false
-            val venueIds = organizations.venueIds(organizationId)
+            val venueIds = organizations.lockVenues(organizationId)
             events.publishEvent(OrganizationPurging(organizationId, venueIds))
             organizations.deleteVenuesAndOrganization(organizationId)
             log.info("Organization purged: organizationId={}, venues={}", organizationId, venueIds.size)

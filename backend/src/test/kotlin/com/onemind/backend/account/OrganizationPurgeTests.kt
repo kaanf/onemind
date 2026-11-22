@@ -2,6 +2,7 @@ package com.onemind.backend.account
 
 import com.onemind.backend.TestcontainersConfiguration
 import com.onemind.backend.account.application.PurgeDueOrganizations
+import com.onemind.backend.account.infra.persistence.OrganizationPurgeRepository
 import com.onemind.backend.testing.MutableClock
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -12,11 +13,17 @@ import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.queryForObject
+import org.springframework.transaction.support.TransactionTemplate
 import java.sql.Timestamp
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -43,6 +50,12 @@ class OrganizationPurgeTests {
 
     @Autowired
     lateinit var purge: PurgeDueOrganizations
+
+    @Autowired
+    lateinit var organizations: OrganizationPurgeRepository
+
+    @Autowired
+    lateinit var transactions: TransactionTemplate
 
     @Test
     fun `a due organization goes with all its data, others stay untouched`() {
@@ -76,19 +89,80 @@ class OrganizationPurgeTests {
     fun `an organization that fails is rolled back whole and does not stop the others`() {
         val failing = seed(dueAt = clock.now - Duration.ofDays(2))
         val other = seed(dueAt = clock.now - Duration.ofDays(1))
-        // A foreign venue linked to the failing organization's connection makes its POS delete fail.
+        // A trigger makes the failing organization's POS delete fail halfway through the listeners.
+        jdbc.execute("create function pg_temp_block_purge() returns trigger language plpgsql as 'begin raise exception ''blocked''; end'")
+        jdbc.execute(
+            "create trigger block_purge before delete on pos.raw_payload for each row " +
+                "when (old.venue_id = '${failing.venueId}') execute function pg_temp_block_purge()",
+        )
+        try {
+            purge.run()
+        } finally {
+            jdbc.execute("drop trigger block_purge on pos.raw_payload")
+            jdbc.execute("drop function pg_temp_block_purge()")
+        }
+
+        expectIntact(failing)
+        expectGone(other)
+    }
+
+    @Test
+    fun `links of the organization's connection to a venue outside it go with the connection`() {
+        val due = seed(dueAt = clock.now - Duration.ofMinutes(1))
         val foreignVenue = venue(seed(dueAt = null).organizationId)
         jdbc.update(
             "insert into pos.venue_link (venue_id, connection_id, external_place_id) values (?, ?, ?)",
             foreignVenue,
-            failing.connectionId,
+            due.connectionId,
             "foreign-place",
         )
 
         purge.run()
 
-        expectIntact(failing)
-        expectGone(other)
+        expectGone(due)
+        assertEquals(1, count("select count(*) from account.venue where id = ?", foreignVenue))
+    }
+
+    @Test
+    fun `only an organization still due at the lock is purged, so a support reversal wins`() {
+        val due = seed(dueAt = clock.now - Duration.ofMinutes(1))
+        val cleared = seed(dueAt = clock.now - Duration.ofMinutes(1)).also { clearDeletion(it) }
+        val notYetDue = seed(dueAt = clock.now + Duration.ofMinutes(1))
+
+        fun locks(org: Seeded) = requireNotNull(transactions.execute { organizations.lockIfDue(org.organizationId, clock.now) })
+
+        assertTrue(locks(due))
+        assertFalse(locks(cleared))
+        assertFalse(locks(notYetDue))
+    }
+
+    @Test
+    fun `the purge locks the venues, so a sync insert waits instead of failing the venue delete`() {
+        val due = seed(dueAt = clock.now - Duration.ofMinutes(1))
+        val locked = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val purgeTx =
+            thread {
+                transactions.executeWithoutResult {
+                    organizations.lockVenues(due.organizationId)
+                    locked.countDown()
+                    release.await()
+                }
+            }
+        try {
+            assertTrue(locked.await(10, TimeUnit.SECONDS))
+            val insert =
+                assertFails {
+                    transactions.executeWithoutResult {
+                        jdbc.execute("set local lock_timeout = '200ms'")
+                        jdbc.update("insert into pos.sync_cursor (venue_id, resource) values (?, 'MENU')", due.venueId)
+                    }
+                }
+            assertTrue("lock timeout" in insert.stackTraceToString(), insert.toString())
+        } finally {
+            release.countDown()
+            purgeTx.join()
+        }
     }
 
     @Test

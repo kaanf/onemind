@@ -25,7 +25,7 @@ class PosOrganizationDataRepository(
         organizationId: UUID,
         venueIds: Collection<UUID>,
     ) {
-        // Bill items cascade to their discounts, bills to their payments.
+        // Items go by venue first (their discounts cascade), then bills (their payments cascade).
         dsl.deleteFrom(BILL_ITEM).where(BILL_ITEM.VENUE_ID.`in`(venueIds)).execute()
         dsl.deleteFrom(BILL).where(BILL.VENUE_ID.`in`(venueIds)).execute()
         dsl.deleteFrom(RAW_PAYLOAD).where(RAW_PAYLOAD.VENUE_ID.`in`(venueIds)).execute()
@@ -37,6 +37,8 @@ class PosOrganizationDataRepository(
         dsl.deleteFrom(VENUE_LINK).where(VENUE_LINK.VENUE_ID.`in`(venueIds)).execute()
 
         val connections = dsl.select(POS_CONNECTION.ID).from(POS_CONNECTION).where(POS_CONNECTION.ORGANIZATION_ID.eq(organizationId))
+        // Links of the connection, also to a venue outside venueIds: the connection goes, so they can't stay.
+        dsl.deleteFrom(VENUE_LINK).where(VENUE_LINK.CONNECTION_ID.`in`(connections)).execute()
         dsl.deleteFrom(STAFF_MEMBER).where(STAFF_MEMBER.CONNECTION_ID.`in`(connections)).execute()
         dsl.deleteFrom(SYNC_JOB).where(SYNC_JOB.CONNECTION_ID.`in`(connections)).execute()
         dsl.deleteFrom(POS_CONNECTION).where(POS_CONNECTION.ORGANIZATION_ID.eq(organizationId)).execute()

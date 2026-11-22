@@ -69,9 +69,10 @@ Account deletion (`DELETE /me`, App Store 5.1.1(v), GDPR art. 17):
   `organization.deletion_due_at` (V007). A support reversal clears `deletion_due_at` (and restores an
   owner membership) before it passes.
 - The purge job (`account/application/PurgeDueOrganizations`, hourly) deletes each due organization
-  in its own transaction: it re-checks the mark under a row lock, publishes the synchronous
+  in its own transaction: it re-checks the mark under a row lock, locks the venues (a concurrent sync
+  insert waits and then fails instead of blocking the venue delete), publishes the synchronous
   `OrganizationPurging` event, in which every module deletes its rows of the organization and its
-  venues (`pos`: the whole read model incl. connections and staff; `reporting`: all rollups), then
+  venues (`pos`: the whole read model incl. connections, their venue links and staff; `reporting`: all rollups), then
   deletes the venues (followed venues cascade) and the organization (remaining memberships cascade).
   Other members stay users. A failing organization is rolled back whole, stays marked and is tried
   again next hour. A module that adds a venue- or organization-scoped table deletes it in its

@@ -47,11 +47,17 @@ class OrganizationPurgeRepository(
             .fetchOne() != null
     }
 
-    fun venueIds(organizationId: UUID): List<UUID> =
+    /**
+     * Locks and returns the venues of [organizationId]. A sync or rollup insert that references one of
+     * them then waits for the purge and fails after it, instead of adding a row after the listeners ran
+     * and making the venue delete fail.
+     */
+    fun lockVenues(organizationId: UUID): List<UUID> =
         dsl
             .select(VENUE.ID)
             .from(VENUE)
             .where(VENUE.ORGANIZATION_ID.eq(organizationId))
+            .forUpdate()
             .fetch(VENUE.ID)
             .filterNotNull()
 
