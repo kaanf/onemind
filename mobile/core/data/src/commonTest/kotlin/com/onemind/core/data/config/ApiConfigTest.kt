@@ -29,6 +29,11 @@ class ApiConfigTest {
     }
 
     @Test
+    fun appVersionIsNumeric() {
+        assertTrue(Regex("^\\d+(\\.\\d+)*$").matches(config.appVersion), config.appVersion)
+    }
+
+    @Test
     fun environmentKeysRoundTrip() {
         AppEnvironment.entries.forEach { assertEquals(it, AppEnvironment.fromKey(it.key)) }
         assertFailsWith<IllegalStateException> { AppEnvironment.fromKey("staging") }

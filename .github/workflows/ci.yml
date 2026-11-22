@@ -179,7 +179,8 @@ jobs:
           retention-days: 7
 
   # Compiles and links the shared framework for the simulator, which catches iOS-only Kotlin errors
-  # (iosMain, expect/actual, cinterop) on every mobile PR in a fraction of the full xcodebuild time.
+  # (iosMain, expect/actual, cinterop) on every mobile PR in a fraction of the full xcodebuild time,
+  # then runs the iOS-only tests on the simulator.
   ios-compile:
     name: iOS framework compile
     needs: changes
@@ -208,6 +209,49 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/dev' && github.ref != 'refs/heads/main' }}
 
       - run: ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
+
+      # iOS-only tests on the simulator: the Keychain session store (`core/data/src/iosTest`) can't be
+      # exercised on the JVM. Kotlin/Native's default `simctl spawn --standalone` has no Keychain, so a
+      # simulator is booted first and the tests run inside it (`onemind.iosTestDevice`, core/data).
+      - name: Boot an iOS simulator
+        id: simulator
+        run: |
+          udid=$(xcrun simctl list devices available --json \
+            | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | startswith("iPhone"))][0].udid')
+          test -n "$udid" && test "$udid" != "null"
+          xcrun simctl boot "$udid" || true
+          xcrun simctl bootstatus "$udid" -b
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - run: ./gradlew :core:data:iosSimulatorArm64Test -Ponemind.iosTestDevice=${{ steps.simulator.outputs.udid }}
+
+      # Gradle reports a binary the simulator refused to launch as "1 test, 1 skipped", which would pass.
+      # The Keychain tests must have run: all of them, none skipped, none failed.
+      - name: Check the Keychain tests ran
+        run: |
+          python3 - <<'PY'
+          import glob, sys, xml.etree.ElementTree as ET
+          # Kotlin/Native prefixes the suite with the target: TEST-iosSimulatorArm64Test.com.onemind….xml
+          paths = glob.glob("core/data/build/test-results/iosSimulatorArm64Test/TEST-*IosSecureSessionStoreTest.xml")
+          if len(paths) != 1:
+              sys.exit(f"IosSecureSessionStoreTest did not run: expected one result file, found {paths}")
+          try:
+              suite = ET.parse(paths[0]).getroot()
+          except ET.ParseError as e:
+              sys.exit(f"IosSecureSessionStoreTest result unreadable: {e}")
+          tests, skipped = int(suite.get("tests", 0)), int(suite.get("skipped", 0))
+          failed = int(suite.get("failures", 0)) + int(suite.get("errors", 0))
+          print(f"IosSecureSessionStoreTest: {tests} tests, {failed} failed, {skipped} skipped")
+          if tests < 4 or skipped or failed:
+              sys.exit("expected at least 4 Keychain tests, all executed and passed")
+          PY
+
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-test-reports
+          path: mobile/**/build/reports/
+          retention-days: 7
 
   # The single required check. Each job maps to the `changes` output that gates it; a job missing
   # from `needs` or from the map fails this check, so new jobs can't slip past it.
