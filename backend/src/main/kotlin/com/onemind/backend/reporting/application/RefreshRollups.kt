@@ -12,6 +12,7 @@ import com.onemind.backend.reporting.domain.RollupLine
 import com.onemind.backend.reporting.domain.RollupPayment
 import com.onemind.backend.reporting.domain.RollupVersion
 import com.onemind.backend.reporting.infra.persistence.RollupRepository
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.support.TransactionTemplate
 import java.time.Clock
@@ -31,6 +32,8 @@ class RefreshRollups(
     private val transactions: TransactionTemplate,
     private val clock: Clock,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     /** Recomputes [days] of [venueId]; nothing if the venue is gone (e.g. purged). */
     fun refresh(
         venueId: UUID,
@@ -44,7 +47,21 @@ class RefreshRollups(
                 val bills = allPages { after -> pos.bills(venueId, listOf(day), after).let { it.items to it.next } }
                 val lines = allPages { after -> pos.billLines(venueId, listOf(day), after).let { it.items to it.next } }
                 val range = BusinessDayCalendar.range(day, settings.zone, settings.businessDayStart)
-                val computed = RollupCalculator.compute(bills.map { it.toRollup() }, lines.map { it.toRollup() }, range, settings.zone)
+                val computed =
+                    try {
+                        RollupCalculator.compute(bills.map { it.toRollup() }, lines.map { it.toRollup() }, range, settings.zone)
+                    } catch (e: IllegalStateException) {
+                        log.error("Rollup refresh failed: venueId={}, businessDay={}, error={}", venueId, day, e.message)
+                        throw e
+                    }
+                if (computed.paymentMismatchBillIds.isNotEmpty()) {
+                    log.warn(
+                        "Bills left out of revenue, payments don't add up: venueId={}, businessDay={}, billIds={}",
+                        venueId,
+                        day,
+                        computed.paymentMismatchBillIds,
+                    )
+                }
                 rollups.replaceDay(venueId, day, computed, bills.maxOfOrNull { it.modifiedAt }, RollupVersion.CURRENT, clock.instant())
             }
         }

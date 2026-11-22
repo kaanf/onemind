@@ -220,4 +220,20 @@ class RollupCalculatorTest {
 
         assertFailsWith<IllegalStateException> { RollupCalculator.compute(listOf(b), lines, day("2026-11-20"), zone) }
     }
+
+    @Test
+    fun `a bill whose payments don't add up is left out of revenue and counted, never clamped`() {
+        val tipsTooHigh = bill("2026-11-20T20:00:00Z", total = 5_000, tips = 9_000, payments = listOf(RollupPayment("CARD", 6_000)))
+        val unpaid = bill("2026-11-20T20:05:00Z", total = 4_000, payments = emptyList())
+        val fine = bill("2026-11-20T20:10:00Z", total = 10_000)
+
+        val rollups = RollupCalculator.compute(listOf(tipsTooHigh, unpaid, fine), emptyList(), day("2026-11-20"), zone)
+
+        val row = rollups.hourlySales.single()
+        assertEquals(10_000, row.revenueMinor)
+        assertEquals(row.revenueMinor, row.cardMinor + row.cashMinor + row.otherMinor)
+        assertEquals(2, row.billsPaymentMismatch)
+        assertEquals(3, row.bills)
+        assertEquals(setOf(tipsTooHigh.billId, unpaid.billId), rollups.paymentMismatchBillIds.toSet())
+    }
 }

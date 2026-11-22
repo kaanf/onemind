@@ -81,6 +81,16 @@ class ReportingRollupTests {
     @Test
     fun `synced bills arrive in the rollups, equal to an independent SQL calculation`() {
         val venue = syncedVenue()
+        // Two bills whose payments don't add up: tips above the payments, and a total without payments.
+        val (tipsTooHigh, unpaid) =
+            jdbc.queryForList(
+                "select id from pos.bill where venue_id = ? and not deleted and total_minor > 0 order by id limit 2",
+                UUID::class.java,
+                venue,
+            )
+        jdbc.update("update pos.bill set tips_minor = 1000000 where id = ?", tipsTooHigh)
+        jdbc.update("delete from pos.payment where bill_id = ?", unpaid)
+        refresh.refresh(venue, days(venue))
 
         // Revenue, bills, refunds and deletions per local paid hour (the DST repeat hour merges, as in Kotlin).
         val expected =
@@ -88,16 +98,20 @@ class ReportingRollupTests {
                 """
                 with b as (
                     select bill.*,
-                           greatest(coalesce((select sum(p.amount_minor) from pos.payment p where p.bill_id = bill.id), 0) - tips_minor, 0) as paid
+                           coalesce((select sum(p.amount_minor) from pos.payment p where p.bill_id = bill.id), 0) as paid,
+                           (select count(*) from pos.payment p where p.bill_id = bill.id) as payments
                     from pos.bill where venue_id = ?
+                ), m as (
+                    select b.*, (not deleted and (tips_minor > paid or (total_minor > 0 and payments = 0))) as mismatch from b
                 )
                 select business_day, extract(hour from paid_at at time zone 'Europe/Prague')::int as hour,
-                       coalesce(sum(paid) filter (where not deleted), 0) as revenue,
+                       coalesce(sum(paid - tips_minor) filter (where not deleted and not mismatch), 0) as revenue,
                        count(*) filter (where not deleted) as bills,
-                       coalesce(sum(paid) filter (where refunded and not deleted), 0) as refunded,
+                       coalesce(sum(paid - tips_minor) filter (where refunded and not deleted and not mismatch), 0) as refunded,
                        count(*) filter (where deleted) as deleted_bills,
-                       coalesce(sum(total_minor) filter (where deleted), 0) as deleted
-                from b group by 1, 2 order by 1, 2
+                       coalesce(sum(total_minor) filter (where deleted), 0) as deleted,
+                       count(*) filter (where mismatch) as mismatch
+                from m group by 1, 2 order by 1, 2
                 """.trimIndent(),
                 venue,
             )
@@ -105,13 +119,14 @@ class ReportingRollupTests {
             jdbc.queryForList(
                 """
                 select business_day, hour::int as hour, revenue_minor as revenue, bills, refunded_minor as refunded,
-                       deleted_bills, deleted_minor as deleted
+                       deleted_bills, deleted_minor as deleted, bills_payment_mismatch as mismatch
                 from reporting.hourly_sales where venue_id = ? order by 1, 2
                 """.trimIndent(),
                 venue,
             )
         assertEquals(normalize(expected), normalize(actual))
         assertTrue(expected.size > 20)
+        assertEquals(2, reads.dataGaps(venue).billsPaymentMismatch)
 
         val productQuantity =
             "select coalesce(sum(i.quantity), 0) from pos.bill_item i join pos.bill b on b.id = i.bill_id " +
@@ -326,8 +341,9 @@ class ReportingRollupTests {
         requireNotNull(
             jdbc.queryForObject<Long>(
                 """
-                select coalesce(sum(greatest(coalesce((select sum(p.amount_minor) from pos.payment p where p.bill_id = b.id), 0) - b.tips_minor, 0)), 0)
+                select coalesce(sum((select sum(p.amount_minor) from pos.payment p where p.bill_id = b.id) - b.tips_minor), 0)
                 from pos.bill b where b.venue_id = ? and b.business_day = ? and not b.deleted
+                  and exists (select 1 from pos.payment p where p.bill_id = b.id)
                 """.trimIndent(),
                 venue,
                 day,

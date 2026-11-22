@@ -30,7 +30,10 @@ per venue × business day × hour / product / staff member / desk / discount typ
 `revenue_minor` is `paidRevenue` (payments without tips, so card + cash + other = revenue) and
 **includes refunded bills**: readers subtract `refunded_minor`. `revenue_without_tax_minor` sums only
 bills that have a net total; `bills_missing_net` counts the others, and a screen doesn't show the net
-figure while it is above 0 (M2 open). Bills that
+figure while it is above 0 (M2 open). A bill whose payments don't add up (tips above the payments, or a
+total without any payment) is **left out** of revenue and the card/cash/other split, never clamped:
+`bills_payment_mismatch` counts it, and screens show it as a data gap with the others
+(`RollupReads.dataGaps`). Bills that
 couldn't be read are missing from them; screens show that gap (`RollupReads.dataGaps`, rule 2).
 
 ## Periods and comparisons

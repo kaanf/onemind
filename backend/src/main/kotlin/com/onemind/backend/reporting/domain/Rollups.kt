@@ -63,6 +63,8 @@ data class HourlySalesRow(
     val revenueWithoutTaxMinor: Long,
     /** Bills without a net total from the POS: [revenueWithoutTaxMinor] leaves them out (rule 2). */
     val billsMissingNet: Int,
+    /** Bills whose payments don't add up (tips above the payments, or a total without payments): left out of revenue. */
+    val billsPaymentMismatch: Int,
     val bills: Int,
     val guests: Int,
     val tipsMinor: Long,
@@ -120,6 +122,8 @@ data class DayRollups(
     val staffDaily: List<StaffDailyRow>,
     val deskDaily: List<DeskDailyRow>,
     val discountDaily: List<DiscountDailyRow>,
+    /** The bills behind `billsPaymentMismatch`, for the refresh to name in its log. */
+    val paymentMismatchBillIds: List<UUID> = emptyList(),
 )
 
 /**
@@ -131,6 +135,8 @@ data class DayRollups(
  *   count as refunded in their paid business day (M13: Storyous has no refund time), and readers
  *   subtract `refundedMinor`. Tips come off card when the bill has a card payment, else off cash, then
  *   other (M14; an approximation for mixed payments).
+ * - A bill whose payments don't add up (tips above the payments, or a total without any payment) is left
+ *   out of revenue and the card/cash/other split and counted as `billsPaymentMismatch` (rule 2).
  * - The net (without tax) revenue sums only bills that have a net total; the others are counted, so a
  *   reader knows the figure is incomplete (rule 2, M2 open). A discount without an amount fails the day:
  *   such bills are quarantined by the sync, so one here is a bug, never a 0.
@@ -190,6 +196,7 @@ object RollupCalculator {
                     .groupBy { it.type ?: UNSPECIFIED }
                     .map { (type, records) -> DiscountDailyRow(type, records.size, records.sumOf { it.requiredAmount() }) }
                     .sortedBy { it.discountType },
+            paymentMismatchBillIds = bills.filter { it.paymentMismatch() }.map { it.billId },
         )
     }
 
@@ -207,6 +214,7 @@ object RollupCalculator {
                     revenueMinor = byKind.sumOf { it.values.sum() },
                     revenueWithoutTaxMinor = kept.mapNotNull { it.totalWithoutTaxMinor }.sum(),
                     billsMissingNet = kept.count { it.totalWithoutTaxMinor == null },
+                    billsPaymentMismatch = kept.count { it.paymentMismatch() },
                     bills = kept.size,
                     guests = kept.sumOf { it.guests() },
                     tipsMinor = kept.sumOf { it.tipsMinor },
@@ -240,8 +248,12 @@ object RollupCalculator {
             }.sortedBy { it.staffId }
     }
 
-    /** Payments per kind with the bill's tips taken off: card first, then cash, then other (M14). */
+    /**
+     * Payments per kind with the bill's tips taken off: card first, then cash, then other (M14). A bill whose
+     * payments don't add up counts nothing here: it is a data gap, never clamped into revenue.
+     */
     private fun paymentsWithoutTips(bill: RollupBill): Map<String, Long> {
+        if (bill.paymentMismatch()) return KINDS.associateWith { 0L }
         val amounts = KINDS.associateWith { kind -> bill.payments.filter { it.kind == kind }.sumOf { it.amountMinor } }.toMutableMap()
         var tips = bill.tipsMinor
         for (kind in KINDS) {
@@ -261,6 +273,10 @@ object RollupCalculator {
         val paid = minOf(bill.paidAt, day.end)
         return if (paid.isAfter(opened)) Duration.between(opened, paid).toMinutes().toInt() else 0
     }
+
+    /** Tips above the payments, or a non-zero total without any payment: the payments can't be the revenue. */
+    private fun RollupBill.paymentMismatch(): Boolean =
+        !deleted && (tipsMinor > payments.sumOf { it.amountMinor } || (totalMinor > 0 && payments.isEmpty()))
 
     /** `paidRevenue` of one bill: its payments without its tips. */
     private fun RollupBill.revenue(): Long = paymentsWithoutTips(this).values.sum()

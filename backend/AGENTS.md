@@ -233,7 +233,8 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
   whenever a calculation changes** so stored days are recomputed. Screens add `RollupReads.dataGaps`.
   A refresh locks its (venue, day) and reads the facts inside the lock. `revenue_minor` = payments
   without tips and includes refunded bills (subtract `refunded_minor`); don't show the net revenue
-  while `bills_missing_net` > 0. Never substitute 0 for a value the POS didn't send.
+  while `bills_missing_net` > 0; a bill whose payments don't add up is left out of revenue and counted
+  (`bills_payment_mismatch`, in `dataGaps`). Never substitute or clamp to 0 a value the POS didn't send.
 
 - Implement each metric in `docs/domain/METRICS.md` exactly once, in the `reporting`
   module, with a unit test per definition using fixture bills (include a midnight-crossing

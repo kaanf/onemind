@@ -8,3 +8,7 @@ alter table reporting.rollup_state add column rollup_version int not null defaul
 -- Bills of the hour without a net (without tax) total from the POS: revenue_without_tax_minor sums only
 -- the others, so a reader must not show the net figure while this is above 0 (rule 2; M2 stays open).
 alter table reporting.hourly_sales add column bills_missing_net int not null default 0;
+
+-- Bills of the hour whose payments don't add up (tips above the payments, or a total without any
+-- payment): left out of revenue and the card/cash/other split, counted here so screens name the gap.
+alter table reporting.hourly_sales add column bills_payment_mismatch int not null default 0;

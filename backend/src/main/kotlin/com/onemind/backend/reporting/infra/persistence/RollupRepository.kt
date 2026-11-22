@@ -11,6 +11,11 @@ import com.onemind.db.reporting.tables.references.STAFF_DAILY_SALES
 import org.jooq.DSLContext
 import org.jooq.Query
 import org.jooq.impl.DSL.excluded
+import org.jooq.impl.DSL.function
+import org.jooq.impl.DSL.inline
+import org.jooq.impl.DSL.sum
+import org.jooq.impl.DSL.value
+import org.jooq.impl.SQLDataType
 import org.springframework.stereotype.Repository
 import java.time.Instant
 import java.time.LocalDate
@@ -32,7 +37,9 @@ class RollupRepository(
         venueId: UUID,
         day: LocalDate,
     ) {
-        dsl.execute("select pg_advisory_xact_lock(hashtextextended(?, 0))", "rollup:$venueId:$day")
+        // A hash collision between two keys only makes their refreshes wait for each other.
+        val key = function("hashtextextended", SQLDataType.BIGINT, value("rollup:$venueId:$day"), inline(0L))
+        dsl.select(function("pg_advisory_xact_lock", SQLDataType.OTHER, key)).fetch()
     }
 
     fun replaceDay(
@@ -64,6 +71,7 @@ class RollupRepository(
                     .set(t.REVENUE_MINOR, r.revenueMinor)
                     .set(t.REVENUE_WITHOUT_TAX_MINOR, r.revenueWithoutTaxMinor)
                     .set(t.BILLS_MISSING_NET, r.billsMissingNet)
+                    .set(t.BILLS_PAYMENT_MISMATCH, r.billsPaymentMismatch)
                     .set(t.BILLS, r.bills)
                     .set(t.GUESTS, r.guests)
                     .set(t.TIPS_MINOR, r.tipsMinor)
@@ -155,6 +163,14 @@ class RollupRepository(
             .set(s.ROLLUP_VERSION, excluded(s.ROLLUP_VERSION))
             .execute()
     }
+
+    /** Bills of [venueId] left out of revenue because their payments don't add up, over all stored days. */
+    fun paymentMismatches(venueId: UUID): Int =
+        dsl
+            .select(sum(HOURLY_SALES.BILLS_PAYMENT_MISMATCH))
+            .from(HOURLY_SALES)
+            .where(HOURLY_SALES.VENUE_ID.eq(venueId))
+            .fetchOne(0, Int::class.java) ?: 0
 
     /** Of [days], the ones with no rollups yet or rollups from a calculation older than [version]. */
     fun staleDays(
