@@ -63,6 +63,9 @@ kotlin {
             kotlin.srcDir(tasks.openApiGenerate.map { openApiOutputDir.get().dir("src/commonMain/kotlin") })
             dependencies {
                 api(libs.kotlinx.serialization.json)
+                // `format: date` becomes kotlinx.datetime.LocalDate (dateLibrary below); it ships its own
+                // kotlinx serializer, and the models expose it, so consumers need it too.
+                api(libs.kotlinx.datetime)
             }
         }
     }
