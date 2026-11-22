@@ -1,5 +1,7 @@
 package com.onemind.composeapp.di
 
+import com.onemind.auth.data.di.authDataModule
+import com.onemind.auth.presentation.di.authPresentationModule
 import com.onemind.core.data.di.coreDataModule
 import com.onemind.sales.presentation.di.salesPresentationModule
 import com.onemind.staff.presentation.di.staffPresentationModule
@@ -14,6 +16,8 @@ val appModules: List<Module>
         listOf(
             platformModule,
             coreDataModule,
+            authDataModule,
+            authPresentationModule,
             todayPresentationModule,
             salesPresentationModule,
             staffPresentationModule,
