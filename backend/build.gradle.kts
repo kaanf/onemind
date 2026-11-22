@@ -88,6 +88,10 @@ kotlin {
 // Packages sit outside com.onemind.backend so Spring Modulith does not treat them as a module.
 val openApiOutputDir = layout.buildDirectory.dir("generated/openapi")
 
+// The spec is split into files under docs/api (paths, schemas, parameters): every one of them is an input,
+// not only openapi.yaml, so a changed schema file regenerates the code instead of leaving it stale.
+val apiSpecDir = layout.projectDirectory.dir("../docs/api")
+
 openApiGenerate {
     generatorName = "kotlin-spring"
     inputSpec = layout.projectDirectory.file("../docs/api/openapi.yaml")
@@ -121,7 +125,12 @@ openApiGenerate {
 // Spring HTTP interfaces (@HttpExchange) + models, compiled into the test source set only.
 val openApiTestClientDir = layout.buildDirectory.dir("generated/openapi-test-client")
 
+tasks.openApiGenerate {
+    inputs.dir(apiSpecDir).withPropertyName("apiSpec").withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
 val openApiGenerateTestClient by tasks.registering(GenerateTask::class) {
+    inputs.dir(apiSpecDir).withPropertyName("apiSpec").withPathSensitivity(PathSensitivity.RELATIVE)
     generatorName = "kotlin-spring"
     library = "spring-declarative-http-interface"
     inputSpec = layout.projectDirectory.file("../docs/api/openapi.yaml")
