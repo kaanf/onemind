@@ -113,6 +113,7 @@ class RollupCalculatorTest {
         assertEquals(2, row.bills)
         assertEquals(1, row.paidBills)
         assertEquals(3_000, row.refundedMinor)
+        assertEquals(1, row.refundedBills)
         assertEquals(3_000, row.refundedCashMinor)
         assertEquals(0, row.refundedCardMinor + row.refundedOtherMinor)
         assertEquals(1, row.deletedBills)

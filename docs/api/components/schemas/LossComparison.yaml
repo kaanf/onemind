@@ -1,0 +1,37 @@
+type: object
+description: |
+  The loss share against the compared span of the previous period, with the same rules and venues as the
+  Sales comparison (`SalesComparison`; METRICS, periods). The change is in percentage points.
+required:
+  - previous
+  - compared
+  - upToSameTime
+  - venueIds
+properties:
+  previous:
+    allOf:
+      - $ref: ./DaySpan.yaml
+    description: The whole previous period.
+  compared:
+    allOf:
+      - $ref: ./DaySpan.yaml
+    description: The part of the previous period the figures are compared with.
+  upToSameTime:
+    type: boolean
+  venueIds:
+    type: array
+    items:
+      type: string
+      format: uuid
+  currentSharePercent:
+    type: string
+    nullable: true
+    description: Loss share of the compared venues, one decimal; null without revenue.
+  previousSharePercent:
+    type: string
+    nullable: true
+  changePoints:
+    type: string
+    nullable: true
+    description: Percentage points, one decimal half-up ("0.8", "-1.2"); null when either share is null.
+    example: '0.8'

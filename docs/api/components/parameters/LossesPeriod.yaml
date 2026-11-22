@@ -1,0 +1,13 @@
+name: period
+in: query
+required: false
+description: |
+  `DAY` = one business day, `WEEK` = Monday to Sunday (ISO), `MONTH` = the calendar month; business days in
+  the venues' time zone (`docs/domain/METRICS.md`, periods). No `HOUR`: losses cover days.
+schema:
+  type: string
+  enum:
+    - DAY
+    - WEEK
+    - MONTH
+  default: WEEK

@@ -70,7 +70,7 @@ owner's other KMP project (crew-kmp).
 | Backend: build, unit + integration tests (Testcontainers), Spring Modulith boundary test, ktlint (detekt once 2.0 is stable) | every PR | yes |
 | API: spec lint + `oasdiff breaking` | PRs touching `docs/api/` | yes |
 | Mobile: common tests, Koin graph test, Android build | every PR | yes |
-| iOS framework compile + link for the simulator (Gradle, macOS runner) | PRs touching `mobile/` or `docs/api/` | yes |
+| iOS framework compile + link for the simulator (Gradle, macOS runner) | PRs touching `mobile/` or `docs/api/` | yes (temporarily off since 2026-11-22 by the owner, repo variable `CI_IOS_COMPILE=off`; see `docs/ROADMAP.md`) |
 | iOS build (macOS runner) | merges to `dev` and `main`, nightly | no (quota: macOS minutes count many times against private-repo minutes; verify current GitHub pricing) |
 
 The checks above are jobs in `.github/workflows/ci.yml` (the full iOS build is `ios.yml`). The

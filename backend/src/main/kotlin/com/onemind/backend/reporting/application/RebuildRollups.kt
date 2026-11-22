@@ -9,8 +9,9 @@ import org.springframework.stereotype.Service
 /**
  * Brings stored rollups up to date: every business day with bills whose rollups are missing (an event
  * that never arrived) or come from an older calculation ([RollupVersion]) is recomputed, at most
- * [DAYS_PER_RUN] per run, oldest first. Resumable and idempotent: a day done is current and isn't
- * picked again.
+ * [DAYS_PER_RUN] per run, newest first (after a version bump the current week and month come back
+ * first; their version-dependent figures are hidden until then). Resumable and idempotent: a day done is
+ * current and isn't picked again.
  */
 @Service
 class RebuildRollups(

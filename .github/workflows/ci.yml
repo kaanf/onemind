@@ -181,10 +181,13 @@ jobs:
   # Compiles and links the shared framework for the simulator, which catches iOS-only Kotlin errors
   # (iosMain, expect/actual, cinterop) on every mobile PR in a fraction of the full xcodebuild time,
   # then runs the iOS-only tests on the simulator.
+  # Owner switch (2026-11-22, temporary): the repo variable CI_IOS_COMPILE=off skips this job on every
+  # event, because it takes 20-30 min per PR. ci-result accepts that skip and prints a warning; ios.yml
+  # still builds the app after each merge to dev. Turn it back on: `gh variable delete CI_IOS_COMPILE`.
   ios-compile:
     name: iOS framework compile
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.mobile != 'false' }}
+    if: ${{ !cancelled() && vars.CI_IOS_COMPILE != 'off' && needs.changes.outputs.mobile != 'false' }}
     runs-on: macos-26
     timeout-minutes: 45
     defaults:
@@ -210,10 +213,11 @@ jobs:
 
       - run: ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
 
-      # Tests on the iOS simulator: the Keychain session store (`core/data/src/iosTest`) can't run on the
-      # JVM, and the money formatter (`core/presentation`) uses NSNumberFormatter on iOS, so its common
-      # tests must pass there too. Kotlin/Native's default `simctl spawn --standalone` has no Keychain, so a
-      # simulator is booted first and the tests run inside it (`onemind.iosTestDevice`, core/data).
+      # Tests on the iOS simulator: the Keychain session store (`core/data/src/iosTest`) and the auth
+      # navigation test (`feature/auth/presentation/src/iosTest`) can't run on the JVM, and the money
+      # formatter (`core/presentation`) uses NSNumberFormatter on iOS, so its common tests must pass there
+      # too. Kotlin/Native's default `simctl spawn --standalone` has no Keychain, so a simulator is booted
+      # first and the tests run inside it (`onemind.iosTestDevice`, core/data).
       - name: Boot an iOS simulator
         id: simulator
         run: |
@@ -225,9 +229,12 @@ jobs:
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
 
       # core:presentation's commonTest also runs on iOS: the money formatter uses NSNumberFormatter there,
-      # and its exact-string tests must agree with the JVM's NumberFormat.
+      # and its exact-string tests must agree with the JVM's NumberFormat. feature:auth:presentation's
+      # iosTest holds the navigation test (TestNavHostController has no Context-free constructor on
+      # Android, so it can't run on the JVM host).
       - run: >-
           ./gradlew :core:data:iosSimulatorArm64Test :core:presentation:iosSimulatorArm64Test
+          :feature:auth:presentation:iosSimulatorArm64Test
           -Ponemind.iosTestDevice=${{ steps.simulator.outputs.udid }}
 
       # Gradle reports a binary the simulator refused to launch as "1 test, 1 skipped", which would pass.
@@ -240,6 +247,7 @@ jobs:
           suites = {
               "core/data": ("IosSecureSessionStoreTest", 4),
               "core/presentation": ("MoneyFormatTest", 10),
+              "feature/auth/presentation": ("AuthGraphBackTest", 4),
           }
           problems = []
           for module, (name, minimum) in suites.items():
@@ -285,6 +293,7 @@ jobs:
       - env:
           NEEDS: ${{ toJSON(needs) }}
           EVENT: ${{ github.event_name }}
+          IOS_COMPILE: ${{ vars.CI_IOS_COMPILE }}
         run: |
           area() {
             case "$1" in
@@ -315,7 +324,10 @@ jobs:
               success) ;;
               skipped)
                 # On push and manual runs every job must run; on a PR only unchanged areas may skip.
-                if [ "$EVENT" != pull_request ] || [ "$changed" != false ]; then
+                # The one exception is ios-compile while the owner's CI_IOS_COMPILE=off switch is set.
+                if [ "$job" = ios-compile ] && [ "$IOS_COMPILE" = off ]; then
+                  echo "::warning title=CI result::iOS framework compile is off (repo variable CI_IOS_COMPILE=off); iOS-only code and tests are not checked on this run."
+                elif [ "$EVENT" != pull_request ] || [ "$changed" != false ]; then
                   error "$job was skipped although its area changed."
                 fi
                 ;;

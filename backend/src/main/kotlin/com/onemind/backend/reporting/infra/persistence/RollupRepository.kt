@@ -3,6 +3,7 @@ package com.onemind.backend.reporting.infra.persistence
 import com.onemind.backend.common.lock.infra.persistence.advisoryXactLock
 import com.onemind.backend.reporting.domain.DayRollups
 import com.onemind.backend.reporting.domain.HourTotals
+import com.onemind.backend.reporting.domain.TypedDiscountDay
 import com.onemind.db.reporting.tables.references.DESK_DAILY_SALES
 import com.onemind.db.reporting.tables.references.DISCOUNT_DAILY
 import com.onemind.db.reporting.tables.references.HOURLY_ACTIVITY
@@ -76,6 +77,7 @@ class RollupRepository(
                     .set(t.CASH_MINOR, r.cashMinor)
                     .set(t.OTHER_MINOR, r.otherMinor)
                     .set(t.REFUNDED_MINOR, r.refundedMinor)
+                    .set(t.REFUNDED_BILLS, r.refundedBills)
                     .set(t.REFUNDED_CARD_MINOR, r.refundedCardMinor)
                     .set(t.REFUNDED_CASH_MINOR, r.refundedCashMinor)
                     .set(t.REFUNDED_OTHER_MINOR, r.refundedOtherMinor)
@@ -195,9 +197,33 @@ class RollupRepository(
                     deletedMinor = requireNotNull(r.deletedMinor),
                     paymentMismatchBills = requireNotNull(r.billsPaymentMismatch),
                     paidBills = requireNotNull(r.paidBills),
+                    refundedBills = requireNotNull(r.refundedBills),
+                    deletedBills = requireNotNull(r.deletedBills),
                     paidCardMinor = requireNotNull(r.cardMinor) - requireNotNull(r.refundedCardMinor),
                     paidCashMinor = requireNotNull(r.cashMinor) - requireNotNull(r.refundedCashMinor),
                     paidOtherMinor = requireNotNull(r.otherMinor) - requireNotNull(r.refundedOtherMinor),
+                )
+            }
+    }
+
+    /** The stored item discounts of [venueId] on [days], per day and POS discount type. */
+    fun typedDiscounts(
+        venueId: UUID,
+        days: Collection<LocalDate>,
+    ): List<TypedDiscountDay> {
+        val d = DISCOUNT_DAILY
+        return dsl
+            .selectFrom(d)
+            .where(d.VENUE_ID.eq(venueId), d.BUSINESS_DAY.`in`(days))
+            .fetch()
+            // Kotlin's inline map, not jOOQ's RecordMapper: records stay inside this method (R4).
+            .toList()
+            .map { r ->
+                TypedDiscountDay(
+                    day = requireNotNull(r.businessDay),
+                    type = requireNotNull(r.discountType),
+                    records = requireNotNull(r.records),
+                    amountMinor = requireNotNull(r.amountMinor),
                 )
             }
     }
@@ -239,7 +265,10 @@ class RollupRepository(
             .toSet()
     }
 
-    /** Of [days], the ones with no rollups yet or rollups from a calculation older than [version]. */
+    /**
+     * Of [days], the ones with no rollups yet or rollups from a calculation older than [version], newest
+     * first: after a version bump the days screens show most (this week, this month) come back first.
+     */
     fun staleDays(
         venueId: UUID,
         days: Collection<LocalDate>,
@@ -254,6 +283,6 @@ class RollupRepository(
                 .fetch(s.BUSINESS_DAY)
                 .filterNotNull()
                 .toSet()
-        return days.filterNot { it in current }.sorted()
+        return days.filterNot { it in current }.sortedDescending()
     }
 }

@@ -2,7 +2,8 @@ package com.onemind.backend.reporting.application
 
 import com.onemind.backend.common.time.BusinessDayCalendar
 import com.onemind.backend.pos.api.PosReadModel
-import com.onemind.backend.reporting.domain.BillRevenue
+import com.onemind.backend.reporting.domain.SalesPeriod
+import com.onemind.backend.reporting.domain.SalesRanges
 import com.onemind.backend.reporting.domain.TodayCalculator
 import com.onemind.backend.reporting.domain.TodayFigures
 import com.onemind.backend.reporting.domain.VenueToday
@@ -56,15 +57,16 @@ data class TodayView(
  * counted as 0 (rule 2). Each venue's business day is its own (zone and cut-off, rule 6). Amounts of
  * different currencies are never added up: `422 CURRENCIES_DIFFER`.
  *
- * The comparison is "same weekday last week, up to the same local time", over the venues that have
- * that day: hourly rollups can't cut at that minute, so the earlier figure comes from that day's POS
- * facts with the one revenue rule ([BillRevenue.paid]). Venues on different zones or cut-offs are
+ * The comparison is "same weekday last week, up to the same local time as each venue's last bills sync",
+ * over the venues that have that day: hourly rollups can't cut at that minute, so the earlier figure
+ * comes from that day's POS facts through [ComparedSpans] (the rollup rules). Venues on different zones or cut-offs are
  * `422 BUSINESS_DAYS_DIFFER` (one chart, one clock; a first-release limit).
  */
 @Service
 class GetTodaySummary(
     private val scopes: DashboardScopes,
     private val rollups: RollupRepository,
+    private val comparedSpans: ComparedSpans,
     private val pos: PosReadModel,
     private val clock: Clock,
 ) {
@@ -114,15 +116,13 @@ class GetTodaySummary(
         val compared =
             inputs.filterKeys { venue -> rollups.daysWithRollups(venue.venueId, listOf(venue.businessDay.minusWeeks(1))).isNotEmpty() }
         if (compared.isEmpty()) return null
+        // Last week's day up to the same local time as each venue's last bills sync (ComparedSpans, as Sales' DAY).
+        val ranges = SalesRanges.of(SalesPeriod.DAY, compared.keys.first().businessDay, compared.keys.first().businessDay)
         val previous =
             compared.keys.sumOf { venue ->
-                val day = venue.businessDay.minusWeeks(1)
-                // Up to the same local time as the venue's figures reach (its last bills sync), not now:
-                // between syncs paid so far lags, and cutting last week later would bias the delta.
-                val asOf = minOf(now, requireNotNull(venue.dataAsOf))
-                val cut = BusinessDayCalendar.sameLocalTimeDaysEarlier(asOf, scope.zone, DAYS_IN_WEEK)
-                val bills = allPages { after -> pos.bills(venue.venueId, listOf(day), after).let { it.items to it.next } }
-                BillRevenue.paid(bills.filter { it.paidAt.isBefore(cut) }.map { it.toRollup() })
+                comparedSpans
+                    .hours(venue.venueId, ranges, scope, venue.businessDay, now, requireNotNull(venue.dataAsOf))
+                    .sumOf { it.paidMinor }
             }
         val current = compared.values.sumOf { venue -> venue.today.sumOf { it.paidMinor } }
         return TodayComparisonView(
@@ -154,6 +154,5 @@ class GetTodaySummary(
 
     private companion object {
         const val SAME_WEEKDAYS = 4L
-        const val DAYS_IN_WEEK = 7L
     }
 }

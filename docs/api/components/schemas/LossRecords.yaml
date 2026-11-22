@@ -1,0 +1,10 @@
+type: object
+required:
+  - amount
+properties:
+  records:
+    type: integer
+    nullable: true
+    description: Null while a day of the period is still being recomputed by a newer calculation.
+  amount:
+    $ref: ./Money.yaml

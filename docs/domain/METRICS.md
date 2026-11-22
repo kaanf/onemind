@@ -81,7 +81,7 @@ previous period.
   Today and Sales alike: between syncs the current figures stop at the last sync, so the earlier side is
   cut at the same point (else the delta would lean downward until the next sync).
 - `averageBill` and the payment split stay hidden (`null`) until the rebuild job has moved **every day
-  of the period** to the current rollup version (V013 added the columns they need, RollupVersion 2).
+  of the period** to the current rollup version (`RollupVersion.CURRENT`; V013 added their columns).
 - **Same venues:** the venues whose data (first rollup day) starts on or before the compared span's
   first day; a closed day inside the span is a real 0 (Today asks for the compared day itself). None:
   no comparison.
@@ -128,14 +128,20 @@ previous period.
 
 | Metric | Definition |
 |--------|------------|
-| `discounts` | Sum of discount amounts in the period, grouped by type (Happy Hour, staff, comp, loyalty). |
+| `discounts` | Sum of discount amounts in the period: the POS **bill-level** `discount` of bills that aren't deleted (also on Today). By type (02c): item discounts by POS `discountType` (`UNSPECIFIED` = an item discount without a type), plus one `UNTYPED` row (*Other discounts*, no record count) = bill-level − typed, per venue and business day, when the bill level is higher: bill-wide discounts and the items of bills stored without lines. So the list adds up to `discounts`. A venue day whose typed discounts are higher shows its typed ones only, is logged (WARN, venue and day) and counted in `dataGaps.discountMismatchDayCount`; never clamped. |
 | `deletedItems` | Sum of amounts of items deleted after ordering. |
 | `refunds` | Sum of refunded amounts. |
 | `unpaidClosed` | Sum of totals of bills closed without payment. |
 | `stockCorrections` | Value at **sale price** **(?)** of corrections logged in S7. |
 | `possibleLoss` | `discounts + deletedItems + refunds + unpaidClosed + stockCorrections`. First release: `discounts + refunds + deletedItems` (whole deleted bills only); the screen lists the included components (`product/MVP_SCOPE.md#data-sources-in-the-first-release`). |
 | Loss share | `possibleLoss / paidRevenue` (*6.7% of revenue*). Change shown in **percentage points** (*+0.8 pts*). |
-| Records | Count of individual discount/deleted/refund/unpaid records. |
+| Records | Count of individual discount/deleted/refund/unpaid records. First release: item discount records + refunded bills + whole deleted bills. |
+
+Discounts & losses (02c) uses the Sales periods (`DAY`, `WEEK`, `MONTH`; no `HOUR`) and comparison rules
+(same elapsed span, same venues, cut at the last sync); the loss share's change is in percentage points,
+one decimal half-up, from the exact shares. Version-dependent figures (record counts, `averageBill`, the
+payment split) are hidden while **any** day of the period is stored by an older rollup calculation than
+`RollupVersion.CURRENT` (rule 2).
 
 ### Happy Hour net effect
 
