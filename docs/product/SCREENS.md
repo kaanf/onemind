@@ -148,10 +148,17 @@ Live overview of the current business day for the selected venue (or all venues)
     polls at once. A failed poll keeps the last figures with a one-line note; a failed first load shows
     the error with *Try again*. `CURRENCIES_DIFFER` / `BUSINESS_DAYS_DIFFER` say the venues can't be
     shown together.
-  - No venue selected → *No venues yet*. The venue switcher button and the account avatar are not shown
-    until the app loads the venue list and the profile (`GET /venues`, `GET /me`). Until then *All
-    venues* also shows *No venues yet*. The 5 min interval for a closed venue waits for the API to say
-    whether the venue is open.
+  - Venues: after sign-in the app loads `GET /venues` and `GET /me`. The default scope is the only venue,
+    or *All venues* when there are several. A selected venue that is no longer visible falls back to
+    the default. *All venues* means the **followed** venues; **when none is followed it is every venue
+    the user may open** (the user has venues, so an empty screen would be wrong). An account without
+    venues shows *No venues yet*. If the venue list fails to load and none is known, the error shows
+    with *Try again*, which loads the list again.
+  - Header: the venue button shows the scope's name (*Demo · Main bar*, or *All venues*). It has no
+    chevron and no click until the switcher sheet exists (P7). The account button shows the initials of
+    `GET /me` `displayName` (first and last word); without a name it is not drawn (no invented
+    initials). Signing out forgets the venues, the scope and the profile.
+  - The 5 min interval for a closed venue waits for the API to say whether the venue is open.
 
 ## 01a · Tables — `AltTables` (opened from Today › Occupancy)
 

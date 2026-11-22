@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="today_title">Today</string>
+    <string name="today_all_venues">All venues</string>
+    <!-- Spoken for the venue button: "Venue: Main bar" -->
+    <string name="today_venue_description">Venue: %1$s</string>
+    <string name="today_account_description">Account</string>
     <!-- Weekday, day of month, month, clock: "Friday, 6 November · 21:40" -->
     <string name="today_date_time">%1$s, %2$d %3$s · %4$s</string>
     <string name="today_updated_at">Updated %1$s</string>
