@@ -5,6 +5,7 @@ import com.onemind.auth.presentation.di.authPresentationModule
 import com.onemind.core.data.di.coreDataModule
 import com.onemind.sales.presentation.di.salesPresentationModule
 import com.onemind.staff.presentation.di.staffPresentationModule
+import com.onemind.today.data.di.todayDataModule
 import com.onemind.today.presentation.di.todayPresentationModule
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
@@ -18,6 +19,7 @@ val appModules: List<Module>
             coreDataModule,
             authDataModule,
             authPresentationModule,
+            todayDataModule,
             todayPresentationModule,
             salesPresentationModule,
             staffPresentationModule,

@@ -1,5 +1,78 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="today_title">Today</string>
-    <string name="today_placeholder_message">Coming soon.</string>
+    <!-- Weekday, day of month, month, clock: "Friday, 6 November · 21:40" -->
+    <string name="today_date_time">%1$s, %2$d %3$s · %4$s</string>
+    <string name="today_updated_at">Updated %1$s</string>
+    <string name="today_loading">Loading today\'s figures</string>
+    <string name="today_no_venue">No venues yet. Your venues appear here once they\'re connected.</string>
+    <string name="today_retry">Try again</string>
+    <string name="today_error_venues_differ">These venues can\'t be shown together. Choose one venue.</string>
+    <string name="today_error_venue_not_found">This venue isn\'t available any more.</string>
+
+    <string name="today_paid_so_far">Paid so far</string>
+    <!-- "+12.4% vs last Friday" -->
+    <string name="today_vs_last_weekday">%1$s vs last %2$s</string>
+    <!-- Shown instead of a figure that has no value yet; never a 0. -->
+    <string name="today_value_empty">—</string>
+    <string name="today_waiting_first_sync">Waiting for the first sync with your POS. Figures appear after it.</string>
+    <plurals name="today_venues_syncing">
+        <item quantity="one">%1$d venue still syncing</item>
+        <item quantity="other">%1$d venues still syncing</item>
+    </plurals>
+    <string name="today_open_tabs">Open tabs</string>
+    <string name="today_not_available_from_pos">Not available from your POS</string>
+    <string name="today_tips">Tips</string>
+    <string name="today_hourly_description">Revenue by hour, peak %1$s</string>
+    <string name="today_hourly_description_no_peak">Revenue by hour</string>
+
+    <string name="today_occupancy">Occupancy</string>
+    <string name="today_guests">Guests</string>
+    <string name="today_per_guest">Per guest</string>
+
+    <string name="today_possible_loss">Possible loss</string>
+    <!-- "Includes discounts, refunds, deleted bills" -->
+    <string name="today_loss_includes">Includes %1$s</string>
+    <string name="today_loss_discounts">discounts</string>
+    <string name="today_loss_refunds">refunds</string>
+    <string name="today_loss_deleted_bills">deleted bills</string>
+
+    <string name="today_data_gaps_lead">Some bills are missing from these figures.</string>
+    <plurals name="today_gap_unreadable">
+        <item quantity="one">%1$d bill couldn\'t be read.</item>
+        <item quantity="other">%1$d bills couldn\'t be read.</item>
+    </plurals>
+    <plurals name="today_gap_without_items">
+        <item quantity="one">%1$d bill has no items, so it\'s missing from product figures.</item>
+        <item quantity="other">%1$d bills have no items, so they\'re missing from product figures.</item>
+    </plurals>
+    <plurals name="today_gap_outdated">
+        <item quantity="one">%1$d bill may be out of date.</item>
+        <item quantity="other">%1$d bills may be out of date.</item>
+    </plurals>
+    <!-- METRICS.md: a bill whose payments don't add up is left out of paid so far. -->
+    <plurals name="today_gap_payment_mismatch">
+        <item quantity="one">%1$d bill left out of paid so far: its payments don\'t add up.</item>
+        <item quantity="other">%1$d bills left out of paid so far: their payments don\'t add up.</item>
+    </plurals>
+
+    <string name="today_weekday_monday">Monday</string>
+    <string name="today_weekday_tuesday">Tuesday</string>
+    <string name="today_weekday_wednesday">Wednesday</string>
+    <string name="today_weekday_thursday">Thursday</string>
+    <string name="today_weekday_friday">Friday</string>
+    <string name="today_weekday_saturday">Saturday</string>
+    <string name="today_weekday_sunday">Sunday</string>
+    <string name="today_month_january">January</string>
+    <string name="today_month_february">February</string>
+    <string name="today_month_march">March</string>
+    <string name="today_month_april">April</string>
+    <string name="today_month_may">May</string>
+    <string name="today_month_june">June</string>
+    <string name="today_month_july">July</string>
+    <string name="today_month_august">August</string>
+    <string name="today_month_september">September</string>
+    <string name="today_month_october">October</string>
+    <string name="today_month_november">November</string>
+    <string name="today_month_december">December</string>
 </resources>
