@@ -162,8 +162,8 @@ Bills (`SyncBills`, each run, after menu and desks; settings `onemind.pos.sync.*
   written, only when something was written.
 - **Quarantine** (`pos.bill_quarantine`, V009): a bill with no detail, or with a value that can't be stored
   exactly (not a number, a total, payment or discount with more fraction digits than the currency, bad
-  VAT rate or currency, a discount without an amount; line unit prices are rounded instead, owner
-  decision 2026-11-22), is never stored with a guessed value: its POS ID and reason are kept, a WARN names
+  VAT rate or currency, a discount without an amount; line unit prices and a discount's original
+  price are rounded instead, owner decision 2026-11-22), is never stored with a guessed value: its POS ID and reason are kept, a WARN names
   the IDs, and the cursor moves on. When only the detail or its items fail, the bill is still stored
   **from its listing header** (totals, refunded/deleted flags, payments) with `items_unreadable = true`
   and no lines, so its revenue, refund or deletion counts; the detail stays quarantined. Only a bill

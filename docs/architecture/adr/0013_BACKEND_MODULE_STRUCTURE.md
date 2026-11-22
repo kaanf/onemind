@@ -149,6 +149,13 @@ returns; the caller asks for the next page with the keyset cursor it got.
 
 Start with these four; products, desks and staff are added when a screen needs them.
 
+**Amended 2026-11-22 (orchestrator, on the owner's overnight delegation; shown to the owner):** the first
+facade, `pos/api/PosReadModel`, has `bills(…)` (bill facts with their **payments embedded**, instead
+of a separate `payments(…)`: a bill's payments are always read with it and are few), `billLines(…)`,
+`syncedVenueIds()`, `businessDays(venueId)` and `dataGaps(venueId)` (quarantined bills and bills
+stored without lines, rule 2). `openTabs` and `deletedItems` are not added: Storyous has neither
+(`product/MVP_SCOPE.md`). Pages are keyset by row ID (UUIDv7).
+
 `reporting` builds its hourly rollups in its own schema from these facts, inside the
 `BillsSynced` listener. A rebuild job replays the same path per business day. The facade is where
 `pos` keeps its table layout private: a `pos` migration changes the facade's implementation, not
