@@ -36,7 +36,7 @@ class MigrationTests {
     @Test
     fun `every foreign key has an index led by its columns`() {
         assertTrue(
-            count("select count(*) from pg_constraint where contype = 'f' and connamespace::regnamespace::text in ($SCHEMAS)") >=
+            count("select count(*) from pg_constraint where contype = 'f' and $OUR_SCHEMAS") >=
                 MIN_FOREIGN_KEYS,
         )
         assertEquals(emptyList(), unindexedForeignKeys())
@@ -54,6 +54,15 @@ class MigrationTests {
         assertTrue(FIXTURE_KEY !in unindexedForeignKeys())
     }
 
+    @Test
+    fun `the foreign-key index check covers a schema added later`() {
+        jdbc.execute("create schema fk_check_new")
+        jdbc.execute("create table fk_check_new.parent (id uuid primary key)")
+        jdbc.execute("create table fk_check_new.child (id uuid primary key, parent_id uuid not null references fk_check_new.parent (id))")
+
+        assertTrue("fk_check_new.child.child_parent_id_fkey" in unindexedForeignKeys())
+    }
+
     /**
      * Foreign keys of our schemas with no index whose leading columns are the key's columns: deleting or
      * changing a referenced row would scan the referencing table. A partial index counts.
@@ -64,10 +73,10 @@ class MigrationTests {
                 """
                 select c.conrelid::regclass::text || '.' || c.conname
                 from pg_constraint c
-                where c.contype = 'f' and c.connamespace::regnamespace::text in ($SCHEMAS)
+                where c.contype = 'f' and c.$OUR_SCHEMAS
                   and not exists (
                     select 1 from pg_index i
-                    where i.indrelid = c.conrelid
+                    where i.indrelid = c.conrelid and i.indisvalid
                       and (string_to_array(i.indkey::text, ' ')::int2[])[1:array_length(c.conkey, 1)] @> c.conkey
                       and (string_to_array(i.indkey::text, ' ')::int2[])[1:array_length(c.conkey, 1)] <@ c.conkey
                   )
@@ -175,7 +184,10 @@ class MigrationTests {
     private fun count(sql: String): Int = requireNotNull(jdbc.queryForObject<Int>(sql))
 
     private companion object {
-        const val SCHEMAS = "'account', 'pos', 'reporting', 'platform'"
+        // Every schema but PostgreSQL's own, so a new module schema (stock, …) is covered without a change here.
+        const val OUR_SCHEMAS =
+            "connamespace::regnamespace::text not in ('pg_catalog', 'information_schema', 'public') " +
+                "and connamespace::regnamespace::text not like 'pg\\_%'"
 
         // 40 foreign keys when this check was added; a much smaller set means the query lost its scope.
         const val MIN_FOREIGN_KEYS = 35
