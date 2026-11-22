@@ -1,6 +1,7 @@
 package com.onemind.core.data.session
 
 import kotlinx.coroutines.test.runTest
+import platform.Foundation.NSUserDefaults
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -8,7 +9,9 @@ import kotlin.test.assertNull
 
 /** Runs against the simulator's real Keychain, in its own service so it never touches the app's item. */
 class IosSecureSessionStoreTest {
-    private val store = IosSecureSessionStore(serviceName = "com.onemind.app.session.tests")
+    private val service = "com.onemind.app.session.tests"
+    private val defaults = NSUserDefaults(suiteName = "com.onemind.app.session.tests")
+    private val store = IosSecureSessionStore(serviceName = service, defaults = defaults)
 
     @AfterTest
     fun cleanUp() = runTest { store.clear() }

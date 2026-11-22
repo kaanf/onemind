@@ -1,6 +1,9 @@
 package com.onemind.core.data.session
 
 import com.onemind.core.domain.session.SessionState
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -9,6 +12,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class SessionManagerTest {
     private val session =
         StoredSession(
@@ -82,6 +86,76 @@ class SessionManagerTest {
             assertFalse(manager.replace(expected = session, newSession = null))
             assertEquals(newer, manager.current())
         }
+
+    @Test
+    fun aThrowingStoreStaysUnknownAndRecoversOnTheNextAccess() =
+        runTest {
+            val store = FlakyStore(failReads = 2, value = encoded())
+            val manager = SessionManager(store, backgroundScope)
+
+            runCurrent()
+            assertEquals(SessionState.Unknown, manager.state.value)
+            assertNull(manager.current())
+            assertEquals(SessionState.Unknown, manager.state.value)
+
+            assertEquals(session, manager.current())
+            assertEquals(SessionState.SignedIn, manager.state.value)
+        }
+
+    @Test
+    fun theStartupLoadRetriesWithBackoff() =
+        runTest {
+            val store = FlakyStore(failReads = 2, value = encoded())
+            val manager = SessionManager(store, backgroundScope)
+
+            advanceTimeBy(2_000)
+            runCurrent()
+
+            assertEquals(SessionState.SignedIn, manager.state.value)
+            assertEquals(3, store.reads)
+        }
+
+    @Test
+    fun aFailingClearOfAnUnreadableValueDoesNotCrash() =
+        runTest {
+            val store = FlakyStore(value = "{garbage", failClear = true)
+            val manager = SessionManager(store, backgroundScope)
+
+            assertNull(manager.current())
+            assertEquals(SessionState.SignedOut, manager.state.value)
+        }
+
+    private suspend fun encoded(): String {
+        val fake = FakeSecureSessionStore()
+        SessionManager(fake, kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Job())).save(session)
+        return fake.value!!
+    }
+
+    private class FlakyStore(
+        var failReads: Int = 0,
+        var value: String? = null,
+        val failClear: Boolean = false,
+    ) : SecureSessionStore {
+        var reads = 0
+
+        override suspend fun read(): String? {
+            reads++
+            if (failReads > 0) {
+                failReads--
+                error("keychain locked")
+            }
+            return value
+        }
+
+        override suspend fun write(value: String) {
+            this.value = value
+        }
+
+        override suspend fun clear() {
+            check(!failClear) { "clear failed" }
+            value = null
+        }
+    }
 
     @Test
     fun toStringNeverContainsTokens() {

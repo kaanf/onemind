@@ -17,7 +17,13 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlin.time.Instant
+
+/** Waits on real time: the mock engine answers on its own thread, which virtual test time doesn't wait for. */
+suspend fun <T> awaitReal(block: suspend () -> T): T = withContext(Dispatchers.Default) { withTimeout(5_000) { block() } }
 
 val testConfig = ApiConfig(environment = AppEnvironment.DEV, baseUrl = "http://api.test", appVersion = "1.4.2")
 
@@ -48,7 +54,7 @@ fun MockRequestHandleScope.respondJson(
 
 /** A client wired like production (factory, session manager, refresher) over a [MockEngine]. */
 class TestApi(
-    scope: CoroutineScope,
+    val scope: CoroutineScope,
     private val initialSession: StoredSession? = null,
     handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData,
 ) {
@@ -56,7 +62,7 @@ class TestApi(
     val sessions = SessionManager(store, scope)
     val appUpdates = InMemoryAppUpdateRepository()
     val engine = MockEngine { request -> handler(request) }
-    val client: HttpClient = HttpClientFactory(testConfig, sessions, SessionRefresher(sessions), appUpdates).create(engine)
+    val client: HttpClient = HttpClientFactory(testConfig, sessions, SessionRefresher(sessions, scope), appUpdates).create(engine)
 
     suspend fun start(): TestApi {
         initialSession?.let { sessions.save(it) }

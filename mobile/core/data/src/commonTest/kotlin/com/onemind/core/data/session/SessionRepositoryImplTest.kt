@@ -6,6 +6,7 @@ import com.onemind.core.data.network.session
 import io.ktor.client.request.HttpRequestData
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.IOException
 import kotlin.test.Test
@@ -19,7 +20,7 @@ class SessionRepositoryImplTest {
         runTest {
             val api = TestApi(backgroundScope, initialSession = session("a1")) { respondJson("", HttpStatusCode.NoContent) }.start()
 
-            SessionRepositoryImpl(api.sessions, api.client).signOut()
+            SessionRepositoryImpl(api.sessions, api.client, backgroundScope).signOut()
 
             val logout = api.engine.requestHistory.single()
             assertTrue(logout.url.encodedPath.endsWith("auth/logout"))
@@ -32,7 +33,27 @@ class SessionRepositoryImplTest {
         runTest {
             val api = TestApi(backgroundScope, initialSession = session("a1")) { throw IOException("offline") }.start()
 
-            SessionRepositoryImpl(api.sessions, api.client).signOut()
+            SessionRepositoryImpl(api.sessions, api.client, backgroundScope).signOut()
+
+            assertNull(api.sessions.current())
+            assertNull(api.store.value)
+        }
+
+    @Test
+    fun aCancelledSignOutStillForgetsTheTokens() =
+        runTest {
+            val logoutStarted = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val api =
+                TestApi(backgroundScope, initialSession = session("a1")) {
+                    logoutStarted.complete(Unit)
+                    kotlinx.coroutines.awaitCancellation()
+                }.start()
+            val repository = SessionRepositoryImpl(api.sessions, api.client, backgroundScope)
+
+            val job = launch { repository.signOut() }
+            com.onemind.core.data.network
+                .awaitReal { logoutStarted.await() }
+            job.cancel()
 
             assertNull(api.sessions.current())
             assertNull(api.store.value)

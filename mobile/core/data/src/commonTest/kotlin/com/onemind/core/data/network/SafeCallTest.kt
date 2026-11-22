@@ -41,6 +41,40 @@ class SafeCallTest {
         }
 
     @Test
+    fun nullParamsAreDropped() =
+        runTest {
+            val api =
+                TestApi(backgroundScope) {
+                    respondJson(
+                        problemJson(429, "RATE_LIMITED", """{"retryAfterSeconds":null,"limit":5}"""),
+                        HttpStatusCode.TooManyRequests,
+                    )
+                }.start()
+
+            val error = assertIs<Result.Failure<DataError>>(safeCall<Unit> { api.client.get("x") }).error
+
+            assertEquals(mapOf("limit" to "5"), (error as DataError.Api).params)
+        }
+
+    @Test
+    fun connectAndSocketTimeoutsAreTimeoutsNotOffline() =
+        runTest {
+            val connect =
+                TestApi(backgroundScope) {
+                    throw io.ktor.client.network.sockets
+                        .ConnectTimeoutException("connect")
+                }.start()
+            val socket =
+                TestApi(backgroundScope) {
+                    throw io.ktor.client.network.sockets
+                        .SocketTimeoutException("socket")
+                }.start()
+
+            assertEquals(DataError.Network.TIMEOUT, assertIs<Result.Failure<DataError>>(safeCall<Unit> { connect.client.get("x") }).error)
+            assertEquals(DataError.Network.TIMEOUT, assertIs<Result.Failure<DataError>>(safeCall<Unit> { socket.client.get("x") }).error)
+        }
+
+    @Test
     fun aBodyThatIsNotAProblemKeepsTheStatus() =
         runTest {
             val api = TestApi(backgroundScope) { respondError(HttpStatusCode.BadGateway, "<html>proxy</html>") }.start()

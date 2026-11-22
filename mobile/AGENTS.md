@@ -68,7 +68,10 @@ Application ID / bundle ID: `com.onemind.app` (dev builds `com.onemind.app.dev`)
   so paths are relative (`client.post("auth/email/start")`). It adds `X-App-Version`, `X-Platform`
   and a fresh `X-Request-Id` to every request, the access token to every call outside `auth/...`, and
   reports `426 APP_UPGRADE_REQUIRED` to `AppUpdateRepository`. No logging plugin: never log requests,
-  bodies or tokens.
+  bodies, tokens, `AuthTokens` or `StoredSession` (its `toString()` is redacted; generated DTOs are not).
+  `X-App-Version` is the store version: iOS reads `CFBundleShortVersionString` (Xcode
+  `MARKETING_VERSION`) at runtime, Android uses `projectVersionName` (its `versionName`); keep the two
+  equal when releasing.
 - Wrap each call in `safeCall<T> { client.post(...) }`: it returns `Result<T, DataError>` (`core:domain`):
   the body on 2xx, `DataError.Api(status, code, detail, params)` for an RFC 9457 problem (params as
   strings), `DataError.Network.*` for transport failures; it never throws except on cancellation.
@@ -142,12 +145,17 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
   - an unreadable value (lost or invalidated key, tampering, unknown format) is deleted and reads as
     signed out. `StoredSession.toString()` never prints tokens.
 - Features save tokens after sign-in with `SessionManager.save(StoredSession.from(tokens))`;
-  presentation only sees `SessionRepository` (`state`, `signOut()`, which calls `auth/logout` best
-  effort and always forgets the tokens).
-- `401` on an authenticated call: `SessionRefresher` runs one `auth/refresh` at a time; a caller whose
-  rejected token is already replaced reuses the new one (a rotated refresh token is never sent twice).
-  The original request is retried once. A `401` from refresh signs out; other failures keep the
-  session. Calls under `auth/...` never refresh.
+  presentation only sees `SessionRepository` (`state`, `signOut()`).
+- `401` on an authenticated call: `SessionRefresher` runs one `auth/refresh` at a time, in the app
+  scope (a cancelled caller can't drop rotated tokens); a caller whose rejected token is already
+  replaced reuses the new one (a rotated refresh token is never sent twice). The original request is
+  retried once. A `401` from refresh signs out; other failures keep the session. Calls under
+  `auth/...` never refresh.
+- `signOut()` forgets the tokens first (not cancellable), then calls `auth/logout` in the app scope.
+- A store that throws on read (iOS Keychain before first unlock) keeps `SessionState.Unknown` and is
+  retried with backoff; only an undecodable value is discarded. The iOS store deletes a Keychain item
+  left over from a previous install (flag in `NSUserDefaults`); the Android store replaces a key the
+  Keystore can no longer use.
 - No database until offline stock counting (then Room via the convention plugin, ADR 0006).
 - Sentry via native SDKs in the hosts, crew-style bridge for shared networking diagnostics (phase 7).
 - Auth: refresh once on `401` (single-flight), retry, else log out (see Session above). Sign in with Apple required on
@@ -202,7 +210,7 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
 - Koin graph verification test. Compose UI tests for key screens; screenshot tests later.
 - Android success does not verify iOS: build/test both targets. `core:data` has an iOS Keychain test
   (`src/iosTest`, `./gradlew :core:data:iosSimulatorArm64Test`), which needs an installed iOS simulator
-  runtime.
+  runtime; CI runs it in the `ios-compile` job.
 
 ## Guardrails (`:core:konsist`)
 

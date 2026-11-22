@@ -5,6 +5,8 @@ import com.onemind.core.domain.util.DataError
 import com.onemind.core.domain.util.Result
 import io.ktor.client.call.NoTransformationFoundException
 import io.ktor.client.call.body
+import io.ktor.client.network.sockets.ConnectTimeoutException
+import io.ktor.client.network.sockets.SocketTimeoutException
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -13,6 +15,7 @@ import io.ktor.serialization.ContentConvertException
 import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
@@ -28,6 +31,11 @@ suspend inline fun <reified T> safeCall(request: () -> HttpResponse): Result<T, 
         } catch (e: CancellationException) {
             throw e
         } catch (_: HttpRequestTimeoutException) {
+            return Result.Failure(DataError.Network.TIMEOUT)
+        } catch (_: ConnectTimeoutException) {
+            return Result.Failure(DataError.Network.TIMEOUT)
+        } catch (_: SocketTimeoutException) {
+            // Both timeouts are IOExceptions: catch them first so they don't read as "no internet".
             return Result.Failure(DataError.Network.TIMEOUT)
         } catch (_: IOException) {
             return Result.Failure(DataError.Network.NO_INTERNET)
@@ -62,9 +70,11 @@ suspend fun HttpResponse.toApiError(): DataError.Api {
         code = problem?.code ?: UNKNOWN_CODE,
         detail = problem?.detail,
         params =
-            problem?.params.orEmpty().mapValues { (_, value) ->
-                (value as? JsonPrimitive)?.contentOrNull ?: value.toString()
-            },
+            problem
+                ?.params
+                .orEmpty()
+                .filterValues { it !is JsonNull }
+                .mapValues { (_, value) -> (value as? JsonPrimitive)?.contentOrNull ?: value.toString() },
     )
 }
 

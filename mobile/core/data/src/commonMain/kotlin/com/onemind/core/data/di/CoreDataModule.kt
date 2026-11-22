@@ -35,8 +35,8 @@ val coreDataModule =
         singleOf(::InMemoryVenueScopeRepository) bind VenueScopeRepository::class
 
         single { SessionManager(store = get(), scope = get(AppScope)) }
-        singleOf(::SessionRefresher)
+        single { SessionRefresher(sessions = get(), scope = get(AppScope)) }
         single { InMemoryAppUpdateRepository() } bind AppUpdateRepository::class
         single<HttpClient> { HttpClientFactory(get(), get(), get(), get()).create(get()) }
-        singleOf(::SessionRepositoryImpl) bind SessionRepository::class
+        single { SessionRepositoryImpl(sessions = get(), client = get(), scope = get(AppScope)) } bind SessionRepository::class
     }

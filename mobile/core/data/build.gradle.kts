@@ -53,7 +53,7 @@ val appVersion: String = libs.versions.projectVersionName.get()
 buildkonfig {
     defaultConfigs {
         buildConfigField(STRING, "ENVIRONMENT", "dev")
-        // Sent as X-App-Version; the API answers 426 below the platform's minimum.
+        // X-App-Version on Android (and the fallback); iOS reads its bundle version (ApiConfig).
         buildConfigField(STRING, "APP_VERSION", appVersion)
         // The iOS simulator reaches the local docker backend on localhost.
         buildConfigField(STRING, "API_BASE_URL", localApiBaseUrl ?: "http://localhost:8080")

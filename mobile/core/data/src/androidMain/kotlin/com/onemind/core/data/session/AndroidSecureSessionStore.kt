@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.GeneralSecurityException
 import java.security.KeyStore
+import java.security.KeyStoreException
 import java.security.UnrecoverableKeyException
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -37,12 +38,12 @@ class AndroidSecureSessionStore(
                 file.delete()
                 return@withContext null
             }
-            val key = keyStore().getKey(KEY_ALIAS, null) as? SecretKey
-            if (key == null) {
-                file.delete()
-                return@withContext null
-            }
             try {
+                val key = keyStore().getKey(KEY_ALIAS, null) as? SecretKey
+                if (key == null) {
+                    file.delete()
+                    return@withContext null
+                }
                 val cipher = Cipher.getInstance(TRANSFORMATION)
                 cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_BITS, bytes, HEADER_BYTES, IV_BYTES))
                 cipher.doFinal(bytes, HEADER_BYTES + IV_BYTES, bytes.size - HEADER_BYTES - IV_BYTES).decodeToString()
@@ -50,6 +51,9 @@ class AndroidSecureSessionStore(
                 discardKeyAndFile()
                 null
             } catch (_: UnrecoverableKeyException) {
+                discardKeyAndFile()
+                null
+            } catch (_: KeyStoreException) {
                 discardKeyAndFile()
                 null
             } catch (_: GeneralSecurityException) {
@@ -80,8 +84,15 @@ class AndroidSecureSessionStore(
 
     override suspend fun clear(): Unit = withContext(Dispatchers.IO) { file.delete() }
 
+    /** A key the Keystore can't hand out any more (OS update, corrupt entry) is replaced, so writes recover. */
     private fun getOrCreateKey(): SecretKey {
-        (keyStore().getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
+        try {
+            (keyStore().getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
+        } catch (_: UnrecoverableKeyException) {
+            discardKeyAndFile()
+        } catch (_: KeyStoreException) {
+            discardKeyAndFile()
+        }
         return KeyGenerator
             .getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
             .apply {
@@ -99,7 +110,11 @@ class AndroidSecureSessionStore(
 
     private fun discardKeyAndFile() {
         file.delete()
-        keyStore().deleteEntry(KEY_ALIAS)
+        try {
+            keyStore().deleteEntry(KEY_ALIAS)
+        } catch (_: KeyStoreException) {
+            // Nothing more to remove; the next write generates a fresh key under the same alias.
+        }
     }
 
     private fun keyStore(): KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }

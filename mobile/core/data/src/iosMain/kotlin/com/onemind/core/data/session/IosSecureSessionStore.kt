@@ -13,6 +13,11 @@ import kotlinx.cinterop.readBytes
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import platform.CoreFoundation.CFDataCreate
 import platform.CoreFoundation.CFDataGetBytePtr
 import platform.CoreFoundation.CFDataGetLength
@@ -25,6 +30,7 @@ import platform.CoreFoundation.CFStringCreateWithCString
 import platform.CoreFoundation.CFTypeRefVar
 import platform.CoreFoundation.kCFBooleanTrue
 import platform.CoreFoundation.kCFStringEncodingUTF8
+import platform.Foundation.NSUserDefaults
 import platform.Security.SecItemAdd
 import platform.Security.SecItemCopyMatching
 import platform.Security.SecItemDelete
@@ -45,12 +51,41 @@ import platform.Security.kSecValueData
 /**
  * One Keychain generic password. `AfterFirstUnlockThisDeviceOnly`: readable by background refreshes
  * after the first unlock, never synced to iCloud Keychain or restored onto another device.
+ *
+ * Keychain items survive an uninstall, so the first access after an install deletes any leftover
+ * item; a flag in `NSUserDefaults` (which an uninstall does remove) marks that this was done.
+ * Keychain calls block, so they run on `Dispatchers.IO`.
  */
 class IosSecureSessionStore(
     private val serviceName: String = "com.onemind.app.session",
     private val accountName: String = "session-v1",
+    private val defaults: NSUserDefaults = NSUserDefaults.standardUserDefaults,
 ) : SecureSessionStore {
-    override suspend fun read(): String? =
+    private val installCheck = Mutex()
+    private var installChecked = false
+
+    override suspend fun read(): String? = keychain { readItem() }
+
+    override suspend fun write(value: String) = keychain { writeItem(value) }
+
+    override suspend fun clear() = keychain { deleteItem() }
+
+    private suspend fun <T> keychain(block: () -> T): T =
+        withContext(Dispatchers.IO) {
+            installCheck.withLock {
+                if (!installChecked) {
+                    val flag = "$serviceName.installed"
+                    if (!defaults.boolForKey(flag)) {
+                        deleteItem()
+                        defaults.setBool(true, flag)
+                    }
+                    installChecked = true
+                }
+            }
+            block()
+        }
+
+    private fun readItem(): String? =
         withQuery { query ->
             CFDictionarySetValue(query, kSecReturnData, kCFBooleanTrue)
             CFDictionarySetValue(query, kSecMatchLimit, kSecMatchLimitOne)
@@ -69,7 +104,7 @@ class IosSecureSessionStore(
             }
         }
 
-    override suspend fun write(value: String) {
+    private fun writeItem(value: String) {
         val bytes = value.encodeToByteArray()
         bytes.usePinned { pinned ->
             val data = checkNotNull(CFDataCreate(null, pinned.addressOf(0).reinterpret(), bytes.size.convert()))
@@ -95,7 +130,7 @@ class IosSecureSessionStore(
         }
     }
 
-    override suspend fun clear() {
+    private fun deleteItem() {
         withQuery { query ->
             val status = SecItemDelete(query)
             check(status == errSecSuccess || status == errSecItemNotFound) { "Keychain delete failed ($status)" }

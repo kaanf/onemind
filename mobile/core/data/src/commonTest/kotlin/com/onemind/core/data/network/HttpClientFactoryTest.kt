@@ -113,6 +113,42 @@ class HttpClientFactoryTest {
         }
 
     @Test
+    fun aCallerCancelledMidRefreshStillStoresTheRotatedTokens() =
+        runTest {
+            val refreshReached = CompletableDeferred<Unit>()
+            val releaseRefresh = CompletableDeferred<Unit>()
+            val api =
+                TestApi(backgroundScope, initialSession = session("old")) { request ->
+                    when {
+                        request.url.encodedPath.endsWith("auth/refresh") -> {
+                            refreshReached.complete(Unit)
+                            withTimeout(5_000) { releaseRefresh.await() }
+                            respondJson(tokensJson("new"))
+                        }
+
+                        request.headers[HttpHeaders.Authorization] == "Bearer new" -> {
+                            respondJson("{}")
+                        }
+
+                        else -> {
+                            respondJson(problemJson(401, "UNAUTHORIZED"), HttpStatusCode.Unauthorized)
+                        }
+                    }
+                }.start()
+
+            val caller = async { api.client.get("venues") }
+            awaitReal { refreshReached.await() }
+            caller.cancel()
+            releaseRefresh.complete(Unit)
+
+            awaitReal {
+                while (api.sessions.current()?.accessToken != "new") kotlinx.coroutines.delay(10)
+            }
+            assertEquals("refresh-new", api.store.value?.let { it.substringAfter("\"refreshToken\":\"").substringBefore('"') })
+            assertEquals(1, api.engine.requestHistory.count { it.url.encodedPath.endsWith("auth/refresh") })
+        }
+
+    @Test
     fun aRejectedRefreshSignsOutAndReturnsThe401() =
         runTest {
             val api =
