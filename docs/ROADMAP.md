@@ -51,6 +51,9 @@ real code in that job with a scope proven non-empty (owner, 2026-11-21).
       Until then mobile PRs run `:composeApp:linkDebugFrameworkIosSimulatorArm64` and the iOS tests
       locally and say so in the PR; ios.yml still builds the app after each merge to dev but doesn't
       run the iOS test suites: add the simulator test step and its gate to ios.yml first (ci)
+- [ ] `docs/api/README.md` still calls a new response enum value breaking "until the mobile UNKNOWN
+      fallback lands"; #81 landed it: rewrite the rule and decide whether `oasdiff` keeps failing on it
+      (orchestrator + backend; from the #81 review)
 - [ ] Label PRs touching guard files `guard-files` and comment the list (ci)
 - [ ] `permissions.deny` snippets for each lane's `.claude/settings.local.json` (orchestrator)
 - [ ] detekt 2.0 as a non-blocking report job with baseline, backend and mobile; one PR, half a day;
@@ -114,9 +117,8 @@ real code in that job with a scope proven non-empty (owner, 2026-11-21).
       `ObserveAsEvents` come with mobile auth (mobile) (#68)
 - [x] Audit follow-up: Konsist rule for feature presentation sources: no `Color(0x…)`, no literal
       `.sp`, no literal `Text("…")` outside `@Preview`, with fixtures (guard file; mobile) (#69)
-- [ ] Audit nits: chart-label type token instead of `10.sp` in `BarChart`, KDoc on `Bar.value`
-      (drawing only), ADR 0011 bundle-ID line cross-references ADR 0012 §2 (mobile; the chart-label
-      token came with #67)
+- [x] Audit nits: chart-label type token instead of `10.sp` in `BarChart`, KDoc on `Bar.value`
+      (drawing only), ADR 0011 bundle-ID line cross-references ADR 0012 §2 (mobile) (#67, #80)
 
 ## Phase 3 — Auth (first vertical slice)
 
@@ -221,7 +223,8 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
       adopts `ScreenCache` with its PR
 - [ ] iOS run of the offline read cache (`:core:data:iosSimulatorArm64Test` or a simulator relaunch
       that shows cached figures) before any iOS build reaches the owner or testers (#86 review
-      condition; the iOS path is compiled but not run)
+      condition; the iOS path is compiled but not run). Same PR: a failed `clear()` leaves the other
+      entries on disk; retry it or fix the comment in `DataStoreScreenCache` (mobile)
 - [ ] Phase-end `REVIEW pr: audit`
 
 ## Phase 6 — Stock (depends on P13/P14)
