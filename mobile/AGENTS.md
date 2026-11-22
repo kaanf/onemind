@@ -149,6 +149,15 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
 ## Data and platform
 
 - DataStore for settings and the read cache (last response per screen key; cleared on logout).
+  The read cache is `ScreenCache` (`core:data/cache`, ADR 0006): `DataStoreScreenCache` keeps the
+  last body as the server sent it (raw, not re-encoded: `UNKNOWN` is never encoded, and a newer
+  version reads values this one doesn't know), its `ETag` and when it arrived, per
+  `screenCacheKey(path, params)`, at most 20 entries. Its file is **outside device backups**: Android
+  `noBackupFilesDir`, iOS `NSCachesDirectory` (not in iCloud backups or the Files app), so cached revenue
+  figures never leave the device. `SignedInDataLoader` clears it on sign-out only (app launch is a
+  sign-in too, and the cache is for launch). A screen shows cached figures only with their age
+  ("Last updated 21:40", "· offline" after a network failure); a repository polls against the cached
+  `ETag` and fetches again without `If-None-Match` when a `304` leaves nothing readable.
   Secure storage (Keychain / Keystore) for tokens — never in DataStore or logs.
 - Session (`core:data/session`, ADR 0004): `SessionManager` is the only owner of the tokens. It
   loads `SecureSessionStore` once at start (`SessionState.Unknown` → `SignedIn`/`SignedOut`) and

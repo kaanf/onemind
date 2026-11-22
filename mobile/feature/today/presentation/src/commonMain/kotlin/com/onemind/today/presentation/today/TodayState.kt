@@ -38,12 +38,23 @@ sealed interface TodayContent {
         val message: UiText,
     ) : TodayContent
 
-    /** Figures to show; [refreshError] says the latest poll failed and these are from the one before. */
+    /**
+     * Figures to show; [refreshError] says the latest poll failed and these are from the one before.
+     * [cached] is set when the figures come from the device's read cache: never shown without it.
+     */
     data class Ready(
         val today: TodayUi,
         val refreshError: UiText? = null,
+        val cached: CachedMarker? = null,
     ) : TodayContent
 }
+
+/** "Last updated 21:40" (and "· offline" after a network failure) on cached figures (ADR 0006, rule 2). */
+data class CachedMarker(
+    /** When the cached answer was received, in the venue's time zone. */
+    val savedAt: String?,
+    val offline: Boolean,
+)
 
 sealed interface TodayAction {
     /** Pull-to-refresh or *Try again*: poll now instead of waiting for the next tick. */

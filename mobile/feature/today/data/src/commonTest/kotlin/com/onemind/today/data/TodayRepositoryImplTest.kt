@@ -1,5 +1,7 @@
 package com.onemind.today.data
 
+import com.onemind.core.data.cache.CachedScreen
+import com.onemind.core.data.cache.ScreenCache
 import com.onemind.core.data.config.ApiConfig
 import com.onemind.core.data.config.AppEnvironment
 import com.onemind.core.data.network.HttpClientFactory
@@ -33,6 +35,7 @@ import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -47,8 +50,25 @@ class TodayRepositoryImplTest {
         override suspend fun clear() = Unit
     }
 
+    private class MemoryCache : ScreenCache {
+        val entries = mutableMapOf<String, CachedScreen>()
+
+        override suspend fun read(key: String) = entries[key]
+
+        override suspend fun write(
+            key: String,
+            body: String,
+            etag: String?,
+        ) {
+            entries[key] = CachedScreen(body, etag, SAVED_AT)
+        }
+
+        override suspend fun clear() = entries.clear()
+    }
+
     private class Fixture(
         scope: CoroutineScope,
+        val cache: MemoryCache = MemoryCache(),
         handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData,
     ) {
         private val sessions = SessionManager(NoStore(), scope)
@@ -61,6 +81,7 @@ class TodayRepositoryImplTest {
                     SessionRefresher(sessions, scope),
                     InMemoryAppUpdateRepository(),
                 ).create(engine),
+                cache,
             )
     }
 
@@ -241,7 +262,102 @@ class TodayRepositoryImplTest {
             assertEquals(DataError.Network.NEEDS_APP_UPDATE, error)
         }
 
+    @Test
+    fun aFreshAnswerIsSavedAndReadBackFromTheCache() =
+        runTest {
+            val fixture = Fixture(backgroundScope) { json(READY_JSON, etag = "\"v1\"") }
+
+            fixture.repository.getToday(listOf(VENUE_A))
+
+            val entry = fixture.cache.entries.getValue("dashboard/today?venueIds=$VENUE_A")
+            assertEquals("\"v1\"", entry.etag)
+            val cached = assertNotNull(fixture.repository.cachedToday(listOf(VENUE_A)))
+            assertEquals(Money(4_832_000, czk), cached.summary.paidSoFar)
+            assertEquals(SAVED_AT, cached.savedAt)
+            assertNull(fixture.repository.cachedToday(listOf(VENUE_B)))
+        }
+
+    @Test
+    fun anAnswerWithValuesAddedLaterIsCachedAsSent() =
+        runTest {
+            val later = READY_JSON.replace("\"kind\": \"REFUNDS\"", "\"kind\": \"VOIDS\"")
+            val fixture = Fixture(backgroundScope) { json(later, etag = "\"v1\"") }
+
+            assertIs<Result.Success<TodaySummary>>(fixture.repository.getToday(listOf(VENUE_A)))
+
+            // The raw body, not a re-encoding (UNKNOWN is never encoded): a newer app version reads "VOIDS".
+            assertEquals(
+                later,
+                fixture.cache.entries
+                    .getValue("dashboard/today?venueIds=$VENUE_A")
+                    .body,
+            )
+            val cached = assertNotNull(fixture.repository.cachedToday(listOf(VENUE_A)))
+            assertEquals(
+                listOf(LossKind.DISCOUNTS, LossKind.OTHER),
+                cached.summary.possibleLoss
+                    ?.components
+                    ?.map { it.kind },
+            )
+        }
+
+    @Test
+    fun theFirstPollAfterLaunchSendsTheCachedEtagAndA304ReturnsTheCachedAnswer() =
+        runTest {
+            val cache = MemoryCache()
+            Fixture(backgroundScope, cache) { json(READY_JSON, etag = "\"v1\"") }.repository.getToday(listOf(VENUE_A))
+            // A new launch: nothing in memory, only the cache.
+            val fixture = Fixture(backgroundScope, cache) { respond("", HttpStatusCode.NotModified) }
+
+            val summary = assertIs<Result.Success<TodaySummary>>(fixture.repository.getToday(listOf(VENUE_A))).data
+
+            assertEquals(
+                "\"v1\"",
+                fixture.engine.requestHistory
+                    .single()
+                    .headers[HttpHeaders.IfNoneMatch],
+            )
+            assertEquals(Money(4_832_000, czk), summary.paidSoFar)
+        }
+
+    @Test
+    fun anUnreadableCacheEntryIsNotPolledAgainst() =
+        runTest {
+            val cache = MemoryCache()
+            cache.entries["dashboard/today?venueIds=$VENUE_A"] = CachedScreen("not json", "\"v1\"", SAVED_AT)
+            val fixture = Fixture(backgroundScope, cache) { json(READY_JSON, etag = "\"v2\"") }
+
+            assertNull(fixture.repository.cachedToday(listOf(VENUE_A)))
+            assertIs<Result.Success<TodaySummary>>(fixture.repository.getToday(listOf(VENUE_A)))
+
+            assertNull(
+                fixture.engine.requestHistory
+                    .single()
+                    .headers[HttpHeaders.IfNoneMatch],
+            )
+        }
+
+    @Test
+    fun a304WithNothingToShowIsFetchedAgainWithoutIfNoneMatch() =
+        runTest {
+            val cache = MemoryCache()
+            cache.entries["dashboard/today?venueIds=$VENUE_A"] = CachedScreen("not json", "\"v1\"", SAVED_AT)
+            var calls = 0
+            val fixture =
+                Fixture(backgroundScope, cache) {
+                    if (calls++ == 0) respond("", HttpStatusCode.NotModified) else json(READY_JSON, etag = "\"v2\"")
+                }
+
+            val summary = assertIs<Result.Success<TodaySummary>>(fixture.repository.getToday(listOf(VENUE_A))).data
+
+            assertEquals(Money(4_832_000, czk), summary.paidSoFar)
+            assertEquals(2, fixture.engine.requestHistory.size)
+            assertNull(fixture.engine.requestHistory[1].headers[HttpHeaders.IfNoneMatch])
+        }
+
     private companion object {
+        val SAVED_AT: Instant = Instant.parse("2026-11-06T20:38:30Z")
+
         const val VENUE_A = "0193a1b2-0000-7000-8000-00000000000a"
         const val VENUE_B = "0193a1b2-0000-7000-8000-00000000000b"
 

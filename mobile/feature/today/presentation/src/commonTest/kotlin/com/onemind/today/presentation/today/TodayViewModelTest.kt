@@ -14,6 +14,7 @@ import com.onemind.core.domain.venue.VenueRepository
 import com.onemind.core.domain.venue.VenueScope
 import com.onemind.core.domain.venue.VenueScopeRepository
 import com.onemind.core.presentation.util.UiText
+import com.onemind.today.domain.CachedToday
 import com.onemind.today.domain.TodayErrorCodes
 import com.onemind.today.domain.TodayRepository
 import com.onemind.today.domain.TodaySummary
@@ -102,10 +103,14 @@ class TodayViewModelTest {
         val results = ArrayDeque<Result<TodaySummary, DataError>>()
         var fallback: Result<TodaySummary, DataError> = Result.Success(TodayFixtures.ready)
 
+        var cached: CachedToday? = null
+
         override suspend fun getToday(venueIds: List<String>): Result<TodaySummary, DataError> {
             calls += venueIds
             return results.removeFirstOrNull() ?: fallback
         }
+
+        override suspend fun cachedToday(venueIds: List<String>) = cached
     }
 
     /** Virtual time from 21:40:00 Prague on the fixture's Friday. */
@@ -332,6 +337,60 @@ class TodayViewModelTest {
 
             viewModel(repository).state.test {
                 assertTrue(assertIs<TodayContent.Ready>(awaitNonLoading().content).today.waitingForFirstSync)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun cachedFiguresShowAtOnceWithTheirAgeAndFreshOnesDropTheMarker() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            // Received at 21:12 Prague, shown at launch before the network answers.
+            repository.cached = CachedToday(TodayFixtures.ready.copy(guests = 100), Instant.parse("2026-11-06T20:12:00Z"))
+
+            viewModel(repository).state.test {
+                val cached = assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                assertEquals(CachedMarker(savedAt = "21:12", offline = false), cached.cached)
+                assertEquals("100", cached.today.guests)
+
+                val fresh = assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                assertNull(fresh.cached)
+                assertEquals("286", fresh.today.guests)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun offlineTheCachedFiguresStayMarkedOffline() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            repository.cached = CachedToday(TodayFixtures.ready, Instant.parse("2026-11-06T20:12:00Z"))
+            repository.fallback = Result.Failure(DataError.Network.NO_INTERNET)
+
+            viewModel(repository).state.test {
+                skipItems(1)
+                assertEquals(CachedMarker("21:12", offline = false), assertIs<TodayContent.Ready>(awaitNonLoading().content).cached)
+                val offline = assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                assertEquals(CachedMarker("21:12", offline = true), offline.cached)
+                // The offline marker says it; no second error line.
+                assertNull(offline.refreshError)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun aServerErrorWithCachedFiguresKeepsTheAgeAndShowsTheError() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            repository.cached = CachedToday(TodayFixtures.ready, Instant.parse("2026-11-06T20:12:00Z"))
+            repository.fallback = Result.Failure(DataError.Api(422, TodayErrorCodes.BUSINESS_DAYS_DIFFER))
+
+            viewModel(repository).state.test {
+                skipItems(1)
+                awaitNonLoading()
+                val failed = assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                assertEquals(CachedMarker("21:12", offline = false), failed.cached)
+                assertEquals(UiText.Resource(Res.string.today_error_venues_differ), failed.refreshError)
                 cancelAndIgnoreRemainingEvents()
             }
         }

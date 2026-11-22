@@ -52,6 +52,8 @@ import com.onemind.today.domain.HourKind
 import com.onemind.today.presentation.generated.resources.Res
 import com.onemind.today.presentation.generated.resources.today_account_description
 import com.onemind.today.presentation.generated.resources.today_all_venues
+import com.onemind.today.presentation.generated.resources.today_cached
+import com.onemind.today.presentation.generated.resources.today_cached_offline
 import com.onemind.today.presentation.generated.resources.today_data_gaps_lead
 import com.onemind.today.presentation.generated.resources.today_date_time
 import com.onemind.today.presentation.generated.resources.today_guests
@@ -123,7 +125,7 @@ fun TodayScreen(
         is TodayContent.Ready -> {
             Refreshable(state, onAction) {
                 HeaderRow(state.header)
-                TodayContentColumn(title = title, today = content.today, refreshError = content.refreshError)
+                TodayContentColumn(title = title, today = content.today, refreshError = content.refreshError, cached = content.cached)
             }
         }
     }
@@ -160,10 +162,20 @@ private fun TodayContentColumn(
     title: String,
     today: TodayUi,
     refreshError: UiText?,
+    cached: CachedMarker?,
 ) {
     val colors = OneMindTheme.colors
     val type = OneMindTheme.typography
     ScreenTitle(title = title, dateLine = today.dateLine())
+    cached?.let { marker ->
+        val time = marker.savedAt.orEmpty()
+        Text(
+            text =
+                stringResource(if (marker.offline) Res.string.today_cached_offline else Res.string.today_cached, time),
+            style = type.caption,
+            color = if (marker.offline) colors.warningText else colors.textSecondary,
+        )
+    }
     if (refreshError != null) {
         Text(text = refreshError.asString(), style = type.caption, color = colors.negativeText)
     }

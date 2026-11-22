@@ -8,6 +8,9 @@
     <!-- Weekday, day of month, month, clock: "Friday, 6 November · 21:40" -->
     <string name="today_date_time">%1$s, %2$d %3$s · %4$s</string>
     <string name="today_updated_at">Updated %1$s</string>
+    <!-- Figures shown from the device's cache (ADR 0006), always with their age. -->
+    <string name="today_cached">Last updated %1$s</string>
+    <string name="today_cached_offline">Last updated %1$s · offline</string>
     <string name="today_loading">Loading today\'s figures</string>
     <string name="today_no_venue">No venues yet. Your venues appear here once they\'re connected.</string>
     <string name="today_retry">Try again</string>
