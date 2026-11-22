@@ -7,7 +7,8 @@ import com.onemind.backend.account.application.StartEmailSignIn
 import com.onemind.backend.account.application.VerifyEmailSignIn
 import com.onemind.backend.account.infra.persistence.EmailLoginCodeRepository
 import com.onemind.backend.account.infra.persistence.RefreshTokenRepository
-import com.onemind.backend.common.email.EmailMessage
+import com.onemind.backend.testing.MutableClock
+import com.onemind.backend.testing.RecordingMailSender
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
@@ -23,8 +24,6 @@ import org.springframework.context.annotation.Primary
 import org.springframework.http.MediaType
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.queryForObject
-import org.springframework.mail.SimpleMailMessage
-import org.springframework.mail.javamail.JavaMailSenderImpl
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm
@@ -42,13 +41,9 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
-import java.time.Clock
 import java.time.Duration
 import java.time.Instant
-import java.time.ZoneId
-import java.time.ZoneOffset
 import java.util.UUID
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -65,29 +60,6 @@ import kotlin.test.assertTrue
 @AutoConfigureTracing
 @ExtendWith(OutputCaptureExtension::class)
 class AuthApiTests {
-    class MutableClock(
-        @Volatile var now: Instant,
-    ) : Clock() {
-        override fun getZone(): ZoneId = ZoneOffset.UTC
-
-        override fun withZone(zone: ZoneId): Clock = this
-
-        override fun instant(): Instant = now
-
-        fun advance(duration: Duration) {
-            now += duration
-        }
-    }
-
-    // Replaces the JavaMailSender under the real EmailSender, so the whole send path runs.
-    class RecordingMailSender : JavaMailSenderImpl() {
-        val sent = CopyOnWriteArrayList<EmailMessage>()
-
-        override fun send(vararg simpleMessages: SimpleMailMessage) {
-            simpleMessages.forEach { sent += EmailMessage(it.to.orEmpty().single(), it.subject.orEmpty(), it.text.orEmpty()) }
-        }
-    }
-
     @RestController
     class ProbeController {
         @GetMapping("/test/whoami")
@@ -644,11 +616,7 @@ class AuthApiTests {
         return verify(lastCode(address), address).andExpect { status { isOk() } }.body()
     }
 
-    private fun lastCode(address: String = email): String =
-        emails.sent
-            .last { it.to == address }
-            .text
-            .let { Regex("\\b([0-9]{6})\\b").find(it)?.groupValues?.get(1) ?: error("no code in email") }
+    private fun lastCode(address: String = email): String = emails.lastCodeFor(address)
 
     private fun ResultActionsDsl.body(): JsonNode = json.readTree(andReturn().response.contentAsString)
 

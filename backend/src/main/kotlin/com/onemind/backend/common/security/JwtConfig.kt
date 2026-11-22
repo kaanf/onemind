@@ -81,7 +81,8 @@ class JwtConfig(
             .apply {
                 setJwtValidator(
                     DelegatingOAuth2TokenValidator(
-                        JwtTimestampValidator().apply { setClock(clock) },
+                        // We issue and check our own tokens with the same clock: no skew (ADR 0004).
+                        JwtTimestampValidator(Duration.ZERO).apply { setClock(clock) },
                         JwtIssuerValidator(properties.issuer),
                         audienceValidator(properties.audience),
                     ),

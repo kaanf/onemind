@@ -12,6 +12,7 @@ import com.nimbusds.jwt.PlainJWT
 import com.nimbusds.jwt.SignedJWT
 import com.onemind.backend.TestcontainersConfiguration
 import com.onemind.backend.account.application.IdTokenSignIn
+import com.onemind.backend.testing.MutableClock
 import com.sun.net.httpserver.HttpServer
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -51,7 +52,7 @@ class IdTokenSignInApiTests {
     class Config {
         @Bean
         @Primary
-        fun testClock() = AuthApiTests.MutableClock(NOW)
+        fun testClock() = MutableClock(NOW)
     }
 
     @Autowired
