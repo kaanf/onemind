@@ -28,4 +28,7 @@ data class OneMindSpacing(
     val borderWidth: Dp = 1.dp,
     /** Focused input and composer border. */
     val focusBorderWidth: Dp = 1.5.dp,
+    /** Leading icon box in a list row (*Possible loss* on Today) and the icon inside it. */
+    val iconBoxSize: Dp = 32.dp,
+    val iconBoxIconSize: Dp = 18.dp,
 )

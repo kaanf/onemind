@@ -85,6 +85,8 @@ Treat accent as a single token so it can be switched.
 - Radius: cards **16**, inner panels **14**, buttons and inputs **12**, chips **10**, small tags
   **6–8**, checkboxes **7**, table tiles **10**, heat cells **5**.
 - Card: `surface` + 1 px `border`, no shadow.
+- Leading icon box in a list row (*Possible loss* on Today): **32** square, radius 8, icon **18**
+  (`OneMindTheme.spacing.iconBoxSize`, `iconBoxIconSize`).
 - Rows: min height 44–68 dp, separated by 1 px `divider`; the last row has no divider.
 
 ## Components

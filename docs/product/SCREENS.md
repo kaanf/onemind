@@ -130,6 +130,28 @@ Live overview of the current business day for the selected venue (or all venues)
   *On shift* and the card share from `unavailable`; it shows "N venues still syncing" for
   `pendingVenueIds` and a "N bills couldn't be read" note when a `dataGaps` count isn't 0; before the
   first sync (`status NO_DATA_YET`) every figure is empty, never 0.
+- **Built (phase 5, mobile):**
+  - The header date is the response's business day, so after midnight it still shows the evening's
+    date; the clock is the venue's time and moves each minute. *Updated 21:38* under the figures is the
+    oldest last sync of the venues with data (ADR 0005).
+  - The comparison pill is hidden when `comparison` or its `deltaPercent` is null; its tone follows the
+    sign (0.0 is neutral).
+  - Hourly chart: past hours `chartMutedStrong`, current hour `accent`, forecast hours `chartFuture`; a
+    forecast without any earlier same weekday is an empty slot, never a 0 label. No value or axis labels
+    (as on the canvas); the chart is one spoken node (*Revenue by hour, peak 22:00*).
+  - *Possible loss* names the included components (*Includes discounts, refunds*). It is shown without
+    a chevron, and *Occupancy* is not tappable, until 02c and 01a exist.
+  - `dataGaps`: one warning card (*Some bills are missing from these figures.*) with one line per count
+    above 0: couldn't be read, without items (missing from product figures), may be out of date, and
+    left out of paid so far because the payments don't add up (METRICS, payment mismatch).
+  - The figures poll every 30 s while the screen is visible (ETag, `304` keeps them). Pull to refresh
+    polls at once. A failed poll keeps the last figures with a one-line note; a failed first load shows
+    the error with *Try again*. `CURRENCIES_DIFFER` / `BUSINESS_DAYS_DIFFER` say the venues can't be
+    shown together.
+  - No venue selected → *No venues yet*. The venue switcher button and the account avatar are not shown
+    until the app loads the venue list and the profile (`GET /venues`, `GET /me`). Until then *All
+    venues* also shows *No venues yet*. The 5 min interval for a closed venue waits for the API to say
+    whether the venue is open.
 
 ## 01a · Tables — `AltTables` (opened from Today › Occupancy)
 

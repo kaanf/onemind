@@ -201,7 +201,8 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
   from `core:domain` (exact: minor units, decimal strings; never `Float`/`Double`). Show amounts with
   `formatMoney(money, locale, MoneyStyle.Summary | Precise)` and chart labels with `formatChartLabel`
   (`core:presentation/format`, METRICS.md rules: U+202F grouping, `−`, no decimals ≥ 100 in summaries,
-  `12.4k`). The locale is `VenueLocale.forCurrency(currency)` **for now** (CZK → `cs-CZ`, others
+  `12.4k`), and percentage changes from the API with `formatDeltaPercent` (`+12.4%`, `−3.0%`, digits as
+  sent). The locale is `VenueLocale.forCurrency(currency)` **for now** (CZK → `cs-CZ`, others
   `en-US`): the API has no venue locale yet, and that seam is the one place to change. Times in the venue's time zone from the API (`formatClockTime`).
 - No business-day calculation in the app: the backend returns the business date; the app only
   formats times in the venue's time zone (bar nights across midnight and DST are tested).
