@@ -64,6 +64,8 @@ is a plan; the source of truth for shapes is the OpenAPI spec once written.
 - JSON fields camelCase. Enum values `SCREAMING_SNAKE` (`"status": "NEEDS_MATCH"`).
 - State changes are command endpoints (`/approve`, `/complete`, `/confirm`), not field updates.
 - Clients must tolerate unknown fields and unknown enum values (map to `UNKNOWN`).
+  Until the mobile `UNKNOWN` fallback lands, **adding a value to a response enum is breaking for v1
+  clients** (the generated client fails the whole decode): add a new enum or field instead.
 
 ## Identifiers
 
@@ -195,12 +197,12 @@ RFC 9457 Problem Details with extension members:
 | POST | `/auth/email/verify` | A2 |
 | POST | `/auth/apple` · `/auth/google` | A1 |
 | POST | `/auth/refresh` · `/auth/logout` | – |
-| GET / DELETE | `/me` | – |
+| GET / DELETE | `/me` | – (built) |
 | GET | `/onboarding/demo-places` | A5, interim, dev/demo only (P15) |
 | POST | `/onboarding/demo` | A5, interim, dev/demo only (P15) |
 | POST | `/pos/storyous/connect` | A3 |
 | GET | `/pos/sync/status` | A4 |
-| GET | `/venues` | A5 |
+| GET | `/venues` | A5, venue switcher (built: the user's venues with `followed` and `role`) |
 | PUT | `/me/followed-venues` | A5 |
 
 ### Dashboard (screen-shaped, `?venueIds=…`)

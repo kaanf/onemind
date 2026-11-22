@@ -1,0 +1,9 @@
+type: object
+description: The venues the signed-in user may open, by name (a small list, not paginated).
+required:
+  - venues
+properties:
+  venues:
+    type: array
+    items:
+      $ref: ./MyVenue.yaml
