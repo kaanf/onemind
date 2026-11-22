@@ -116,6 +116,20 @@ Until P15 the only `PosProvider` is `pos/infra/client/mock/MockPosProvider` (own
 
 ## Sync strategy (updated)
 
+Built so far (`pos/application`, task `pos-sync` every 2 minutes, `RunPosSync`): for every connection
+that isn't `REVOKED`, places → venues on every run (one `merchant` call: a new place becomes a venue
+of the connection's organization through `account/api/VenueRegistry` plus a `pos.venue_link`; a known
+place takes over name, address and state, `DISABLED`/`HIDDEN` → venue `DISABLED`), then menu and
+desks of each active venue at most hourly (`sync_cursor` `MENU`/`DESKS`). Catalog rows are upserted by
+`(venue_id, external_id)`; products and desks the POS stops reporting get `active = false` /
+`removed = true`, never deleted. Each run writes a `sync_job` with its steps; a failure marks the
+connection `ERROR` (`last_error` = exception class, never POS text) or the venue's cursor, and doesn't
+stop other connections or venues. POS calls never run inside a transaction (tested). Without a
+configured provider the run does nothing and logs one warning. Bills follow below.
+
+Assumptions in the catalog mapping, to verify against the real API: product `price` is the price
+with VAT in the merchant currency; `vatRate` is a percentage (`"21"`) and is stored as given.
+
 - **Polling only.** Per place: bills with `modifiedSince` = last seen `_lastModifiedAt`, paging with
   `nextPage` / `lastBillId`; fetch details for new/changed bills (items). Menu, desks and places
   refreshed less often (e.g. hourly / daily).
