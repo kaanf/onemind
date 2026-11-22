@@ -38,6 +38,15 @@ Shown once, on first launch. See [NAVIGATION.md](NAVIGATION.md) for the flow.
 - **Verify** (primary), **Use a different email** (back to A1).
 - After verify: new account → A3; existing account with connected POS → Today.
 
+### Interim onboarding (dev/demo builds, until P15)
+
+Until the Storyous connection exists, a new account goes from A2 straight to a variant of A5,
+**Pick demo venues**: the demo POS places (`GET /onboarding/demo-places`), every card with a visible
+**Demo data** badge (product rule 2). Picking creates the account's organization ("Demo organization"),
+its venues and the followed venues (`POST /onboarding/demo`) and lands on **Today**, which shows empty
+states until the first sync (about two minutes). A3 and A4 are skipped (no sync-status endpoint yet).
+In production the endpoints answer `404 FEATURE_UNAVAILABLE`, so this flow never appears there.
+
 ### A3 · Connect Storyous — `AuthConnect` (Step 1 of 3)
 
 - *"Connect your Storyous account. Sign in as the venue owner. You will approve access on Storyous
@@ -95,6 +104,10 @@ Live overview of the current business day for the selected venue (or all venues)
   stay on screen as empty-state cards ("Not available from your POS"), with no value; *Tips · card
   69%* drops the card share and shows only the tips total; *On shift* is hidden; *Possible loss*
   names the components it includes. Tapping the *Occupancy* card still opens 01a on *This week*.
+- API (`GET /dashboard/today`): the app draws the *Open tabs* / *Occupancy* empty states and hides
+  *On shift* and the card share from `unavailable`; it shows "N venues still syncing" for
+  `pendingVenueIds` and a "N bills couldn't be read" note when a `dataGaps` count isn't 0; before the
+  first sync (`status NO_DATA_YET`) every figure is empty, never 0.
 
 ## 01a · Tables — `AltTables` (opened from Today › Occupancy)
 

@@ -45,6 +45,9 @@ version in use.
 | `scheduled_tasks` | db-scheduler task table (DDL from db-scheduler 17.1, `V005`). `db-scheduler.table-name=platform.scheduled_tasks`. |
 | `idempotency_record` | `user_id → account.app_user` (cascade), `key uuid`, `method`, `path`, `request_hash bytea` (SHA-256 of method, path, query and body; multipart: of the parts), `claim_id uuid` (new per claim; only the claiming request may complete or release the row), `status (IN_PROGRESS\|COMPLETED)`, `response_status`, `response_headers jsonb` (`Content-Type`, `Location`), `response_body text` (not `jsonb`: replays send the original bytes), `created_at`, `expires_at` (24 h). PK `(user_id, key)`, index on `expires_at` (`V006`). An `IN_PROGRESS` row older than 5 minutes is taken over by a retry of the same request (crashed instance). A db-scheduler job deletes expired rows hourly. |
 
+Every foreign key has an index led by its columns (partial `where … is not null` is fine for nullable
+ones); `MigrationTests` checks the catalog and fails on a new key without one.
+
 ## `account`
 
 | Table | Key columns | Notes |
@@ -87,7 +90,7 @@ Account deletion (`DELETE /me`, App Store 5.1.1(v), GDPR art. 17):
 
 | Table | Key columns | Notes |
 |-------|-------------|-------|
-| `pos_connection` | `id`, `organization_id`, `provider (STORYOUS)`, `external_merchant_id`, `status (PENDING\|ACTIVE\|ERROR\|REVOKED)`, `last_error`, `last_synced_at` | Storyous uses **our app's** client credentials (server config), so no per-merchant secret is stored. Unique `(provider, external_merchant_id)`. |
+| `pos_connection` | `id`, `organization_id`, `provider (STORYOUS\|MOCK)` (V011; `MOCK` = the demo POS, dev/demo only), `external_merchant_id`, `status (PENDING\|ACTIVE\|ERROR\|REVOKED)`, `last_error`, `last_synced_at` | Storyous uses **our app's** client credentials (server config), so no per-merchant secret is stored. Unique `(provider, external_merchant_id)`. |
 | `venue_link` | `venue_id` (PK), `connection_id`, `external_place_id`, `active` | Unique `(connection_id, external_place_id)`. `active = false` (V008) when the POS reports the place disabled/hidden or stops reporting it: the sync skips the venue, the venue itself stays (pending owner confirmation, `STORYOUS.md`). |
 | `sync_cursor` | `venue_id`, `resource (BILLS\|MENU\|DESKS)`, `cursor text`, `last_success_at`, `last_error` | PK `(venue_id, resource)`. Bills cursor = last `_lastModifiedAt`. |
 | `sync_job` | `id`, `connection_id`, `kind (INITIAL\|INCREMENTAL\|BACKFILL)`, `status (QUEUED\|RUNNING\|SUCCEEDED\|FAILED)`, `started_at`, `finished_at`, `steps jsonb` | Steps = `[{name, state, progress, countLabel}]` for A4. |

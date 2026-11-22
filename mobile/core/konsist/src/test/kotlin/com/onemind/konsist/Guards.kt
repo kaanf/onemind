@@ -131,6 +131,70 @@ object Guards {
     fun deviceTimeZoneNeverUsed(files: List<SourceFile>): List<String> =
         files.flatMap { file -> file.linesMatching { line -> deviceTimeZoneCode.any { it.containsMatchIn(line) } } }
 
+    // --- UI text and tokens (mobile/AGENTS.md, UI rules) ----------------------------------------------
+
+    private val uiLiterals =
+        listOf(
+            Regex("""\bColor\s*\(\s*0[xX]""") to "hard-coded colour (use OneMindTheme.colors)",
+            Regex("""\b\d+(\.\d+)?\s*\.\s*sp\b""") to "literal sp size (use OneMindTheme.typography)",
+            Regex("""\bText\s*\(\s*"""") to "literal text (use a string resource)",
+            Regex("""\btext\s*=\s*"""") to "literal text (use a string resource)",
+            Regex("""\bcontentDescription\s*=\s*"""") to
+                "literal content description (spoken: use a string resource, or null if decorative)",
+        )
+
+    /**
+     * Feature presentation and `composeApp` main sources use design-system tokens and string resources:
+     * no `Color(0x…)`, no literal `.sp`, no `Text("…")`, `text = "…"` or `contentDescription = "…"` (screen
+     * readers speak it; decorative images pass `null`), also split over lines. Code inside `@Preview`
+     * functions is exempt (sample data), and comments are ignored.
+     *
+     * Known gaps (not caught yet): other text-like named arguments (`label = "…"`, `title = "…"`,
+     * `placeholder = "…"`), named colours and channel constructors (`Color.Red`, `Color(red = …)`), and
+     * `.dp` literals (sizes still come from `OneMindTheme.spacing`/`radius` by review).
+     */
+    fun uiHasNoLiterals(files: List<SourceFile>): List<String> =
+        files.filter { ((it.layer == Layer.Ui && it.feature != null) || it.layer == Layer.App) && it.isMainSource }.flatMap { file ->
+            val text = file.codeWithStrings
+            val previews = previewRanges(file)
+            uiLiterals
+                .flatMap { (pattern, what) ->
+                    pattern.findAll(text).filter { match -> previews.none { match.range.first in it } }.map { match ->
+                        val line = text.substring(0, match.range.first).count { it == '\n' } + 1
+                        line to "$file:$line: $what: ${file.file.text.lines()[line - 1].trim()}"
+                    }
+                }.sortedBy { it.first }
+                .map { it.second }
+        }
+
+    /**
+     * Character ranges of `@Preview` functions: the start comes from Konsist's `location`
+     * (`path:line:column`), the end from the function's text length, so identical previews in one file
+     * can't be confused with each other.
+     */
+    private fun previewRanges(file: SourceFile): List<IntRange> {
+        val text = file.file.text
+        val lineStarts = listOf(0) + text.indices.filter { text[it] == '\n' }.map { it + 1 }
+        return file.file
+            .functions(includeNested = true)
+            .filter { function -> function.annotations.any { it.name == "Preview" } }
+            .map { function ->
+                val (line, column) =
+                    function.location
+                        .split(':')
+                        .takeLast(2)
+                        .map { it.toInt() }
+                val located = lineStarts[line - 1] + column - 1
+                // Konsist points at the annotation or at `fun`: of the places this text occurs, take the one
+                // that contains that position (identical previews never overlap).
+                generateSequence(text.indexOf(function.text)) { previous -> text.indexOf(function.text, previous + 1).takeIf { it >= 0 } }
+                    .takeWhile { it >= 0 }
+                    .map { it until it + function.text.length }
+                    .firstOrNull { located in it }
+                    ?: error("${file.relativePath}: can't locate @Preview ${function.name}")
+            }
+    }
+
     // --- helpers ----------------------------------------------------------------------------------
 
     private fun String.isUnder(prefix: String) = this == prefix || startsWith("$prefix.")

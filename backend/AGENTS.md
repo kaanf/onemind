@@ -137,7 +137,13 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
   Only `common/time` turns an instant into a local date, time or hour (`atZone`, `LocalDate.ofInstant`,
   `toLocalDate`, `hour` on zoned values); `atOffset` for API mapping is fine. Code that needs a local
   hour or time of day (hourly charts) gets it from a `BusinessDayCalendar` helper (e.g. `localHour`),
-  added with its first use; never relax the gate or add an exception for it.
+  added with its first use; never relax the gate or add an exception for it. The same holds in SQL
+  (`architecture/DateFunctionRules`, run by `ModuleBoundaryTests`): no `date_trunc`, `AT TIME ZONE`,
+  `::date`, `date(…)`, `extract(…)`, `date_part`, `current_date`, `timezone(…)`, `to_char(…)`, `date_bin(…)`,
+  `::timestamp`/`::time` or `cast(… as date|timestamp|time)` in migrations or in SQL strings in Kotlin,
+  and no jOOQ date functions (incl. `toChar`), `DatePart`, or casts to date/time types by `SQLDataType` or
+  by a `java.time` class literal. Gap: a cast whose `java.time` class arrives through a variable or a
+  parameter (no literal in that method) isn't seen by the gate; reviewers watch for it.
 - **Tenancy:** every venue-scoped repository method takes a `VenueId`. Every venue-scoped use case
   first calls `account/api/VenueAccess.requireAccess(userId, venueId, role?)` with
   `CurrentUser.id()`: it loads the membership per request and throws `404 VENUE_NOT_FOUND` for a
@@ -155,7 +161,7 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
   from the sealed `DomainException` hierarchy (stable error codes), mapped once to RFC 9457 Problem
   Details in `common/web/ApiExceptionHandler`. A module's exception extends one of the categories
   in `common/error/DomainException.kt` (`InvalidRequestException` 400, `ForbiddenException` 403,
-  `NotFoundException` 404, `ConflictException` 409, `RuleViolationException` 422) with its own
+  `NotFoundException` 404, `ConflictException` 409, `RuleViolationException` 422, `ServiceUnavailableException` 503) with its own
   `code`, an English `detail` without personal data and optional `params`. A servlet filter that
   must reject a request passes the exception to the `handlerExceptionResolver` bean
   (`resolveException(request, response, null, e)`), so the problem looks like any other. No Arrow,
@@ -197,7 +203,9 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
 
 ## Live data and streaming ([ADR 0005](../docs/architecture/adr/0005_POLLING_AND_SSE.md))
 
-- Live read endpoints return `ETag` and honour `If-None-Match` (`304`), and include `dataAsOf`.
+- Live read endpoints return `ETag` and honour `If-None-Match` (`304`), and include `dataAsOf`: use
+  `common/web/ETagResponses.ok(body, ifNoneMatch)` (weak ETag over the JSON). Example: `reporting/web/DashboardController`
+  (`GET /dashboard/today`, `reporting/application/GetTodaySummary`, `reporting/domain/TodayCalculator`).
 - Assistant answers stream as SSE (`SseEmitter`, virtual threads): events `delta`, `block`,
   `citation`, `suggestedReplies`, `done`, `error`. Persist the final message so it can be reloaded.
 
@@ -216,6 +224,14 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
   (`src/mock`, with `application-local.yml`; on the bootRun and test classpaths, never in the boot jar,
   checked by `verifyBootJarExcludesMock`); never created in `prod`, and a prod start with `mock` fails. The mock emits only verified Storyous
   fields (`docs/integrations/STORYOUS.md`, *Mock provider*); don't add a field the real API lacks.
+- Interim demo onboarding (`pos/application/DemoOnboarding`, `pos/web/OnboardingController`): only with
+  the demo POS (`PosProviderConfig.isMock`, the same reading as the prod guard), else
+  `404 FEATURE_UNAVAILABLE`. It creates the organization and follows venues through
+  `account/api/OrganizationRegistry` (narrow: `createForOwner`, `follow` (own-organization venues only),
+  `membershipOf`, `followedVenueIds`) and a `MOCK` connection `demo-merchant/<organizationId>`. It locks
+  the user first (one organization per demo onboarding), only the owner of an unfinished demo
+  organization finishes it, and only `PosProviderException` (the POS can't be read) becomes `503`.
+  Place syncs lock their connection, so onboarding and the `pos-sync` job never create a venue twice.
 - Storyous client exposes **read methods only**. Gated (`architecture/ProductRules`, rule 1): no
   mutating HTTP call anywhere in `pos`. The real client's recorded-fixture tests must also fail on any
   non-GET request.

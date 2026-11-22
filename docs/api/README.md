@@ -196,6 +196,8 @@ RFC 9457 Problem Details with extension members:
 | POST | `/auth/apple` · `/auth/google` | A1 |
 | POST | `/auth/refresh` · `/auth/logout` | – |
 | GET / DELETE | `/me` | – |
+| GET | `/onboarding/demo-places` | A5, interim, dev/demo only (P15) |
+| POST | `/onboarding/demo` | A5, interim, dev/demo only (P15) |
 | POST | `/pos/storyous/connect` | A3 |
 | GET | `/pos/sync/status` | A4 |
 | GET | `/venues` | A5 |
@@ -205,7 +207,7 @@ RFC 9457 Problem Details with extension members:
 
 | Method | Path | Screen |
 |--------|------|--------|
-| GET | `/dashboard/today` | 01 |
+| GET | `/dashboard/today` | 01 (built: `ETag` / `If-None-Match`, per-venue `status`, `unavailable`, `dataGaps`) |
 | GET | `/dashboard/tables?mode=now\|week` | 01a |
 | GET | `/dashboard/sales?period=…` | 02 |
 | GET | `/dashboard/products?day=…&category=…` | 02a |

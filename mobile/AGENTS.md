@@ -193,7 +193,12 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
 - Strings in Compose resources (English; Czech before release). Plurals use CLDR categories
   (Czech: one/few/many/other) — test them.
 - Money via platform formatters (`expect/actual` in `core:presentation`), by the venue's currency,
-  independent of UI language. Times in the venue's time zone from the API (`formatClockTime`).
+  independent of UI language. Use `Money(amountMinor, Currency)` and `Quantity(DecimalValue, unit)`
+  from `core:domain` (exact: minor units, decimal strings; never `Float`/`Double`). Show amounts with
+  `formatMoney(money, locale, MoneyStyle.Summary | Precise)` and chart labels with `formatChartLabel`
+  (`core:presentation/format`, METRICS.md rules: U+202F grouping, `−`, no decimals ≥ 100 in summaries,
+  `12.4k`). The locale is `VenueLocale.forCurrency(currency)` **for now** (CZK → `cs-CZ`, others
+  `en-US`): the API has no venue locale yet, and that seam is the one place to change. Times in the venue's time zone from the API (`formatClockTime`).
 - No business-day calculation in the app: the backend returns the business date; the app only
   formats times in the venue's time zone (bar nights across midnight and DST are tested).
 - The system clock is read only in `coreDataModule` (`core/data/.../di/CoreDataModule.kt`, which
@@ -237,6 +242,10 @@ with `./gradlew :core:konsist:test` in CI and checks:
   also has no floating-point literal or `toDouble()`/`toFloat()`;
 - no system clock outside the clock seam (`CoreDataModule.kt`) and no device time zone anywhere
   (product rule 6);
+- feature presentation and `composeApp` main sources have no `Color(0x…)`, no literal `.sp`, no
+  `Text("…")`, `text = "…"` or `contentDescription = "…"` (spoken by screen readers; decorative images
+  pass `null`), also split over lines; `@Preview` functions, comments and test sources are exempt.
+  Not caught yet: `label =`/`title =`/`placeholder =` literals, `Color.Red`/`Color(red = …)`, `.dp`;
 - the scopes are not empty (so the guards can't pass by scanning nothing).
 
 `GuardFixturesTest` runs every rule on planted violations in `src/test/fixtures` (laid out like

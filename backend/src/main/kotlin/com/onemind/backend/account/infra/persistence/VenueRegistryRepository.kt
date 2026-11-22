@@ -12,6 +12,7 @@ import java.util.UUID
 data class VenueBusinessDayRow(
     val timeZone: String,
     val businessDayStart: LocalTime,
+    val currency: Currency,
 )
 
 /** Venues created and kept up to date from what the POS reports. */
@@ -67,7 +68,7 @@ class VenueRegistryRepository(
 
     fun businessDay(venueId: UUID): VenueBusinessDayRow? =
         dsl
-            .select(VENUE.TIME_ZONE, VENUE.BUSINESS_DAY_START)
+            .select(VENUE.TIME_ZONE, VENUE.BUSINESS_DAY_START, VENUE.CURRENCY)
             .from(VENUE)
             .where(VENUE.ID.eq(venueId))
             .fetchOne()
@@ -75,6 +76,7 @@ class VenueRegistryRepository(
                 VenueBusinessDayRow(
                     timeZone = r.get(VENUE.TIME_ZONE) ?: error("time_zone is null"),
                     businessDayStart = r.get(VENUE.BUSINESS_DAY_START) ?: error("business_day_start is null"),
+                    currency = r.get(VENUE.CURRENCY) ?: error("currency is null"),
                 )
             }
 }
