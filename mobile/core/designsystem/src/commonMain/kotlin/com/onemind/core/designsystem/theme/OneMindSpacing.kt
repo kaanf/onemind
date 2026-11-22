@@ -31,4 +31,7 @@ data class OneMindSpacing(
     /** Leading icon box in a list row (*Possible loss* on Today) and the icon inside it. */
     val iconBoxSize: Dp = 32.dp,
     val iconBoxIconSize: Dp = 18.dp,
+    /** Side padding of the venue pill (*Main bar ▾*) and its chevron. */
+    val pillPadding: Dp = 14.dp,
+    val chevronSize: Dp = 12.dp,
 )

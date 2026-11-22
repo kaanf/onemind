@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,6 +32,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.onemind.core.designsystem.components.AccountButton
 import com.onemind.core.designsystem.components.Bar
 import com.onemind.core.designsystem.components.BarChart
 import com.onemind.core.designsystem.components.DeltaBadge
@@ -40,6 +42,7 @@ import com.onemind.core.designsystem.components.OneMindListCard
 import com.onemind.core.designsystem.components.OutlineButton
 import com.onemind.core.designsystem.components.PlaceholderScreen
 import com.onemind.core.designsystem.components.StatTile
+import com.onemind.core.designsystem.components.VenueButton
 import com.onemind.core.designsystem.components.WarningCard
 import com.onemind.core.designsystem.icons.OneMindIcons
 import com.onemind.core.designsystem.theme.OneMindColors
@@ -47,6 +50,8 @@ import com.onemind.core.designsystem.theme.OneMindTheme
 import com.onemind.core.presentation.util.UiText
 import com.onemind.today.domain.HourKind
 import com.onemind.today.presentation.generated.resources.Res
+import com.onemind.today.presentation.generated.resources.today_account_description
+import com.onemind.today.presentation.generated.resources.today_all_venues
 import com.onemind.today.presentation.generated.resources.today_data_gaps_lead
 import com.onemind.today.presentation.generated.resources.today_date_time
 import com.onemind.today.presentation.generated.resources.today_guests
@@ -54,6 +59,8 @@ import com.onemind.today.presentation.generated.resources.today_hourly_descripti
 import com.onemind.today.presentation.generated.resources.today_hourly_description_no_peak
 import com.onemind.today.presentation.generated.resources.today_loading
 import com.onemind.today.presentation.generated.resources.today_loss_includes
+import com.onemind.today.presentation.generated.resources.today_loss_includes_and_other
+import com.onemind.today.presentation.generated.resources.today_loss_includes_other_only
 import com.onemind.today.presentation.generated.resources.today_no_venue
 import com.onemind.today.presentation.generated.resources.today_not_available_from_pos
 import com.onemind.today.presentation.generated.resources.today_occupancy
@@ -66,6 +73,7 @@ import com.onemind.today.presentation.generated.resources.today_tips
 import com.onemind.today.presentation.generated.resources.today_title
 import com.onemind.today.presentation.generated.resources.today_updated_at
 import com.onemind.today.presentation.generated.resources.today_value_empty
+import com.onemind.today.presentation.generated.resources.today_venue_description
 import com.onemind.today.presentation.generated.resources.today_venues_syncing
 import com.onemind.today.presentation.generated.resources.today_vs_last_weekday
 import com.onemind.today.presentation.generated.resources.today_waiting_first_sync
@@ -105,6 +113,7 @@ fun TodayScreen(
 
         is TodayContent.Failed -> {
             Refreshable(state, onAction) {
+                HeaderRow(state.header)
                 ScreenTitle(title = title, dateLine = null)
                 Text(text = content.message.asString(), style = OneMindTheme.typography.body, color = OneMindTheme.colors.negativeText)
                 OutlineButton(text = stringResource(Res.string.today_retry), onClick = { onAction(TodayAction.Refresh) })
@@ -113,6 +122,7 @@ fun TodayScreen(
 
         is TodayContent.Ready -> {
             Refreshable(state, onAction) {
+                HeaderRow(state.header)
                 TodayContentColumn(title = title, today = content.today, refreshError = content.refreshError)
             }
         }
@@ -175,6 +185,24 @@ private fun TodayContentColumn(
     }
     today.updatedAt?.let {
         Text(text = stringResource(Res.string.today_updated_at, it), style = type.caption, color = colors.textSecondary)
+    }
+}
+
+/** Venue button (inert until the switcher, P7) and account initials; each is drawn only when known. */
+@Composable
+private fun HeaderRow(header: TodayHeader) {
+    if (header.scopeName == null && header.initials == null) return
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        header.scopeName?.let { scope ->
+            val name =
+                when (scope) {
+                    is ScopeName.Venue -> scope.name
+                    ScopeName.AllVenues -> stringResource(Res.string.today_all_venues)
+                }
+            VenueButton(name = name, contentDescription = stringResource(Res.string.today_venue_description, name))
+        }
+        Spacer(Modifier.weight(1f))
+        header.initials?.let { AccountButton(initials = it, contentDescription = stringResource(Res.string.today_account_description)) }
     }
 }
 
@@ -284,7 +312,7 @@ internal fun HourlyUi.chartBars(colors: OneMindColors): List<Bar> =
                 when (bar.kind) {
                     HourKind.PAST -> colors.chartMutedStrong
                     HourKind.CURRENT -> colors.accent
-                    HourKind.FORECAST -> colors.chartFuture
+                    HourKind.FORECAST, HourKind.UNKNOWN -> colors.chartFuture
                 },
         )
     }
@@ -340,12 +368,25 @@ private fun FigureTile(
 private fun PossibleLossRow(today: TodayUi) {
     val colors = OneMindTheme.colors
     val loss = today.possibleLoss
-    val includes = loss?.includes?.map { stringResource(it.nameRes()) }?.joinToString(", ")
+    val named =
+        loss
+            ?.includes
+            ?.map { stringResource(it.nameRes()) }
+            ?.joinToString(", ")
+            .orEmpty()
+    val meta =
+        when {
+            loss == null -> null
+            loss.includesOther && named.isEmpty() -> stringResource(Res.string.today_loss_includes_other_only)
+            loss.includesOther -> stringResource(Res.string.today_loss_includes_and_other, named)
+            named.isNotEmpty() -> stringResource(Res.string.today_loss_includes, named)
+            else -> null
+        }
     // 02c Discounts & losses opens from here once it is built.
     OneMindListCard {
         ListRow(
             title = stringResource(Res.string.today_possible_loss),
-            meta = includes?.takeIf { it.isNotEmpty() }?.let { stringResource(Res.string.today_loss_includes, it) },
+            meta = meta,
             leading = {
                 Box(
                     contentAlignment = Alignment.Center,
@@ -377,7 +418,7 @@ private fun Int.hourLabel(): String = toString().padStart(2, '0') + ":00"
 @Preview
 @Composable
 private fun TodayReadyPreview() {
-    OneMindTheme { TodayScreen(TodayState(TodayContent.Ready(TodayPreviewData.ready)), onAction = {}) }
+    OneMindTheme { TodayScreen(TodayState(TodayContent.Ready(TodayPreviewData.ready), header = TodayPreviewData.header), onAction = {}) }
 }
 
 @Preview

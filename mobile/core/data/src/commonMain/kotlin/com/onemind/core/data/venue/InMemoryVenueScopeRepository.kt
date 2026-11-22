@@ -15,4 +15,8 @@ class InMemoryVenueScopeRepository : VenueScopeRepository {
     override fun select(scope: VenueScope) {
         state.value = scope
     }
+
+    override fun clear() {
+        state.value = null
+    }
 }

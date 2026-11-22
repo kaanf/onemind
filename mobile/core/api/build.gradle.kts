@@ -58,6 +58,10 @@ openApiGenerate {
     library = "multiplatform"
     inputSpec = bundledSpec
     outputDir = openApiOutputDir
+    // Two templates of the kotlin generator (7.27.0) with one change in their multiplatform branch: string
+    // enums get an UNKNOWN entry and a serializer that reads any value the app doesn't know as UNKNOWN,
+    // so a value added to the API later doesn't fail the whole response. Re-copy them on a generator bump.
+    templateDir = layout.projectDirectory.dir("templates")
     packageName = "com.onemind.core.api"
     modelPackage = "com.onemind.core.api.model"
     globalProperties =

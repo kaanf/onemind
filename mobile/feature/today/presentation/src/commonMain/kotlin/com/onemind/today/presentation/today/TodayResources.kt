@@ -8,6 +8,7 @@ import com.onemind.today.presentation.generated.resources.today_gap_unreadable
 import com.onemind.today.presentation.generated.resources.today_gap_without_items
 import com.onemind.today.presentation.generated.resources.today_loss_deleted_bills
 import com.onemind.today.presentation.generated.resources.today_loss_discounts
+import com.onemind.today.presentation.generated.resources.today_loss_other
 import com.onemind.today.presentation.generated.resources.today_loss_refunds
 import com.onemind.today.presentation.generated.resources.today_month_april
 import com.onemind.today.presentation.generated.resources.today_month_august
@@ -63,8 +64,13 @@ internal fun Month.nameRes(): StringResource =
 internal fun LossKind.nameRes(): StringResource =
     when (this) {
         LossKind.DISCOUNTS -> Res.string.today_loss_discounts
+
         LossKind.REFUNDS -> Res.string.today_loss_refunds
+
         LossKind.DELETED_BILLS -> Res.string.today_loss_deleted_bills
+
+        // Never named on its own: the screen says "and other losses" (PossibleLossUi.includesOther).
+        LossKind.OTHER -> Res.string.today_loss_other
     }
 
 internal fun DataGapKind.pluralRes(): PluralStringResource =

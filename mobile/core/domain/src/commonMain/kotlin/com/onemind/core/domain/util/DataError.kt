@@ -7,6 +7,9 @@ sealed interface DataError : Error {
         NO_INTERNET,
         TIMEOUT,
         SERIALIZATION,
+
+        /** The answer carries a value this app version can't interpret safely (added to the API later): updating the app fixes it. */
+        NEEDS_APP_UPDATE,
         UNKNOWN,
     }
 

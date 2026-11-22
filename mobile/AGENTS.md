@@ -62,8 +62,14 @@ Application ID / bundle ID: `com.onemind.app` (dev builds `com.onemind.app.dev`)
 - `core:api` bundles the split spec with Redocly (`npx`, same version as CI lint), then generates
   models with OpenAPI Generator (`kotlin`, `multiplatform`) into `build/generated/openapi`, package
   `com.onemind.core.api.model`. Free-form values (`additionalProperties: true`) are `JsonElement`.
-  The generator cannot map unknown enum values to `UNKNOWN` for kotlinx: solve this when the first
-  enum enters the spec.
+  String enums get an `UNKNOWN` entry and a serializer that reads any value the app doesn't know as
+  `UNKNOWN` (two generator templates in `core/api/templates`; every change is marked `OneMind:` and
+  sits inside the `multiplatform` section; re-copy them from the generator jar on a version bump).
+  Encoding `UNKNOWN` throws: it is never sent. Mappers decide per field, never showing a wrong figure:
+  leave it out when it isn't drawn (an unavailable figure), keep its place empty (a chart hour), keep
+  it as "other" when it is part of a total (a loss component → "and other losses"), and answer
+  `DataError.Network.NEEDS_APP_UPDATE` ("update the app") when guessing could show a wrong figure (a
+  data status).
 - One `HttpClient` from `core:data` (`HttpClientFactory`, Koin): base `ApiConfig.baseUrl + /api/v1/`,
   so paths are relative (`client.post("auth/email/start")`). It adds `X-App-Version`, `X-Platform`
   and a fresh `X-Request-Id` to every request, the access token to every call outside `auth/...`, and
@@ -122,7 +128,12 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
   Hosts call `initKoin` once (`OneMindApplication` on Android, `iOSApp.init` on iOS).
   `KoinGraphTest` (`composeApp/src/androidHostTest`) verifies the graph; keep it green.
 - The selected venue / *All venues* is `VenueScopeRepository` (`core:domain`), a single instance
-  (in memory for now; persisted with the venue switcher, P7).
+  (in memory for now; persisted with the venue switcher, P7). The venue list is `VenueRepository`
+  (`GET /venues`; each load keeps the scope valid with `defaultVenueScope`), the profile
+  `ProfileRepository` (`GET /me`, initials). `SignedInDataLoader` (core:data, started once by
+  `initKoin`, not by Koin itself, so `KoinGraphTest` needs no Android context) loads both on sign-in and
+  clears them and the scope on sign-out. Dashboards turn a scope into `venueIds` with
+  `VenueScope.venueIds(venues)` (*All venues* = followed, else every venue).
 
 ## UI rules
 

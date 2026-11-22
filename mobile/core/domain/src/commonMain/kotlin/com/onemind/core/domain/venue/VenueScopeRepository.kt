@@ -10,4 +10,7 @@ interface VenueScopeRepository {
     val selected: StateFlow<VenueScope?>
 
     fun select(scope: VenueScope)
+
+    /** Forgets the selection (sign-out). */
+    fun clear()
 }

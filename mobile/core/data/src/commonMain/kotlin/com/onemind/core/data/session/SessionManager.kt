@@ -56,6 +56,13 @@ class SessionManager(
             session
         }
 
+    /**
+     * Stores [newSession]: a sign-in or a token refresh of the same user. Replacing one account with
+     * another must go through sign-out first ([clear], so the state passes `SignedOut`): the
+     * account-scoped data (venues, venue scope, profile; `SignedInDataLoader`) is cleared only on
+     * `SignedOut`. A `StoredSession` has no user id, so an in-app account switch that saved straight
+     * over a signed-in session would keep the previous account's data on screen.
+     */
     suspend fun save(newSession: StoredSession) {
         mutex.withLock {
             ensureLoaded()

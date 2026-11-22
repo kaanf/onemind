@@ -6,6 +6,8 @@ import com.onemind.core.domain.quantity.DecimalValue
 import com.onemind.today.domain.DataGaps
 import com.onemind.today.domain.DataStatus
 import com.onemind.today.domain.HourKind
+import com.onemind.today.domain.HourlyBar
+import com.onemind.today.domain.LossComponent
 import com.onemind.today.domain.LossKind
 import com.onemind.today.domain.TodayVenue
 import com.onemind.today.presentation.TodayFixtures
@@ -171,6 +173,44 @@ class TodayUiTest {
 
         assertEquals(listOf(colors.chartMutedStrong, colors.accent, colors.chartFuture, colors.chartFuture), bars.map { it.color })
         assertEquals(listOf(0.5f, 4_200f / 18_200f, 1f, null), bars.map { it.value })
+    }
+
+    @Test
+    fun anHourOfAnUnknownKindKeepsAnEmptySlot() {
+        val hours = TodayFixtures.ready.hourly!!.hours
+        val withUnknown = hours.take(2) + HourlyBar(22, HourKind.UNKNOWN, TodayFixtures.czk(99_999)) + hours.drop(2)
+        val hourly =
+            TodayFixtures.ready
+                .copy(hourly = TodayFixtures.ready.hourly!!.copy(hours = withUnknown))
+                .toUi(now)
+                .hourly!!
+
+        assertEquals(listOf(20, 21, 22, 22, 23), hourly.bars.map { it.hour })
+        // Nothing drawn for it, and its amount doesn't rescale the others or become the peak.
+        assertEquals(listOf(0.5f, 4_200f / 18_200f, null, 1f, null), hourly.bars.map { it.heightFraction })
+        assertEquals(20, hourly.peakHour)
+    }
+
+    @Test
+    fun aLossComponentTheAppCantNameIsMentionedAsOtherLosses() {
+        val loss = TodayFixtures.ready.possibleLoss!!
+        val withOther = loss.copy(components = loss.components + LossComponent(LossKind.OTHER, TodayFixtures.czk(10)))
+
+        val ui =
+            TodayFixtures.ready
+                .copy(possibleLoss = withOther)
+                .toUi(now)
+                .possibleLoss!!
+
+        assertEquals(listOf(LossKind.DISCOUNTS, LossKind.REFUNDS), ui.includes)
+        assertTrue(ui.includesOther)
+        assertEquals(
+            false,
+            TodayFixtures.ready
+                .toUi(now)
+                .possibleLoss!!
+                .includesOther,
+        )
     }
 
     @Test

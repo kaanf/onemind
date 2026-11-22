@@ -143,6 +143,8 @@ built from the canvas SVG paths); add new ones there rather than adding an icon 
 | Text field | `OneMindTextField` |
 | Inline error | `InlineError` (`negativeText`, 13, announced when it appears) |
 | Brand mark | `BrandMark` (glass on a dark 36 box + wordmark, A1) |
+| Venue button | `VenueButton` (white pill, 44 high, `borderStrong`, side padding `pillPadding` 14; chevron `chevronSize` 12 only with a click) |
+| Account button | `AccountButton` (initials in a dark 44 circle, `onAccent` text) |
 | Placeholder screen (temporary, not in the design) | `PlaceholderScreen`: tab title + one line, for tabs whose screen is not built yet |
 
 Not built yet: **Stepper**, **Fraction picker**, **Checklist row** (with the stock screens, phase 6) and

@@ -2,10 +2,14 @@ package com.onemind.today.presentation.today
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.onemind.core.domain.profile.ProfileRepository
 import com.onemind.core.domain.util.DataError
 import com.onemind.core.domain.util.Result
+import com.onemind.core.domain.venue.VenueList
+import com.onemind.core.domain.venue.VenueRepository
 import com.onemind.core.domain.venue.VenueScope
 import com.onemind.core.domain.venue.VenueScopeRepository
+import com.onemind.core.domain.venue.venueIds
 import com.onemind.core.presentation.util.UiText
 import com.onemind.core.presentation.util.toUiText
 import com.onemind.today.domain.TodayErrorCodes
@@ -21,10 +25,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -41,17 +47,39 @@ import kotlin.time.Duration.Companion.minutes
 class TodayViewModel(
     private val repository: TodayRepository,
     venueScope: VenueScopeRepository,
+    private val venueRepository: VenueRepository,
+    profileRepository: ProfileRepository,
     private val clock: Clock,
     private val pollInterval: TodayPollInterval,
 ) : ViewModel() {
     private val refreshRequests = Channel<Unit>(Channel.CONFLATED)
     private val refreshing = MutableStateFlow(false)
 
+    /** What Today shows for the selected scope and the venue list (`docs/product/SCREENS.md` 01). */
+    private val target: Flow<Target> =
+        combine(venueScope.selected, venueRepository.venues) { scope, list -> target(scope, list) }.distinctUntilChanged()
+
+    private val header: Flow<TodayHeader> =
+        combine(venueScope.selected, venueRepository.venues, profileRepository.profile) { scope, list, profile ->
+            TodayHeader(scopeName = scope?.let { scopeName(it, list) }, initials = profile?.initials)
+        }
+
+    private var latestTarget: Target = Target.Waiting
+
     val state: StateFlow<TodayState> =
         combine(
-            venueScope.selected.flatMapLatest { scope -> scope?.venueIds()?.let(::poll) ?: flowOf(TodayContent.NoVenue) },
+            target.flatMapLatest { target ->
+                latestTarget = target
+                when (target) {
+                    Target.Waiting -> flowOf(TodayContent.Loading)
+                    Target.NoVenue -> flowOf(TodayContent.NoVenue)
+                    is Target.VenuesFailed -> flowOf(TodayContent.Failed(target.error.toTodayMessage()))
+                    is Target.Venues -> poll(target.ids)
+                }
+            },
             refreshing,
-        ) { content, isRefreshing -> TodayState(content, isRefreshing) }
+            header,
+        ) { content, isRefreshing, header -> TodayState(content, isRefreshing, header) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), TodayState())
 
     fun onAction(action: TodayAction) {
@@ -59,7 +87,15 @@ class TodayViewModel(
             TodayAction.Refresh -> {
                 if (!state.value.canRefresh) return
                 refreshing.value = true
-                refreshRequests.trySend(Unit)
+                if (latestTarget is Target.VenuesFailed) {
+                    // The venue list itself failed: load it again (it also picks the default scope).
+                    viewModelScope.launch {
+                        venueRepository.refresh()
+                        refreshing.value = false
+                    }
+                } else {
+                    refreshRequests.trySend(Unit)
+                }
             }
         }
     }
@@ -103,14 +139,53 @@ class TodayViewModel(
     }
 }
 
-/**
- * The venues behind a scope. **Interim:** *All venues* needs the venue list (`GET /venues`, not in the
- * API yet), so it resolves to none and the screen shows the no-venue state until that list exists.
- */
-private fun VenueScope.venueIds(): List<String>? =
-    when (this) {
-        is VenueScope.Venue -> listOf(venueId)
-        VenueScope.All -> null
+private sealed interface Target {
+    /** The venue list (or the default scope picked from it) isn't there yet. */
+    data object Waiting : Target
+
+    /** The account has no venues. */
+    data object NoVenue : Target
+
+    /** The venue list failed to load and none is known. */
+    data class VenuesFailed(
+        val error: DataError,
+    ) : Target
+
+    data class Venues(
+        val ids: List<String>,
+    ) : Target
+}
+
+private fun target(
+    scope: VenueScope?,
+    list: VenueList,
+): Target =
+    when (list) {
+        VenueList.Loading -> {
+            Target.Waiting
+        }
+
+        is VenueList.Failed -> {
+            Target.VenuesFailed(list.error)
+        }
+
+        is VenueList.Loaded -> {
+            val ids = scope?.venueIds(list.venues).orEmpty()
+            when {
+                list.venues.isEmpty() -> Target.NoVenue
+                ids.isEmpty() -> Target.Waiting
+                else -> Target.Venues(ids)
+            }
+        }
+    }
+
+private fun scopeName(
+    scope: VenueScope,
+    list: VenueList,
+): ScopeName? =
+    when (scope) {
+        VenueScope.All -> ScopeName.AllVenues
+        is VenueScope.Venue -> (list as? VenueList.Loaded)?.venues?.firstOrNull { it.id == scope.venueId }?.let { ScopeName.Venue(it.name) }
     }
 
 private fun DataError.toTodayMessage(): UiText =

@@ -3,6 +3,8 @@ package com.onemind.today.data
 import com.onemind.core.domain.money.Currency
 import com.onemind.core.domain.money.Money
 import com.onemind.core.domain.quantity.DecimalValue
+import com.onemind.core.domain.util.DataError
+import com.onemind.core.domain.util.Result
 import com.onemind.today.domain.DataGaps
 import com.onemind.today.domain.DataStatus
 import com.onemind.today.domain.HourKind
@@ -29,16 +31,26 @@ import com.onemind.core.api.model.TodayVenue as TodayVenueDto
 import com.onemind.core.api.model.UnavailableFigure as UnavailableFigureDto
 
 /**
- * The domain summary, or `null` when the answer breaks the contract (a bad currency code, time zone
- * or decimal): the caller reports it like an unreadable body rather than showing a guessed figure.
+ * The domain summary, never a guessed figure:
+ * - an answer that breaks the contract (a bad currency code, time zone or decimal) is unreadable
+ *   (`SERIALIZATION`);
+ * - a data status this app doesn't know asks for an app update (`NEEDS_APP_UPDATE`): it decides whether
+ *   figures are real;
+ * - other values added to the API later (`UNKNOWN`) are kept safe: an unavailable figure the app doesn't
+ *   draw anyway is left out, an hour of an unknown kind keeps an empty slot, and an unknown loss
+ *   component becomes [LossKind.OTHER] (it is in the server's total).
  */
-internal fun TodaySummaryDto.toDomainOrNull(): TodaySummary? =
+internal fun TodaySummaryDto.toDomainResult(): Result<TodaySummary, DataError> =
     try {
-        toDomain()
+        Result.Success(toDomain())
+    } catch (_: UnknownStatusException) {
+        Result.Failure(DataError.Network.NEEDS_APP_UPDATE)
     } catch (_: IllegalArgumentException) {
-        // Currency, DecimalValue.parse and TimeZone.of (IllegalTimeZoneException) all reject with it.
-        null
+        // Currency, DecimalValue.parse and TimeZone.of (IllegalTimeZoneException) reject with it.
+        Result.Failure(DataError.Network.SERIALIZATION)
     }
+
+private class UnknownStatusException : Exception()
 
 internal fun TodaySummaryDto.toDomain(): TodaySummary =
     TodaySummary(
@@ -53,7 +65,7 @@ internal fun TodaySummaryDto.toDomain(): TodaySummary =
         perGuest = perGuest?.toDomain(),
         possibleLoss = possibleLoss?.toDomain(),
         hourly = hourly?.toDomain(),
-        unavailable = unavailable.mapTo(mutableSetOf()) { it.toDomain() },
+        unavailable = unavailable.mapNotNullTo(mutableSetOf()) { it.toDomain() },
         dataGaps = dataGaps.toDomain(),
     )
 
@@ -62,7 +74,11 @@ private fun MoneyDto.toDomain() = Money(amountMinor, Currency(currency))
 private fun DataStatusDto.toDomain() =
     when (this) {
         DataStatusDto.READY -> DataStatus.READY
+
         DataStatusDto.NO_DATA_YET -> DataStatus.NO_DATA_YET
+
+        // Whether figures are real depends on it: never guess.
+        DataStatusDto.UNKNOWN -> throw UnknownStatusException()
     }
 
 private fun TodayVenueDto.toDomain() =
@@ -92,6 +108,7 @@ private fun LossComponentDto.toDomain() =
                 LossComponentDto.Kind.DISCOUNTS -> LossKind.DISCOUNTS
                 LossComponentDto.Kind.REFUNDS -> LossKind.REFUNDS
                 LossComponentDto.Kind.DELETED_BILLS -> LossKind.DELETED_BILLS
+                LossComponentDto.Kind.UNKNOWN -> LossKind.OTHER
             },
         amount = amount.toDomain(),
     )
@@ -106,16 +123,18 @@ private fun HourlyBarDto.toDomain() =
                 HourlyBarDto.Kind.PAST -> HourKind.PAST
                 HourlyBarDto.Kind.CURRENT -> HourKind.CURRENT
                 HourlyBarDto.Kind.FORECAST -> HourKind.FORECAST
+                HourlyBarDto.Kind.UNKNOWN -> HourKind.UNKNOWN
             },
         amount = amount?.toDomain(),
     )
 
-private fun UnavailableFigureDto.toDomain() =
+private fun UnavailableFigureDto.toDomain(): UnavailableFigure? =
     when (this) {
         UnavailableFigureDto.OPEN_TABS -> UnavailableFigure.OPEN_TABS
         UnavailableFigureDto.OCCUPANCY_NOW -> UnavailableFigure.OCCUPANCY_NOW
         UnavailableFigureDto.STAFF_ON_SHIFT -> UnavailableFigure.STAFF_ON_SHIFT
         UnavailableFigureDto.TIPS_CARD_SHARE -> UnavailableFigure.TIPS_CARD_SHARE
+        UnavailableFigureDto.UNKNOWN -> null
     }
 
 private fun DataGapsDto.toDomain() =
