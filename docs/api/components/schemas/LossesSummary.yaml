@@ -1,0 +1,70 @@
+type: object
+description: |
+  Screen 02c. Figures are null when no requested venue has data yet (`status NO_DATA_YET`), never 0. The
+  Happy Hour net effect is not sent until its baseline is defined (`product/MVP_SCOPE.md`).
+required:
+  - status
+  - currency
+  - range
+  - venues
+  - pendingVenueIds
+  - discountsByType
+  - unavailableComponents
+  - dataGaps
+properties:
+  status:
+    $ref: ./DataStatus.yaml
+  currency:
+    type: string
+    pattern: '^[A-Z]{3}$'
+  range:
+    $ref: ./SalesRange.yaml
+  venues:
+    type: array
+    items:
+      $ref: ./TodayVenue.yaml
+  pendingVenueIds:
+    type: array
+    items:
+      type: string
+      format: uuid
+  possibleLoss:
+    type: object
+    allOf:
+      - $ref: ./PossibleLoss.yaml
+    nullable: true
+    description: Discounts (bill level) + refunds + whole deleted bills (first release).
+  sharePercent:
+    type: string
+    nullable: true
+    description: '`possibleLoss / paidRevenue × 100`, one decimal half-up ("6.7"); null without revenue.'
+  records:
+    type: integer
+    nullable: true
+    description: Discount records + refunded bills + deleted bills; null while a day is being recomputed.
+  comparison:
+    type: object
+    allOf:
+      - $ref: ./LossComparison.yaml
+    nullable: true
+  discountsByType:
+    type: array
+    description: Largest first, `UNTYPED` last; adds up to the discounts component except on days counted in `dataGaps.discountMismatchDayCount`.
+    items:
+      $ref: ./DiscountTypeLoss.yaml
+  refunds:
+    type: object
+    allOf:
+      - $ref: ./LossRecords.yaml
+    nullable: true
+  deletedBills:
+    type: object
+    allOf:
+      - $ref: ./LossRecords.yaml
+    nullable: true
+  unavailableComponents:
+    type: array
+    items:
+      $ref: ./UnavailableLossComponent.yaml
+  dataGaps:
+    $ref: ./DataGaps.yaml

@@ -1,0 +1,42 @@
+get:
+  tags:
+    - Dashboard
+  operationId: getLosses
+  summary: Discounts & losses (02c)
+  description: |
+    Possible loss of a period by type, its share of revenue and the change in percentage points against
+    the previous period (screen 02c; `docs/domain/METRICS.md`, discounts and losses). Periods, venues and
+    the comparison follow Sales. Polling: `ETag` / `If-None-Match` → `304` (ADR 0005).
+
+    Errors: `400 VALIDATION_FAILED` without a venue; `400 SALES_PERIOD_UNKNOWN` for another period;
+    `400 LOSSES_HOUR_UNSUPPORTED` for `HOUR`; `400 SALES_DATE_IN_FUTURE`; `404 VENUE_NOT_FOUND`;
+    `422 CURRENCIES_DIFFER`; `422 BUSINESS_DAYS_DIFFER`.
+  parameters:
+    - $ref: ../../components/parameters/VenueIds.yaml
+    - $ref: ../../components/parameters/LossesPeriod.yaml
+    - $ref: ../../components/parameters/SalesDate.yaml
+    - $ref: ../../components/parameters/IfNoneMatch.yaml
+  responses:
+    '200':
+      description: The period's losses.
+      headers:
+        ETag:
+          description: Version of this answer, for `If-None-Match`.
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/LossesSummary.yaml
+    '304':
+      description: Unchanged since the `If-None-Match` version.
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '422':
+      $ref: ../../components/responses/UnprocessableEntity.yaml
+    '426':
+      $ref: ../../components/responses/UpgradeRequired.yaml

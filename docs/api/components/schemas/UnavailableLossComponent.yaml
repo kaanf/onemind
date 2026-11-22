@@ -1,0 +1,8 @@
+type: string
+description: |
+  A part of `possibleLoss` the POS can't give in the first release (`product/MVP_SCOPE.md`, data sources);
+  the app names it as not included, never with a value. `STOCK_CORRECTIONS` joins with phase 6.
+enum:
+  - UNPAID_CLOSED
+  - ITEM_VOIDS
+  - STOCK_CORRECTIONS
