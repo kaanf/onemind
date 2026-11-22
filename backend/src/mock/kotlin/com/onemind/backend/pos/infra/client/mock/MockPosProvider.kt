@@ -46,24 +46,15 @@ class MockPosProvider(
         val first =
             maxOf(
                 earliest,
-                when {
-                    // A refund changes a bill up to a day after payment.
-                    query.modifiedSince != null -> businessDate(query.modifiedSince).minusDays(2)
-
-                    query.from != null -> businessDate(query.from)
-
-                    else -> earliest
-                },
+                // A refund changes a bill up to a day after payment.
+                query.modifiedSince?.let { businessDate(it).minusDays(2) }
+                    ?: query.from?.let { businessDate(it) }
+                    ?: earliest,
             )
         val last = businessDate(till)
         val sortKey: (PosBill) -> Instant =
-            if (query.modifiedSince !=
-                null
-            ) {
-                { b -> b.lastModifiedAt.toInstant() }
-            } else {
-                { b -> b.paidAt.toInstant() }
-            }
+            if (query.modifiedSince != null) PosBill::lastModifiedAtInstant else PosBill::paidAtInstant
+        val after = query.lastBillId?.let(::parseCursor)
 
         val matching =
             generateSequence(first) { it.plusDays(1) }
@@ -71,20 +62,21 @@ class MockPosProvider(
                 .flatMap { MockBillGenerator.night(known, it) }
                 .mapNotNull { it.asOf(now)?.bill }
                 .filter { query.includeDeleted || !it.deleted }
-                .filter { bill -> query.from?.let { !bill.paidAt.toInstant().isBefore(it) } ?: true }
-                .filter { bill -> query.till?.let { bill.paidAt.toInstant().isBefore(it) } ?: true }
-                .filter { bill -> query.modifiedSince?.let { !bill.lastModifiedAt.toInstant().isBefore(it) } ?: true }
+                .filter { bill -> query.from?.let { !bill.paidAtInstant().isBefore(it) } ?: true }
+                .filter { bill -> query.till?.let { bill.paidAtInstant().isBefore(it) } ?: true }
+                .filter { bill -> query.modifiedSince?.let { !bill.lastModifiedAtInstant().isBefore(it) } ?: true }
+                // Resume after the last (key, billId) seen, so bills that change between pages shift nothing.
+                .filter { bill -> after == null || compareValuesBy(bill, after, { sortKey(it).toEpochMilli() }, { it.billId }) > 0 }
                 .sortedWith(compareBy(sortKey).thenBy { it.billId })
                 .toList()
-        val start =
-            query.lastBillId?.let { cursor ->
-                val index = matching.indexOfFirst { it.billId == cursor }
-                require(index >= 0) { "Unknown lastBillId" }
-                index + 1
-            } ?: 0
-        val page = matching.drop(start).take(query.limit)
-        val more = start + page.size < matching.size
-        return PosBillPage(page, page.lastOrNull()?.billId?.takeIf { more })
+        val page = matching.take(query.limit)
+        val nextPage =
+            page.lastOrNull()?.takeIf { matching.size > page.size }?.let {
+                "${sortKey(
+                    it,
+                ).toEpochMilli()}$CURSOR_SEPARATOR${it.billId}"
+            }
+        return PosBillPage(page, nextPage)
     }
 
     override fun billDetail(
@@ -93,8 +85,9 @@ class MockPosProvider(
     ): PosBillDetail? {
         val known = active(place) ?: return null
         val (billPlace, date) = MockBillGenerator.parseBillId(billId) ?: return null
-        if (billPlace !== known) return null
-        return MockBillGenerator.night(known, date).find { it.billId == billId }?.asOf(clock.instant())
+        val now = clock.instant()
+        if (billPlace !== known || date.isBefore(businessDate(now).minusDays(HISTORY_DAYS))) return null
+        return MockBillGenerator.night(known, date).find { it.billId == billId }?.asOf(now)
     }
 
     override fun deskView(place: PosPlaceRef): PosDeskView = known(place)?.deskView ?: PosDeskView(emptyList(), emptyList())
@@ -106,10 +99,34 @@ class MockPosProvider(
     // A disabled place has no bills.
     private fun active(place: PosPlaceRef) = known(place)?.takeIf { it.place.state == PosPlaceState.ACTIVE }
 
+    /** Where the previous page ended, from its `nextPage`: the sort key in epoch millis and the bill ID. */
+    private class Cursor(
+        val keyMillis: Long,
+        val billId: String,
+    )
+
+    private fun parseCursor(cursor: String): Cursor {
+        val millis = cursor.substringBefore(CURSOR_SEPARATOR, "").toLongOrNull()
+        require(millis != null && CURSOR_SEPARATOR in cursor) { "Not a cursor from nextPage" }
+        return Cursor(millis, cursor.substringAfter(CURSOR_SEPARATOR))
+    }
+
+    private fun compareValuesBy(
+        bill: PosBill,
+        cursor: Cursor,
+        key: (PosBill) -> Long,
+        id: (PosBill) -> String,
+    ): Int = compareValues(key(bill), cursor.keyMillis).takeIf { it != 0 } ?: compareValues(id(bill), cursor.billId)
+
     private fun businessDate(at: Instant): LocalDate =
         BusinessDayCalendar.businessDate(at, MockCatalog.ZONE, BusinessDayCalendar.DEFAULT_BUSINESS_DAY_START)
 
     companion object {
         const val HISTORY_DAYS = 120L
+        private const val CURSOR_SEPARATOR = "|"
     }
 }
+
+private fun PosBill.paidAtInstant(): Instant = paidAt.toInstant()
+
+private fun PosBill.lastModifiedAtInstant(): Instant = lastModifiedAt.toInstant()

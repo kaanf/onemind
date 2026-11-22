@@ -41,6 +41,24 @@ class PosProviderProfileTests {
     }
 
     @Test
+    fun `the prod guard ignores case and blanks`() {
+        listOf("Mock", " mock ", "MOCK").forEach { value ->
+            runner.inProd().withPropertyValues("onemind.pos.provider=$value").run { context ->
+                assertNotNull(context.startupFailure, value)
+            }
+        }
+    }
+
+    @Test
+    fun `without the property there is no provider, and prod still starts`() {
+        runner.run { context -> assertTrue(context.getBeansOfType(PosProvider::class.java).isEmpty()) }
+        runner.inProd().run { context ->
+            assertEquals(null, context.startupFailure)
+            assertTrue(context.getBeansOfType(PosProvider::class.java).isEmpty())
+        }
+    }
+
+    @Test
     fun `a prod context never has the mock bean`() {
         runner.inProd().withPropertyValues("onemind.pos.provider=storyous").run { context ->
             assertEquals(null, context.startupFailure)

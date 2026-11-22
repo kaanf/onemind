@@ -69,7 +69,7 @@ The direction (`web`/`api` → `application` → `domain` ← `infra`) and rules
 build gates in `architecture/` (`ModuleBoundaryTests` runs them on the code; `StructureRulesTest` and
 `DatabaseAccessRulesTest` prove each one against fixtures). Product rules 1, 5 and 6 are gated the
 same way (`ProductRules`, `ProductRulesTest`). On the real code no rule may pass on an empty scope
-(only `posIsReadOnly` allows it until `pos` has code), and `ModuleBoundaryTests` checks the import
+and `ModuleBoundaryTests` checks the import
 holds an anchor class per module and layer; add one when a new module or layer gets code. A red gate
 names the rule; read it in
 ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. What the gates don't check:
@@ -209,9 +209,10 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
 ## POS sync rules
 
 - POS access goes through `pos/infra/client/PosProvider` (read-only; types in `PosModels.kt`, money as
-  decimal strings → `pos/domain/PosMoney` at the boundary). `onemind.pos.provider` picks it: `mock`
-  (dev default in `application.yml`, env `POS_PROVIDER`) is `pos/infra/client/mock/MockPosProvider`,
-  never created in `prod`, and a prod start with `mock` fails. The mock emits only verified Storyous
+  decimal strings → `pos/domain/PosMoney` at the boundary). `onemind.pos.provider` (env `POS_PROVIDER`, empty =
+  none) picks it: `mock` is `pos/infra/client/mock/MockPosProvider` in the dev-only `mock` source set
+  (`src/mock`, with `application-local.yml`; on the bootRun and test classpaths, never in the boot jar,
+  checked by `verifyBootJarExcludesMock`); never created in `prod`, and a prod start with `mock` fails. The mock emits only verified Storyous
   fields (`docs/integrations/STORYOUS.md`, *Mock provider*); don't add a field the real API lacks.
 - Storyous client exposes **read methods only**. Gated (`architecture/ProductRules`, rule 1): no
   mutating HTTP call anywhere in `pos`. The real client's recorded-fixture tests must also fail on any
@@ -285,7 +286,7 @@ Run from `backend/`. Docker is required for tests and jOOQ codegen (both use Tes
 
 ```bash
 docker compose -f ../infra/docker-compose.yml up -d   # local PostgreSQL 18 on localhost:5433, Mailpit (SMTP 1025, UI :8025)
-./gradlew bootRun                                     # run the API on :8080 (health: /actuator/health)
+./gradlew bootRun                                     # run the API on :8080 (profile local: demo POS; health: /actuator/health)
 ./gradlew test                                        # tests (start PostgreSQL via Testcontainers)
 ./gradlew build                                       # compile + ktlint + test + jar
 ./gradlew bootTestRun                                 # run the app with a Testcontainers PostgreSQL (no compose needed)

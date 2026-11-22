@@ -32,7 +32,7 @@ class MockPosProviderTests {
         place: PosPlaceRef = letna,
     ): List<PosBill> {
         val bills = mutableListOf<PosBill>()
-        var cursor: String? = null
+        var cursor: String? = query.lastBillId
         do {
             val page = on.bills(place, query.copy(lastBillId = cursor))
             bills += page.bills
@@ -88,9 +88,10 @@ class MockPosProviderTests {
         assertEquals(setOf(ZoneOffset.ofHours(2), ZoneOffset.ofHours(1)), setOf(autumn1.offset, autumn2.offset))
         assertEquals(Duration.ofHours(1), Duration.between(autumn1, autumn2).abs())
 
-        val spring = assertNotNull(provider.billDetail(letna, "LT20260328900")).bill.paidAt
+        val inApril = MockPosProvider(MutableClock(Instant.parse("2026-04-15T12:00:00Z")))
+        val spring = assertNotNull(inApril.billDetail(letna, "LT20260328900")).bill.paidAt
         assertEquals(LocalTime.of(3, 30), spring.toLocalTime())
-        assertNull(provider.billDetail(letna, "LT20260328901"), "no second offset in spring")
+        assertNull(inApril.billDetail(letna, "LT20260328901"), "no second offset in spring")
     }
 
     @Test
@@ -157,5 +158,32 @@ class MockPosProviderTests {
         assertEquals(big.bills, all(window.copy(limit = 37)))
         assertTrue(big.bills.all { !it.paidAt.toInstant().isBefore(window.from) && it.paidAt.toInstant().isBefore(window.till) })
         assertTrue(big.bills.zipWithNext().all { (a, b) -> !a.paidAt.isAfter(b.paidAt) })
+    }
+
+    @Test
+    fun `the cursor survives bills that change between pages`() {
+        val window = PosBillQuery(modifiedSince = now - Duration.ofDays(3), limit = 50)
+        val first = provider.bills(letna, window)
+        val cursor = assertNotNull(first.nextPage)
+
+        // Time passes: new bills are paid, bills of the first page may be refunded or deleted.
+        clock.advance(Duration.ofDays(1))
+        val rest = all(window.copy(lastBillId = cursor))
+
+        val lastSeen = first.bills.last()
+        assertTrue(rest.isNotEmpty())
+        // The last bill seen comes again only if it changed since (refunded or deleted later).
+        assertTrue(rest.filter { it.billId == lastSeen.billId }.all { it.lastModifiedAt.isAfter(lastSeen.lastModifiedAt) })
+        assertTrue(
+            rest.all { compareValuesBy(it, lastSeen, { b -> b.lastModifiedAt.toInstant() }, { b -> b.billId }) > 0 },
+            "every bill after the cursor",
+        )
+        assertEquals(rest.size, rest.map { it.billId }.toSet().size)
+    }
+
+    @Test
+    fun `a cursor that isn't one fails, a bill beyond the history is unknown`() {
+        assertTrue(runCatching { provider.bills(letna, lastMonth.copy(lastBillId = "LT20261101001")) }.isFailure)
+        assertNull(provider.billDetail(letna, "LT20250101900"))
     }
 }

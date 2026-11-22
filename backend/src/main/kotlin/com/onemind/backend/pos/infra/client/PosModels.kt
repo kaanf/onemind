@@ -51,7 +51,7 @@ data class PosBillQuery(
     val includeDeleted: Boolean = false,
 )
 
-/** [nextPage] is the cursor for the next page, `null` on the last one. */
+/** [nextPage] is an opaque cursor for the next page (pass it as `lastBillId`), `null` on the last one. */
 data class PosBillPage(
     val bills: List<PosBill>,
     val nextPage: String?,

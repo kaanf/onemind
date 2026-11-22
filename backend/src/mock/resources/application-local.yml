@@ -1,0 +1,5 @@
+# Local development (dev/demo only; this file lives in the mock source set, never in the boot jar).
+onemind:
+  pos:
+    # The demo POS (pos/infra/client/mock/MockPosProvider): product rule 2, never in prod.
+    provider: mock
