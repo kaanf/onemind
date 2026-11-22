@@ -13,8 +13,8 @@ Items marked **(?)** need confirmation; see `../OPEN_QUESTIONS.md`.
 - All times are in the venue's time zone (`Europe/Prague`). Store timestamps in UTC; convert at
   aggregation time. Handle DST days (23/25 h).
 - "Today" = current business day. "Last Friday" = the business day exactly 7 days earlier.
-- Implemented once, in `backend/…/common/time/BusinessDayCalendar` (cut-off is a parameter until M1
-  is decided); reading the system clock anywhere else fails the build (`architecture/ProductRules`).
+- Implemented once, in `backend/…/common/time/BusinessDayCalendar` (cut-off = the venue's
+  `business_day_start` setting, R28); reading the system clock anywhere else fails the build (`architecture/ProductRules`).
 - Rollups store the business date (and local hour) computed by `BusinessDayCalendar` in Kotlin as
   columns. SQL date functions (`date_trunc`, `AT TIME ZONE`, `::date`) never decide a business day or
   an hour bucket.
@@ -38,7 +38,7 @@ Items marked **(?)** need confirmation; see `../OPEN_QUESTIONS.md`.
 | `openTabsTotal`  | Sum of current totals of bills with status `OPEN`. Only for "now". |
 | `openTabsTables` | Number of distinct tables with an open bill. |
 | `cardRevenue`, `cashRevenue` | `paidRevenue` split by payment method. `cardPct = card / (card + cash)`, rounded to an integer; cash% = 100 − card%. Other methods: **(?)** |
-| `tips`           | Sum of tips on payments in the period. *Tips · card 69%* = card tips share. |
+| `tips`           | Sum of bill `tips` for bills paid in the period. *Tips · card 69%* = card tips share. First release: the tips total is shown, the card share is not (Storyous gives tips per bill only; no inference from payments). |
 | `guests`         | Sum of `guestCount` on bills paid in the period ("since opening" for today). If the POS has no guest count for a bill, count 1 **(?)**. |
 | `averageBill`    | `paidRevenue / number of paid bills`. |
 | `revenuePerGuest`| `paidRevenue / guests`. |
@@ -77,7 +77,7 @@ Items marked **(?)** need confirmation; see `../OPEN_QUESTIONS.md`.
 | `refunds` | Sum of refunded amounts. |
 | `unpaidClosed` | Sum of totals of bills closed without payment. |
 | `stockCorrections` | Value at **sale price** **(?)** of corrections logged in S7. |
-| `possibleLoss` | `discounts + deletedItems + refunds + unpaidClosed + stockCorrections`. |
+| `possibleLoss` | `discounts + deletedItems + refunds + unpaidClosed + stockCorrections`. First release: `discounts + refunds + deletedItems` (whole deleted bills only); the screen lists the included components (`product/MVP_SCOPE.md#data-sources-in-the-first-release`). |
 | Loss share | `possibleLoss / paidRevenue` (*6.7% of revenue*). Change shown in **percentage points** (*+0.8 pts*). |
 | Records | Count of individual discount/deleted/refund/unpaid records. |
 

@@ -45,6 +45,9 @@ real code in that job with a scope proven non-empty (owner, 2026-11-21).
 - [ ] `permissions.deny` snippets for each lane's `.claude/settings.local.json` (orchestrator)
 - [ ] detekt 2.0 as a non-blocking report job with baseline, backend and mobile; one PR, half a day;
       dropped if it needs a Kotlin pin (ci)
+- [ ] CI builds and tests the prod/release variant too: `-Ponemind.environment=prod`
+      `:core:data:testAndroidHostTest :androidApp:assembleRelease` + an APK host check (ci; from the
+      #52 review)
 - [ ] "Version notes" in `backend/AGENTS.md` and `mobile/AGENTS.md`, each line linked to an official
       release note or migration guide (backend, mobile)
 - [ ] Note for the owner: app-level venue scoping + test helper vs PostgreSQL row-level security
@@ -86,7 +89,7 @@ real code in that job with a scope proven non-empty (owner, 2026-11-21).
 - [x] Design system: tokens, Inter / Inter Tight, components from `docs/design/DESIGN_SYSTEM.md`
       (light palette only; dark palette waits for P7)
 - [x] App shell: navigation root, 4-tab bar (Today, Sales, Staff, Stock later), Koin + graph test (#32)
-- [ ] Variants `dev`/`prod` with BuildKonfig; Sentry in hosts
+- [ ] Variants `dev`/`prod` with BuildKonfig (Sentry moved to phase 7, owner 2026-11-22)
 - [x] GitHub Actions: common tests + Android build on PR; iOS build on `dev`/`main` + nightly
       (nightly/manual iOS runs start once `main` has the workflow, i.e. after the first release)
 - [x] `:core:konsist` guard module: ADR 0011 module rules, no `Float`/`Double` money, one clock seam
@@ -130,8 +133,9 @@ Owner decision 2026-11-21: the real Storyous API is not connected for now; every
 data behind `PosProvider`. Mock data is dev/demo only: never shown as a real venue's figures (rule 2).
 
 - [ ] `PosProvider` + mock provider: deterministic, realistic venues, menu, desks, staff and bills
-      (bills across midnight, Europe/Prague DST days, discounts, voids, open tabs), shaped like the
-      Storyous API in `docs/integrations/STORYOUS.md`. Acceptance (rule 2): enabled only in the
+      (bills across midnight, Europe/Prague DST days, discounts, refunds, whole deleted bills), shaped
+      like the Storyous API in `docs/integrations/STORYOUS.md` and emitting only its verified fields: no
+      open bills, item-level voids or shifts (`product/MVP_SCOPE.md#data-sources-in-the-first-release`). Acceptance (rule 2): enabled only in the
       local/dev profile; prod startup fails if it is configured (test); mock venues are visibly
       named as demo; no fixture data is packaged into the prod artifact; the `pos` scope anchor in
       `ModuleBoundaryTests` becomes a real class (same for `reporting`/`stock` in their first code PR)
@@ -174,7 +178,10 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
 - [ ] Precondition: the real Storyous client (phase 4 "Later", P15) is connected; no release on mock data
 - [ ] Czech translation
 - [ ] Hetzner VM: Caddy, backend, PostgreSQL, nightly off-site backups + restore test (ADR 0008)
-- [ ] Production Sentry, uptime monitor, transactional email provider
+- [ ] Production Sentry (incl. Sentry in the mobile hosts, moved from phase 2), uptime monitor,
+      transactional email provider
+- [ ] Confirm the prod API host (placeholder `https://api.onemind.app`: mobile BuildKonfig prod, JWT
+      `iss`, problem type base) and update all three
 - [ ] Prod config: set `APPLE_CLIENT_IDS` / `GOOGLE_CLIENT_IDS` (empty = provider off)
 - [ ] Apple token revocation on account deletion (`/auth/revoke`): app sends `authorizationCode`,
       store the Apple refresh token per identity, `.p8` client-secret key; required before App Store
