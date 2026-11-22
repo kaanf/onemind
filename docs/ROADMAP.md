@@ -189,7 +189,8 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
 
 - [ ] Today (01) and Tables "This week" (01a)
 - [ ] Data gaps on Today and Sales: an "N bills couldn't be read" note whenever
-      `RollupReads.dataGaps` is above 0 (quarantined bills, bills without lines, payment mismatches);
+      `RollupReads.dataGaps` is above 0 (quarantined bills, bills without lines, outdated bills,
+      payment mismatches);
       net revenue hidden while `bills_missing_net` > 0 (rule 2)
 - [ ] Sales (02), Products by hour (02a), Hourly patterns (02b), Discounts & losses (02c)
 - [ ] Staff (03), Waiter detail (03a)
