@@ -67,6 +67,8 @@ data class PossibleLossUi(
     val total: String,
     /** The components it includes, named on screen (first release: no item voids, no stock). */
     val includes: List<LossKind>,
+    /** The total also has components this app version can't name: the screen adds "and other losses". */
+    val includesOther: Boolean = false,
 )
 
 /** One line of the "figures are missing bills" note; [count] is above 0. */
@@ -118,7 +120,8 @@ fun TodaySummary.toUi(now: Instant): TodayUi {
         perGuest = perGuest?.let { formatMoney(it, locale) },
         possibleLoss =
             possibleLoss?.let { loss ->
-                PossibleLossUi(formatMoney(loss.total, locale), loss.components.map { it.kind }.distinct())
+                val kinds = loss.components.map { it.kind }.distinct()
+                PossibleLossUi(formatMoney(loss.total, locale), kinds - LossKind.OTHER, includesOther = LossKind.OTHER in kinds)
             },
         dataGaps =
             listOf(
@@ -131,22 +134,24 @@ fun TodaySummary.toUi(now: Instant): TodayUi {
 }
 
 private fun TodayHourly.toUi(): HourlyUi {
-    val largest = hours.maxOfOrNull { it.amount?.amountMinor ?: 0L }?.takeIf { it > 0 }
+    val drawn = hours.filter { it.kind != HourKind.UNKNOWN }
+    val largest = drawn.maxOfOrNull { it.amount?.amountMinor ?: 0L }?.takeIf { it > 0 }
     return HourlyUi(
         bars =
             hours.map { bar ->
                 HourBarUi(
                     hour = bar.hour,
                     kind = bar.kind,
+                    // An hour of a kind this app doesn't know keeps its slot and draws nothing.
                     heightFraction =
-                        bar.amount?.amountMinor?.let { minor ->
+                        bar.amount?.amountMinor?.takeIf { bar.kind != HourKind.UNKNOWN }?.let { minor ->
                             if (largest == null || minor <= 0) 0f else minor.toFloat() / largest.toFloat()
                         },
                 )
             },
         peakHour =
             hours
-                .filter { it.kind != HourKind.FORECAST }
+                .filter { it.kind == HourKind.PAST || it.kind == HourKind.CURRENT }
                 .mapNotNull { bar ->
                     bar.amount
                         ?.amountMinor

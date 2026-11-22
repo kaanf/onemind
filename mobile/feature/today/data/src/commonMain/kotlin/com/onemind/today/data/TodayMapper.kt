@@ -3,6 +3,8 @@ package com.onemind.today.data
 import com.onemind.core.domain.money.Currency
 import com.onemind.core.domain.money.Money
 import com.onemind.core.domain.quantity.DecimalValue
+import com.onemind.core.domain.util.DataError
+import com.onemind.core.domain.util.Result
 import com.onemind.today.domain.DataGaps
 import com.onemind.today.domain.DataStatus
 import com.onemind.today.domain.HourKind
@@ -29,19 +31,26 @@ import com.onemind.core.api.model.TodayVenue as TodayVenueDto
 import com.onemind.core.api.model.UnavailableFigure as UnavailableFigureDto
 
 /**
- * The domain summary, or `null` when the answer breaks the contract (a bad currency code, time zone
- * or decimal) or carries a data status this app doesn't know: the caller reports it like an unreadable
- * body rather than showing a guessed figure. Other values added to the API later (`UNKNOWN`) are left
- * out: an unavailable figure the app doesn't draw anyway, an hour of a kind it can't colour, and a loss
- * component it can't name (the server's total still includes it).
+ * The domain summary, never a guessed figure:
+ * - an answer that breaks the contract (a bad currency code, time zone or decimal) is unreadable
+ *   (`SERIALIZATION`);
+ * - a data status this app doesn't know asks for an app update (`NEEDS_APP_UPDATE`): it decides whether
+ *   figures are real;
+ * - other values added to the API later (`UNKNOWN`) are kept safe: an unavailable figure the app doesn't
+ *   draw anyway is left out, an hour of an unknown kind keeps an empty slot, and an unknown loss
+ *   component becomes [LossKind.OTHER] (it is in the server's total).
  */
-internal fun TodaySummaryDto.toDomainOrNull(): TodaySummary? =
+internal fun TodaySummaryDto.toDomainResult(): Result<TodaySummary, DataError> =
     try {
-        toDomain()
+        Result.Success(toDomain())
+    } catch (_: UnknownStatusException) {
+        Result.Failure(DataError.Network.NEEDS_APP_UPDATE)
     } catch (_: IllegalArgumentException) {
-        // Currency, DecimalValue.parse, TimeZone.of (IllegalTimeZoneException) and an unknown status reject with it.
-        null
+        // Currency, DecimalValue.parse and TimeZone.of (IllegalTimeZoneException) reject with it.
+        Result.Failure(DataError.Network.SERIALIZATION)
     }
+
+private class UnknownStatusException : Exception()
 
 internal fun TodaySummaryDto.toDomain(): TodaySummary =
     TodaySummary(
@@ -69,7 +78,7 @@ private fun DataStatusDto.toDomain() =
         DataStatusDto.NO_DATA_YET -> DataStatus.NO_DATA_YET
 
         // Whether figures are real depends on it: never guess.
-        DataStatusDto.UNKNOWN -> throw IllegalArgumentException("Unknown data status")
+        DataStatusDto.UNKNOWN -> throw UnknownStatusException()
     }
 
 private fun TodayVenueDto.toDomain() =
@@ -90,31 +99,34 @@ private fun TodayComparisonDto.toDomain() =
         deltaPercent = deltaPercent?.let(DecimalValue::parse),
     )
 
-private fun PossibleLossDto.toDomain() = PossibleLoss(total.toDomain(), components.mapNotNull { it.toDomain() })
+private fun PossibleLossDto.toDomain() = PossibleLoss(total.toDomain(), components.map { it.toDomain() })
 
-private fun LossComponentDto.toDomain(): LossComponent? {
-    val kind =
-        when (kind) {
-            LossComponentDto.Kind.DISCOUNTS -> LossKind.DISCOUNTS
-            LossComponentDto.Kind.REFUNDS -> LossKind.REFUNDS
-            LossComponentDto.Kind.DELETED_BILLS -> LossKind.DELETED_BILLS
-            LossComponentDto.Kind.UNKNOWN -> return null
-        }
-    return LossComponent(kind, amount.toDomain())
-}
+private fun LossComponentDto.toDomain() =
+    LossComponent(
+        kind =
+            when (kind) {
+                LossComponentDto.Kind.DISCOUNTS -> LossKind.DISCOUNTS
+                LossComponentDto.Kind.REFUNDS -> LossKind.REFUNDS
+                LossComponentDto.Kind.DELETED_BILLS -> LossKind.DELETED_BILLS
+                LossComponentDto.Kind.UNKNOWN -> LossKind.OTHER
+            },
+        amount = amount.toDomain(),
+    )
 
-private fun TodayHourlyDto.toDomain() = TodayHourly(currentHour, hours.mapNotNull { it.toDomain() })
+private fun TodayHourlyDto.toDomain() = TodayHourly(currentHour, hours.map { it.toDomain() })
 
-private fun HourlyBarDto.toDomain(): HourlyBar? {
-    val kind =
-        when (kind) {
-            HourlyBarDto.Kind.PAST -> HourKind.PAST
-            HourlyBarDto.Kind.CURRENT -> HourKind.CURRENT
-            HourlyBarDto.Kind.FORECAST -> HourKind.FORECAST
-            HourlyBarDto.Kind.UNKNOWN -> return null
-        }
-    return HourlyBar(hour, kind, amount?.toDomain())
-}
+private fun HourlyBarDto.toDomain() =
+    HourlyBar(
+        hour = hour,
+        kind =
+            when (kind) {
+                HourlyBarDto.Kind.PAST -> HourKind.PAST
+                HourlyBarDto.Kind.CURRENT -> HourKind.CURRENT
+                HourlyBarDto.Kind.FORECAST -> HourKind.FORECAST
+                HourlyBarDto.Kind.UNKNOWN -> HourKind.UNKNOWN
+            },
+        amount = amount?.toDomain(),
+    )
 
 private fun UnavailableFigureDto.toDomain(): UnavailableFigure? =
     when (this) {

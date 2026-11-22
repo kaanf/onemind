@@ -1,3 +1,4 @@
+{{! OneMind: openapi-generator 7.27.0 kotlin-client template. Every change is marked "OneMind:" and sits inside the multiplatform section; re-copy on a generator bump. }}
 {{^multiplatform}}
 {{#gson}}
 {{#generateOneOfAnyOfWrappers}}
@@ -157,7 +158,7 @@ import {{packageName}}.infrastructure.ITransformForStorage
     {{/moshi}}
     {{/multiplatform}}
     {{#multiplatform}}
-    @Serializable{{#isString}}(with = {{{nameInPascalCase}}}Serializer::class){{/isString}}
+    @Serializable{{#multiplatform}}{{#isString}}(with = {{{nameInPascalCase}}}Serializer::class){{/isString}}{{/multiplatform}}
     {{/multiplatform}}
     {{#nonPublicApi}}internal {{/nonPublicApi}}{{^nonPublicApi}}{{#explicitApi}}public {{/explicitApi}}{{/nonPublicApi}}enum class {{{nameInPascalCase}}}({{^nonPublicApi}}{{#explicitApi}}public {{/explicitApi}}{{/nonPublicApi}}{{#jackson}}@get:JsonValue {{/jackson}}val value: {{^isContainer}}{{dataType}}{{/isContainer}}{{#isContainer}}{{#mostInnerItems}}{{dataType}}{{/mostInnerItems}}{{/isContainer}}) {
     {{#allowableValues}}
@@ -182,16 +183,16 @@ import {{packageName}}.infrastructure.ITransformForStorage
         {{/kotlinx_serialization}}
         {{/multiplatform}}
         {{#multiplatform}}
-        @SerialName(value = {{#lambda.doublequote}}{{{value}}}{{/lambda.doublequote}}) {{&name}}({{{value}}}){{^-last}},{{/-last}}{{#-last}}{{#isString}},{{/isString}}{{^isString}};{{/isString}}{{/-last}}
+        @SerialName(value = {{#lambda.doublequote}}{{{value}}}{{/lambda.doublequote}}) {{&name}}({{{value}}}){{^-last}},{{/-last}}{{#-last}}{{#multiplatform}}{{#isString}},{{/isString}}{{^isString}};{{/isString}}{{/multiplatform}}{{/-last}}
         {{/multiplatform}}
     {{/enumVars}}
     {{/allowableValues}}
     {{#multiplatform}}
-    {{#isString}}
+    {{#multiplatform}}{{#isString}}
 
         /** OneMind: a value this app version doesn't know yet (added to the API later). Never sent. */
         UNKNOWN("UNKNOWN");
-    {{/isString}}
+    {{/isString}}{{/multiplatform}}
         override fun toString(): kotlin.String = value{{^isString}}.toString(){{/isString}}
     {{/multiplatform}}
     }
@@ -208,6 +209,7 @@ import {{packageName}}.infrastructure.ITransformForStorage
         }
 
         override fun serialize(encoder: Encoder, value: {{{nameInPascalCase}}}) {
+            if (value == {{{nameInPascalCase}}}.UNKNOWN) throw SerializationException("{{classname}}.{{{nameInPascalCase}}}.UNKNOWN is never sent")
             encoder.encodeString(value.value)
         }
     }

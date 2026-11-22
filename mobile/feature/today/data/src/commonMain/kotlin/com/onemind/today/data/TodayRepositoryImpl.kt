@@ -59,9 +59,9 @@ class TodayRepositoryImpl(
             }
 
             is Result.Success -> {
-                val summary = result.data.toDomainOrNull() ?: return Result.Failure(DataError.Network.SERIALIZATION)
-                mutex.withLock { last = etag?.let { Last(venueSet, it, summary) } }
-                Result.Success(summary)
+                val mapped = result.data.toDomainResult()
+                if (mapped is Result.Success) mutex.withLock { last = etag?.let { Last(venueSet, it, mapped.data) } }
+                mapped
             }
         }
     }

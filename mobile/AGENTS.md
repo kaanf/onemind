@@ -63,10 +63,13 @@ Application ID / bundle ID: `com.onemind.app` (dev builds `com.onemind.app.dev`)
   models with OpenAPI Generator (`kotlin`, `multiplatform`) into `build/generated/openapi`, package
   `com.onemind.core.api.model`. Free-form values (`additionalProperties: true`) are `JsonElement`.
   String enums get an `UNKNOWN` entry and a serializer that reads any value the app doesn't know as
-  `UNKNOWN` (two generator templates in `core/api/templates`, changed only in their multiplatform
-  branch; re-copy them from the generator jar on a version bump). `UNKNOWN` is never sent. Mappers
-  decide per field: leave the value out when that is safe (an unavailable figure, a chart bar, a named
-  component), reject the answer when guessing could show a wrong figure (a data status).
+  `UNKNOWN` (two generator templates in `core/api/templates`; every change is marked `OneMind:` and
+  sits inside the `multiplatform` section; re-copy them from the generator jar on a version bump).
+  Encoding `UNKNOWN` throws: it is never sent. Mappers decide per field, never showing a wrong figure:
+  leave it out when it isn't drawn (an unavailable figure), keep its place empty (a chart hour), keep
+  it as "other" when it is part of a total (a loss component → "and other losses"), and answer
+  `DataError.Network.NEEDS_APP_UPDATE` ("update the app") when guessing could show a wrong figure (a
+  data status).
 - One `HttpClient` from `core:data` (`HttpClientFactory`, Koin): base `ApiConfig.baseUrl + /api/v1/`,
   so paths are relative (`client.post("auth/email/start")`). It adds `X-App-Version`, `X-Platform`
   and a fresh `X-Request-Id` to every request, the access token to every call outside `auth/...`, and

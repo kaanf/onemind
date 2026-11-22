@@ -1,3 +1,4 @@
+{{! OneMind: openapi-generator 7.27.0 kotlin-client template. Every change is marked "OneMind:" and sits inside the multiplatform section; re-copy on a generator bump. }}
 {{^multiplatform}}
 {{#gson}}
 import com.google.gson.annotations.SerializedName
@@ -222,6 +223,7 @@ internal object {{classname}}Serializer : KSerializer<{{classname}}> {
     }
 
     override fun serialize(encoder: Encoder, value: {{classname}}) {
+        if (value == {{classname}}.UNKNOWN) throw SerializationException("{{classname}}.UNKNOWN is never sent")
         encoder.encodeString(value.value)
     }
 }

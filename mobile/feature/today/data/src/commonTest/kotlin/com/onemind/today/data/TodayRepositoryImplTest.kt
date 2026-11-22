@@ -211,7 +211,7 @@ class TodayRepositoryImplTest {
         }
 
     @Test
-    fun valuesAddedToTheApiLaterAreLeftOutNotFatal() =
+    fun valuesAddedToTheApiLaterAreKeptSafeNotFatal() =
         runTest {
             val later =
                 READY_JSON
@@ -223,21 +223,22 @@ class TodayRepositoryImplTest {
             val summary = assertIs<Result.Success<TodaySummary>>(fixture.repository.getToday(listOf(VENUE_A))).data
 
             assertEquals(setOf(UnavailableFigure.OPEN_TABS), summary.unavailable)
-            assertEquals(listOf(20, 21), summary.hourly!!.hours.map { it.hour })
+            // The hour keeps its slot (the screen draws nothing there).
+            assertEquals(listOf(HourKind.PAST, HourKind.CURRENT, HourKind.UNKNOWN), summary.hourly!!.hours.map { it.kind })
             val loss = summary.possibleLoss!!
-            // The total is the server's and still includes the component the app can't name.
+            // The total is the server's and includes the component the app can't name: it stays, as OTHER.
             assertEquals(Money(187_000, czk), loss.total)
-            assertEquals(listOf(LossKind.DISCOUNTS), loss.components.map { it.kind })
+            assertEquals(listOf(LossKind.DISCOUNTS, LossKind.OTHER), loss.components.map { it.kind })
         }
 
     @Test
-    fun anUnknownDataStatusIsNeverGuessed() =
+    fun anUnknownDataStatusAsksForAnAppUpdate() =
         runTest {
             val fixture = Fixture(backgroundScope) { json(READY_JSON.replaceFirst("\"status\": \"READY\"", "\"status\": \"PAUSED\"")) }
 
             val error = assertIs<Result.Failure<DataError>>(fixture.repository.getToday(listOf(VENUE_A))).error
 
-            assertEquals(DataError.Network.SERIALIZATION, error)
+            assertEquals(DataError.Network.NEEDS_APP_UPDATE, error)
         }
 
     private companion object {

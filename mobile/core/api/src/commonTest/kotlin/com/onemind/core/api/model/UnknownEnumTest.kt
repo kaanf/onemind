@@ -1,8 +1,10 @@
 package com.onemind.core.api.model
 
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 /**
  * Enum values added to the API after this app version read as `UNKNOWN` (templates in
@@ -43,5 +45,11 @@ class UnknownEnumTest {
         // A literal "UNKNOWN" from the server is just another unknown value, never a match by name.
         assertEquals(DataStatus.UNKNOWN, json.decodeFromString<DataStatus>("\"UNKNOWN\""))
         assertEquals("\"PAST\"", json.encodeToString(HourlyBar.Kind.serializer(), HourlyBar.Kind.PAST))
+    }
+
+    @Test
+    fun unknownIsNeverSent() {
+        assertFailsWith<SerializationException> { json.encodeToString(DataStatus.serializer(), DataStatus.UNKNOWN) }
+        assertFailsWith<SerializationException> { json.encodeToString(HourlyBar.Kind.serializer(), HourlyBar.Kind.UNKNOWN) }
     }
 }
