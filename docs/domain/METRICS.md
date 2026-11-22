@@ -77,6 +77,11 @@ previous period.
 - Hour: the current clock hour so far vs the same hour of the same weekday last week up to the same
   minute (*21:00 to 21:40* vs *21:00 to 21:40*).
 - Whole days come from the hourly rollups, the cut day from that day's POS facts (as on Today).
+- **"Same local time" = the venue's last successful bills sync (`dataAsOf`), not the request time**, on
+  Today and Sales alike: between syncs the current figures stop at the last sync, so the earlier side is
+  cut at the same point (else the delta would lean downward until the next sync).
+- `averageBill` and the payment split stay hidden (`null`) until the rebuild job has moved **every day
+  of the period** to the current rollup version (V013 added the columns they need, RollupVersion 2).
 - **Same venues:** the venues whose data (first rollup day) starts on or before the compared span's
   first day; a closed day inside the span is a real 0 (Today asks for the compared day itself). None:
   no comparison.

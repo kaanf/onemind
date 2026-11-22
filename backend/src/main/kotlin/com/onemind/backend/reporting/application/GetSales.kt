@@ -43,7 +43,7 @@ class SalesHourNotTodayException :
 data class SalesComparisonView(
     val from: LocalDate,
     val to: LocalDate,
-    /** True when the last compared day is cut at the same local time as now (an unfinished period). */
+    /** True when the last compared day is cut at the same local time as each venue's last sync (an unfinished period). */
     val upToSameTime: Boolean,
     val venueIds: List<UUID>,
     val currentMinor: Long,
@@ -72,8 +72,8 @@ data class SalesView(
  *
  * Figures come from the stored hours of the period's days up to today (for `HOUR`: the current hour of
  * today). The comparison takes the compared span of the previous period ([SalesRanges], M3 default):
- * whole days from the stored hours, the cut day from that day's POS facts up to the same local time
- * (hourly rollups can't cut inside an hour), with the one revenue rule ([BillRevenue.paid]). Only venues
+ * whole days from the stored hours, the cut day from that day's POS facts up to the same local time as
+ * each venue's figures reach, its last bills sync (hourly rollups can't cut inside an hour), with the one revenue rule ([BillRevenue.paid]). Only venues
  * whose data starts by the compared span's first day count in it, in both figures, so a venue synced
  * since makes up no growth; none: no comparison.
  */
@@ -132,8 +132,8 @@ class GetSales(
         val compared = current.keys.filter { venueId -> rollups.firstDay(venueId)?.let { !it.isAfter(ranges.comparedFrom) } == true }
         if (compared.isEmpty()) return null
         val cutDay = ranges.comparedCutDay
-        // The same local time on the cut day; for HOUR also from the start of the same hour.
-        val cut = cutDay?.let { BusinessDayCalendar.sameLocalTimeDaysEarlier(now, scope.zone, ChronoUnit.DAYS.between(it, today)) }
+        val dataAsOf = scope.ready.associate { it.venueId to requireNotNull(it.dataAsOf) }
+        // HOUR: the previous side also starts at the start of the same hour.
         val hourStart =
             if (ranges.period == SalesPeriod.HOUR && cutDay != null) {
                 BusinessDayCalendar.sameLocalTimeDaysEarlier(
@@ -148,9 +148,13 @@ class GetSales(
             compared.sumOf { venueId ->
                 val whole = rollups.hours(venueId, ranges.comparedWholeDays).sumOf { it.paidMinor }
                 val partial =
-                    if (cutDay == null || cut == null) {
+                    if (cutDay == null) {
                         0
                     } else {
+                        // Up to the same local time as the venue's figures reach (its last bills sync), not now:
+                        // between syncs the current side lags, and cutting the earlier side later would bias the delta.
+                        val asOf = minOf(now, dataAsOf.getValue(venueId))
+                        val cut = BusinessDayCalendar.sameLocalTimeDaysEarlier(asOf, scope.zone, ChronoUnit.DAYS.between(cutDay, today))
                         val bills = allPages { after -> pos.bills(venueId, listOf(cutDay), after).let { it.items to it.next } }
                         BillRevenue.paid(
                             bills

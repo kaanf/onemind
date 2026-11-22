@@ -4,7 +4,8 @@ description: |
   starts by `compared.from` (`venueIds`); the others are left out of both figures. A finished period is
   compared with the whole previous one. An unfinished one with the same elapsed span: as many business
   days from the start, the last one up to the same local time (`upToSameTime`); a month whose elapsed day
-  doesn't exist in the previous month is compared with the whole previous month (M3 default). The whole
+  doesn't exist in the previous month is compared with the whole previous month (M3 default). "Same local
+  time" is each venue's last successful bills sync (`dataAsOf`), not the request time. The whole
   comparison is null when no venue's data starts by then.
 required:
   - previous
@@ -24,7 +25,7 @@ properties:
     description: The part of the previous period the figures are compared with.
   upToSameTime:
     type: boolean
-    description: True when `compared.to` is cut at the same local time as now.
+    description: True when `compared.to` is cut at the same local time as each venue's last sync.
   venueIds:
     type: array
     description: The venues both figures cover.

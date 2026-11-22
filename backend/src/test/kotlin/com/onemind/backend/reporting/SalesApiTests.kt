@@ -110,6 +110,23 @@ class SalesApiTests {
     }
 
     @Test
+    fun `the earlier side is cut at the local time of the last sync, not now`() {
+        val (owner, venue) = syncedOwner()
+        // The figures reach 21:10 Prague (last bills sync); it is 21:40 now.
+        jdbc.update(
+            "update pos.sync_cursor set last_success_at = timestamptz '2026-11-20T20:10:00Z' where venue_id = ? and resource = 'BILLS'",
+            venue,
+        )
+
+        val sales = get(owner, "period=WEEK", venue)
+
+        val previous =
+            paid("venue_id = '$venue' and business_day between '2026-11-09' and '2026-11-12'") +
+                paid("venue_id = '$venue' and business_day = '2026-11-13' and paid_at < timestamptz '2026-11-13T20:10:00Z'")
+        assertEquals(previous, sales["comparison"]["previousRevenue"]["amountMinor"].asLong())
+    }
+
+    @Test
     fun `the current hour is compared with the same hour last week up to the same minute`() {
         val (owner, venue) = syncedOwner()
 

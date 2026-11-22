@@ -111,13 +111,16 @@ class GetTodaySummary(
         scope: DashboardScope,
         now: Instant,
     ): TodayComparisonView? {
-        val cut = BusinessDayCalendar.sameLocalTimeDaysEarlier(now, scope.zone, DAYS_IN_WEEK)
         val compared =
             inputs.filterKeys { venue -> rollups.daysWithRollups(venue.venueId, listOf(venue.businessDay.minusWeeks(1))).isNotEmpty() }
         if (compared.isEmpty()) return null
         val previous =
             compared.keys.sumOf { venue ->
                 val day = venue.businessDay.minusWeeks(1)
+                // Up to the same local time as the venue's figures reach (its last bills sync), not now:
+                // between syncs paid so far lags, and cutting last week later would bias the delta.
+                val asOf = minOf(now, requireNotNull(venue.dataAsOf))
+                val cut = BusinessDayCalendar.sameLocalTimeDaysEarlier(asOf, scope.zone, DAYS_IN_WEEK)
                 val bills = allPages { after -> pos.bills(venue.venueId, listOf(day), after).let { it.items to it.next } }
                 BillRevenue.paid(bills.filter { it.paidAt.isBefore(cut) }.map { it.toRollup() })
             }
