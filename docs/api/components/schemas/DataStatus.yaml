@@ -1,0 +1,7 @@
+type: string
+description: |
+  `READY`: the venue has synced at least once, so its figures are real (zeros included).
+  `NO_DATA_YET`: still waiting for its first sync; no figure is shown for it.
+enum:
+  - READY
+  - NO_DATA_YET

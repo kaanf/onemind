@@ -1,0 +1,6 @@
+name: If-None-Match
+in: header
+required: false
+description: The `ETag` of a previous answer; an unchanged answer is `304 Not Modified` (ADR 0005).
+schema:
+  type: string

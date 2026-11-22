@@ -18,6 +18,7 @@ data class PosVenueDetails(
 data class VenueBusinessDay(
     val zone: ZoneId,
     val businessDayStart: LocalTime,
+    val currency: Currency,
 )
 
 /**
@@ -46,5 +47,5 @@ class VenueRegistry(
 
     /** The venue's business-day settings, or `null` if it doesn't exist. */
     fun businessDay(venueId: UUID): VenueBusinessDay? =
-        registerPosVenues.businessDay(venueId)?.let { VenueBusinessDay(it.zone, it.businessDayStart) }
+        registerPosVenues.businessDay(venueId)?.let { VenueBusinessDay(it.zone, it.businessDayStart, it.currency) }
 }

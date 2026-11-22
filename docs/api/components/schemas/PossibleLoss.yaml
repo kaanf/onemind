@@ -1,0 +1,11 @@
+type: object
+required:
+  - total
+  - components
+properties:
+  total:
+    $ref: ./Money.yaml
+  components:
+    type: array
+    items:
+      $ref: ./LossComponent.yaml

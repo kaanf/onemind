@@ -1,6 +1,8 @@
 package com.onemind.backend.reporting.infra.persistence
 
+import com.onemind.backend.common.lock.infra.persistence.advisoryXactLock
 import com.onemind.backend.reporting.domain.DayRollups
+import com.onemind.backend.reporting.domain.HourTotals
 import com.onemind.db.reporting.tables.references.DESK_DAILY_SALES
 import com.onemind.db.reporting.tables.references.DISCOUNT_DAILY
 import com.onemind.db.reporting.tables.references.HOURLY_ACTIVITY
@@ -11,11 +13,7 @@ import com.onemind.db.reporting.tables.references.STAFF_DAILY_SALES
 import org.jooq.DSLContext
 import org.jooq.Query
 import org.jooq.impl.DSL.excluded
-import org.jooq.impl.DSL.function
-import org.jooq.impl.DSL.inline
 import org.jooq.impl.DSL.sum
-import org.jooq.impl.DSL.value
-import org.jooq.impl.SQLDataType
 import org.springframework.stereotype.Repository
 import java.time.Instant
 import java.time.LocalDate
@@ -36,11 +34,7 @@ class RollupRepository(
     fun lockDay(
         venueId: UUID,
         day: LocalDate,
-    ) {
-        // A hash collision between two keys only makes their refreshes wait for each other.
-        val key = function("hashtextextended", SQLDataType.BIGINT, value("rollup:$venueId:$day"), inline(0L))
-        dsl.select(function("pg_advisory_xact_lock", SQLDataType.OTHER, key)).fetch()
-    }
+    ) = dsl.advisoryXactLock("rollup:$venueId:$day")
 
     fun replaceDay(
         venueId: UUID,
@@ -171,6 +165,46 @@ class RollupRepository(
             .from(HOURLY_SALES)
             .where(HOURLY_SALES.VENUE_ID.eq(venueId))
             .fetchOne(0, Int::class.java) ?: 0
+
+    /** The stored hours of [venueId] on [days]. */
+    fun hours(
+        venueId: UUID,
+        days: Collection<LocalDate>,
+    ): List<HourTotals> {
+        val h = HOURLY_SALES
+        return dsl
+            .selectFrom(h)
+            .where(h.VENUE_ID.eq(venueId), h.BUSINESS_DAY.`in`(days))
+            .fetch()
+            // Kotlin's inline map, not jOOQ's RecordMapper: records stay inside this method (R4).
+            .toList()
+            .map { r ->
+                HourTotals(
+                    day = requireNotNull(r.businessDay),
+                    hour = requireNotNull(r.hour).toInt(),
+                    revenueMinor = requireNotNull(r.revenueMinor),
+                    refundedMinor = requireNotNull(r.refundedMinor),
+                    tipsMinor = requireNotNull(r.tipsMinor),
+                    guests = requireNotNull(r.guests),
+                    discountMinor = requireNotNull(r.discountMinor),
+                    deletedMinor = requireNotNull(r.deletedMinor),
+                    paymentMismatchBills = requireNotNull(r.billsPaymentMismatch),
+                )
+            }
+    }
+
+    /** Of [days], the ones that have rollups (a day with data, possibly without sales). */
+    fun daysWithRollups(
+        venueId: UUID,
+        days: Collection<LocalDate>,
+    ): Set<LocalDate> =
+        dsl
+            .select(ROLLUP_STATE.BUSINESS_DAY)
+            .from(ROLLUP_STATE)
+            .where(ROLLUP_STATE.VENUE_ID.eq(venueId), ROLLUP_STATE.BUSINESS_DAY.`in`(days))
+            .fetch(ROLLUP_STATE.BUSINESS_DAY)
+            .filterNotNull()
+            .toSet()
 
     /** Of [days], the ones with no rollups yet or rollups from a calculation older than [version]. */
     fun staleDays(

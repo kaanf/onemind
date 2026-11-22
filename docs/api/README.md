@@ -207,7 +207,7 @@ RFC 9457 Problem Details with extension members:
 
 | Method | Path | Screen |
 |--------|------|--------|
-| GET | `/dashboard/today` | 01 |
+| GET | `/dashboard/today` | 01 (built: `ETag` / `If-None-Match`, per-venue `status`, `unavailable`, `dataGaps`) |
 | GET | `/dashboard/tables?mode=now\|week` | 01a |
 | GET | `/dashboard/sales?period=…` | 02 |
 | GET | `/dashboard/products?day=…&category=…` | 02a |

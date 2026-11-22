@@ -1,0 +1,14 @@
+type: object
+required:
+  - kind
+  - amount
+properties:
+  kind:
+    type: string
+    description: First release components (METRICS, possibleLoss); the screen lists the ones it includes.
+    enum:
+      - DISCOUNTS
+      - REFUNDS
+      - DELETED_BILLS
+  amount:
+    $ref: ./Money.yaml
