@@ -10,6 +10,7 @@ import com.onemind.auth.presentation.generated.resources.auth_error_code_invalid
 import com.onemind.core.domain.util.DataError
 import com.onemind.core.domain.util.Result
 import com.onemind.core.presentation.util.UiText
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -20,6 +21,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class EmailCodeViewModelTest : MainDispatcherTest() {
     private val repository = FakeAuthRepository()
     private val email = "owner@yourbar.cz"

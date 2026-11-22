@@ -210,10 +210,11 @@ jobs:
 
       - run: ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
 
-      # Tests on the iOS simulator: the Keychain session store (`core/data/src/iosTest`) can't run on the
-      # JVM, and the money formatter (`core/presentation`) uses NSNumberFormatter on iOS, so its common
-      # tests must pass there too. Kotlin/Native's default `simctl spawn --standalone` has no Keychain, so a
-      # simulator is booted first and the tests run inside it (`onemind.iosTestDevice`, core/data).
+      # Tests on the iOS simulator: the Keychain session store (`core/data/src/iosTest`) and the auth
+      # navigation test (`feature/auth/presentation/src/iosTest`) can't run on the JVM, and the money
+      # formatter (`core/presentation`) uses NSNumberFormatter on iOS, so its common tests must pass there
+      # too. Kotlin/Native's default `simctl spawn --standalone` has no Keychain, so a simulator is booted
+      # first and the tests run inside it (`onemind.iosTestDevice`, core/data).
       - name: Boot an iOS simulator
         id: simulator
         run: |
@@ -225,9 +226,12 @@ jobs:
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
 
       # core:presentation's commonTest also runs on iOS: the money formatter uses NSNumberFormatter there,
-      # and its exact-string tests must agree with the JVM's NumberFormat.
+      # and its exact-string tests must agree with the JVM's NumberFormat. feature:auth:presentation's
+      # iosTest holds the navigation test (TestNavHostController has no Context-free constructor on
+      # Android, so it can't run on the JVM host).
       - run: >-
           ./gradlew :core:data:iosSimulatorArm64Test :core:presentation:iosSimulatorArm64Test
+          :feature:auth:presentation:iosSimulatorArm64Test
           -Ponemind.iosTestDevice=${{ steps.simulator.outputs.udid }}
 
       # Gradle reports a binary the simulator refused to launch as "1 test, 1 skipped", which would pass.
@@ -240,6 +244,7 @@ jobs:
           suites = {
               "core/data": ("IosSecureSessionStoreTest", 4),
               "core/presentation": ("MoneyFormatTest", 10),
+              "feature/auth/presentation": ("AuthGraphBackTest", 4),
           }
           problems = []
           for module, (name, minimum) in suites.items():
