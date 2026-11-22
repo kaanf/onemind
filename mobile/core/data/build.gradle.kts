@@ -32,7 +32,9 @@ kotlin {
     }
 }
 
-// The simulator Keychain needs an application identifier: embed test entitlements in the test binary.
+// The simulator Keychain needs an application identifier: embed test entitlements in the test binary's
+// __TEXT,__entitlements section, as Xcode does for simulator apps. Not in the code signature: the
+// simulator refuses to launch an ad-hoc signature with restricted entitlements (exit 162 in CI).
 kotlin {
     iosSimulatorArm64().binaries.getTest("DEBUG").linkerOpts(
         "-sectcreate",
@@ -43,23 +45,6 @@ kotlin {
             .asFile.absolutePath,
     )
 }
-
-// Same entitlements in the code signature too (Xcode's "Sign to Run Locally" does both).
-val signIosSimulatorTestBinary =
-    tasks.register<Exec>("signIosSimulatorTestBinary") {
-        dependsOn("linkDebugTestIosSimulatorArm64")
-        val entitlements =
-            layout.projectDirectory
-                .file("ios-test.entitlements")
-                .asFile.absolutePath
-        val binary =
-            layout.buildDirectory
-                .file("bin/iosSimulatorArm64/debugTest/test.kexe")
-                .get()
-                .asFile.absolutePath
-        commandLine("codesign", "--force", "--sign", "-", "--entitlements", entitlements, binary)
-    }
-tasks.matching { it.name == "iosSimulatorArm64Test" }.configureEach { dependsOn(signIosSimulatorTestBinary) }
 
 // iOS tests run in `simctl spawn --standalone` by default, which has no Keychain (errSecNotAvailable).
 // CI boots a simulator and passes its UDID, so the Keychain store is tested in a full simulator.
