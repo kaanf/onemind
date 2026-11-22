@@ -118,10 +118,8 @@ class DemoOnboarding(
         val places =
             try {
                 syncPlaces.run(connection, provider)
-            } catch (e: PosProviderException) {
-                log.warn("Demo onboarding couldn't read the POS: connectionId={}, error={}", connection.id, e.javaClass.simpleName)
-                throw PosUnavailableException(e)
-            } catch (e: PosMerchantNotFoundException) {
+            } catch (e: RuntimeException) {
+                if (e !is PosProviderException && e !is PosMerchantNotFoundException) throw e
                 log.warn("Demo onboarding couldn't read the POS: connectionId={}, error={}", connection.id, e.javaClass.simpleName)
                 throw PosUnavailableException(e)
             }
