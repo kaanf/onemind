@@ -1,0 +1,40 @@
+get:
+  tags:
+    - Dashboard
+  operationId: getProducts
+  summary: Products by hour (02a)
+  description: |
+    Products sold on one business day with their hourly quantities by bill opening hour (screen 02a;
+    `docs/domain/METRICS.md`, products and hours). Venues are resolved as on Today. Bills stored without
+    lines are missing here (`dataGaps.linelessBillCount`). Polling: `ETag` / `If-None-Match` → `304`.
+
+    Errors: `400 VALIDATION_FAILED` without a venue; `400 SALES_DATE_IN_FUTURE`; `404 VENUE_NOT_FOUND`;
+    `422 CURRENCIES_DIFFER`; `422 BUSINESS_DAYS_DIFFER`.
+  parameters:
+    - $ref: ../../components/parameters/VenueIds.yaml
+    - $ref: ../../components/parameters/BusinessDay.yaml
+    - $ref: ../../components/parameters/IfNoneMatch.yaml
+  responses:
+    '200':
+      description: The day's products.
+      headers:
+        ETag:
+          description: Version of this answer, for `If-None-Match`.
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ProductsSummary.yaml
+    '304':
+      description: Unchanged since the `If-None-Match` version.
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '422':
+      $ref: ../../components/responses/UnprocessableEntity.yaml
+    '426':
+      $ref: ../../components/responses/UpgradeRequired.yaml

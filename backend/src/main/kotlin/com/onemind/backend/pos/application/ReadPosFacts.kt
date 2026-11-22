@@ -2,6 +2,8 @@ package com.onemind.backend.pos.application
 
 import com.onemind.backend.pos.domain.StoredBill
 import com.onemind.backend.pos.domain.StoredBillLine
+import com.onemind.backend.pos.domain.StoredCategory
+import com.onemind.backend.pos.domain.StoredProduct
 import com.onemind.backend.pos.infra.persistence.PosReadRepository
 import org.springframework.stereotype.Service
 import java.time.Instant
@@ -36,6 +38,13 @@ class ReadPosFacts(
         after: UUID?,
         limit: Int,
     ): List<StoredBillLine> = reads.billLines(venueId, businessDays, after, limit.coerceIn(1, MAX_PAGE))
+
+    fun products(
+        venueId: UUID,
+        productIds: Collection<UUID>,
+    ): List<StoredProduct> = if (productIds.isEmpty()) emptyList() else reads.products(venueId, productIds)
+
+    fun categories(venueId: UUID): List<StoredCategory> = reads.categories(venueId)
 
     fun syncedVenueIds(): List<UUID> = reads.syncedVenueIds()
 

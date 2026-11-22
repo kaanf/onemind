@@ -1,0 +1,7 @@
+name: date
+in: query
+required: false
+description: The business day to show; default the venues' current business day. Not after it.
+schema:
+  type: string
+  format: date

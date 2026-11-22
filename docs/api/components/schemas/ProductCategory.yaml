@@ -1,0 +1,15 @@
+type: object
+description: A category of the POS menu (the app builds its chips from these).
+required:
+  - id
+  - name
+properties:
+  id:
+    type: string
+    format: uuid
+  name:
+    type: string
+  parentId:
+    type: string
+    format: uuid
+    nullable: true
