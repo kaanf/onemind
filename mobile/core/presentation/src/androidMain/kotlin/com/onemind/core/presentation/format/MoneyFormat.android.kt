@@ -21,5 +21,6 @@ internal actual fun platformFormatCurrency(
     return format.format(BigDecimal.valueOf(amountMinor, currencyDigits))
 }
 
+/** Must match the iOS actual (NSNumberFormatter's currency digits); see `MoneyFormatTest`. */
 internal actual fun currencyFractionDigits(currencyCode: String): Int =
     Currency.getInstance(currencyCode).defaultFractionDigits.coerceAtLeast(0)

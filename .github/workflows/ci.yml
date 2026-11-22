@@ -210,8 +210,9 @@ jobs:
 
       - run: ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
 
-      # iOS-only tests on the simulator: the Keychain session store (`core/data/src/iosTest`) can't be
-      # exercised on the JVM. Kotlin/Native's default `simctl spawn --standalone` has no Keychain, so a
+      # Tests on the iOS simulator: the Keychain session store (`core/data/src/iosTest`) can't run on the
+      # JVM, and the money formatter (`core/presentation`) uses NSNumberFormatter on iOS, so its common
+      # tests must pass there too. Kotlin/Native's default `simctl spawn --standalone` has no Keychain, so a
       # simulator is booted first and the tests run inside it (`onemind.iosTestDevice`, core/data).
       - name: Boot an iOS simulator
         id: simulator

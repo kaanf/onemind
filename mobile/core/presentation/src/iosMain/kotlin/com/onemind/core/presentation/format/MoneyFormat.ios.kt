@@ -28,6 +28,10 @@ internal actual fun platformFormatCurrency(
     return checkNotNull(formatter.stringFromNumber(number)) { "Could not format $currencyCode" }
 }
 
+/**
+ * Must give the same digits as Android's `java.util.Currency.defaultFractionDigits` (CZK 2, JPY 0): the
+ * summary threshold and minor-unit scaling depend on it, and `MoneyFormatTest` runs on both platforms.
+ */
 internal actual fun currencyFractionDigits(currencyCode: String): Int =
     NSNumberFormatter()
         .apply {
