@@ -1,6 +1,7 @@
 package com.onemind.auth.presentation.navigation
 
 import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.createGraph
 import androidx.navigation.testing.TestNavHostController
 import kotlin.test.BeforeTest
@@ -14,7 +15,8 @@ class AuthGraphBackTest {
 
     @BeforeTest
     fun setUp() {
-        navController = TestNavHostController()
+        // A NavHost adds the Compose navigator itself; a bare test controller needs it for `composable {}`.
+        navController = TestNavHostController().apply { navigatorProvider.addNavigator(ComposeNavigator()) }
         navController.graph = navController.createGraph(startDestination = AuthGraphRoutes.Graph) { authGraph(navController) }
         navController.navigate(AuthGraphRoutes.EmailCode(email = "owner@yourbar.cz", resendAfterSeconds = 30))
     }
