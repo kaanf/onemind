@@ -69,6 +69,7 @@ Treat accent as a single token so it can be switched.
 | `caption`      | Inter 12 / 400            | Meta lines |
 | `overline`     | Inter 11 / 600–700, letter-spacing 0.08em, UPPERCASE | Section labels (*PAID SO FAR*, *TONIGHT'S BRIEFING*) |
 | `tabLabel`     | Inter 11 / 500 (active 600) | Tab bar |
+| `chartLabel`   | Inter 10 / 400            | Chart value and axis labels (bar values, heatmap hours) |
 
 ## Shape and spacing
 
@@ -85,7 +86,7 @@ Treat accent as a single token so it can be switched.
 | **Tab bar** | 5 items in the design, **4 in the first release** (no Assistant, `MVP_SCOPE.md`), icon 22 + label 11. Active: `textPrimary` + 28×3 accent bar on the top edge. White background, top border. Bottom inset for home indicator. |
 | **Top bar (detail)** | 56 high, back button 44×44 (icon arrow), title 17/600 + subtitle 12. |
 | **Segmented tabs** | Text tabs with 2 px accent underline on selection (*Hour/Day/Week/Month*, *Now/This week*, *Order plan/Idle stock/Count*). |
-| **Chips (filter)** | 36 high, radius 10. Selected: `textPrimary` bg + white text. Unselected: white + `borderStrong`. |
+| **Chips (filter)** | 36 high, radius 10, touch target at least 48 × 48 (`minimumInteractiveComponentSize`). Selected: `textPrimary` bg + white text. Unselected: white + `borderStrong`. |
 | **Primary button** | 52 high (CTA) or 48, radius 12, accent bg. Disabled: `#E2E2DE`/`#E7E7E3` bg + secondary text. A dark (`textPrimary`) variant is used for final approve actions. |
 | **Outline button** | White, `borderStrong` border, radius 10–12. |
 | **Stepper** | − value + with 44 targets; used in S1 and S3. |
@@ -96,7 +97,7 @@ Treat accent as a single token so it can be switched.
 | **Hint card** | `accentSoft` bg, sparkle icon in accent, bold lead sentence + body. Used for generated insights. |
 | **Warning card** | `warningSurface` bg, 1 px `warningBorder`, warning icon in `warningText`, text `textPrimary` with a bold lead (canvas). Optional trailing arrow when it links. |
 | **Bar chart** | Rounded bars (3 px), optional value labels, axis labels 10–11 px, highlight colors per rule. |
-| **Heatmap** | Grid of buttons with accessible labels (*Sat 22:00, 54 guests*). |
+| **Heatmap** | Grid of buttons with accessible labels (*Sat 22:00, 54 guests*). **Touch target exception:** with 12+ hour columns a cell is about 29 × 28 dp, so 44 × 44 is impossible; cells stay at least 24 × 24 (WCAG 2.5.8 AA), one tap handler on the cell area selects the nearest cell (no dead zones between cells, a drag still scrolls), and every cell is its own accessibility node with its spoken label. |
 | **Floor plan** | Grid of table tiles; Bar spans the row; selected outline `selection`. |
 | **Progress row** | Status icon (done ✓ green / running ring accent / waiting dashed), name, meta, optional progress bar 4 px. |
 | **Checklist row** | Checkbox 24 (accent when checked), name with strike-through when done. |
