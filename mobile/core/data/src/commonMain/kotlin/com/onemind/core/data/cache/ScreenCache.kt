@@ -8,12 +8,20 @@ import kotlin.time.Instant
  * never edited locally; the server stays the truth. Account data: cleared on sign-out.
  */
 interface ScreenCache {
+    /**
+     * Changes on every [clear]. A caller takes it before a request and passes it to [write], so an
+     * answer that started before a sign-out can't be written back after the cache was cleared.
+     */
+    val generation: Long
+
     suspend fun read(key: String): CachedScreen?
 
+    /** Stores [body] unless the cache was cleared since [generation] was taken (then nothing happens). */
     suspend fun write(
         key: String,
         body: String,
         etag: String?,
+        generation: Long,
     )
 
     suspend fun clear()

@@ -11,6 +11,12 @@
     <!-- Figures shown from the device's cache (ADR 0006), always with their age. -->
     <string name="today_cached">Last updated %1$s</string>
     <string name="today_cached_offline">Last updated %1$s · offline</string>
+    <!-- When the cached figures aren't from today: "Thursday 21:40", "6 November 21:40". -->
+    <string name="today_cached_when_weekday">%1$s %2$s</string>
+    <string name="today_cached_when_date">%1$d %2$s %3$s</string>
+    <!-- Cached figures whose time can't be shown (no venue time zone): still marked as saved, never bare. -->
+    <string name="today_cached_unknown">Saved figures</string>
+    <string name="today_cached_unknown_offline">Saved figures · offline</string>
     <string name="today_loading">Loading today\'s figures</string>
     <string name="today_no_venue">No venues yet. Your venues appear here once they\'re connected.</string>
     <string name="today_retry">Try again</string>

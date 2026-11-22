@@ -49,6 +49,8 @@ class TodayRepositoryImpl(
         // Sorted, so the same set is the same request, the same ETag key and the same cache key in any order.
         val venueSet = venueIds.distinct().sorted().joinToString(",")
         val known = mutex.withLock { last?.takeIf { it.venueSet == venueSet } } ?: fromCache(venueSet)
+        // Taken before the request: if a sign-out clears the cache meanwhile, this answer isn't written back.
+        val generation = cache.generation
         val result = fetch(venueSet, known?.etag)
         if (result is Fetched.NotModified) {
             if (known != null) {
@@ -56,9 +58,9 @@ class TodayRepositoryImpl(
                 return Result.Success(known.summary)
             }
             // Can't happen without If-None-Match, but never end empty: ask for the full answer.
-            return fetch(venueSet, etag = null).toResult(venueSet)
+            return fetch(venueSet, etag = null).toResult(venueSet, generation)
         }
-        return result.toResult(venueSet)
+        return result.toResult(venueSet, generation)
     }
 
     override suspend fun cachedToday(venueIds: List<String>): CachedToday? {
@@ -112,13 +114,16 @@ class TodayRepositoryImpl(
         }
     }
 
-    private suspend fun Fetched.toResult(venueSet: String): Result<TodaySummary, DataError> =
+    private suspend fun Fetched.toResult(
+        venueSet: String,
+        generation: Long,
+    ): Result<TodaySummary, DataError> =
         when (this) {
             is Fetched.Body -> {
                 val mapped = parse(raw)
                 if (mapped is Result.Success) {
                     mutex.withLock { last = etag?.let { Last(venueSet, it, mapped.data) } }
-                    cache.write(cacheKey(venueSet), raw, etag)
+                    cache.write(cacheKey(venueSet), raw, etag, generation)
                 }
                 mapped
             }

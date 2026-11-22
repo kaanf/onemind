@@ -156,8 +156,11 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
   `noBackupFilesDir`, iOS `NSCachesDirectory` (not in iCloud backups or the Files app), so cached revenue
   figures never leave the device. `SignedInDataLoader` clears it on sign-out only (app launch is a
   sign-in too, and the cache is for launch). A screen shows cached figures only with their age
-  ("Last updated 21:40", "· offline" after a network failure); a repository polls against the cached
-  `ETag` and fetches again without `If-None-Match` when a `304` leaves nothing readable.
+  ("Last updated 21:40", the day when it isn't today, "· offline" after a network failure); a repository
+  polls against the cached `ETag` and fetches again without `If-None-Match` when a `304` leaves nothing
+  readable. A repository takes `ScreenCache.generation` before its request and passes it to `write`, so
+  an answer that was on the way at sign-out isn't written back. The cache never crashes a screen: a
+  corrupt file is replaced by an empty one, and an IO error reads as nothing cached.
   Secure storage (Keychain / Keystore) for tokens — never in DataStore or logs.
 - Session (`core:data/session`, ADR 0004): `SessionManager` is the only owner of the tokens. It
   loads `SecureSessionStore` once at start (`SessionState.Unknown` → `SignedIn`/`SignedOut`) and

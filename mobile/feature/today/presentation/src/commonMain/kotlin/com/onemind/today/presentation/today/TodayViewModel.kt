@@ -34,6 +34,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.daysUntil
+import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -152,10 +155,16 @@ class TodayViewModel(
     ): TodayContent.Ready {
         // Venues on one Today share a time zone (422 BUSINESS_DAYS_DIFFER otherwise).
         val zone = summary.venues.firstOrNull()?.timeZone
+        val now = clock.now()
         return TodayContent.Ready(
-            today = summary.toUi(clock.now()),
+            today = summary.toUi(now),
             refreshError = error.takeUnless { offline },
-            cached = CachedMarker(savedAt = zone?.let { formatClockTime(savedAt, it) }, offline = offline),
+            cached =
+                CachedMarker(
+                    time = zone?.let { formatClockTime(savedAt, it) },
+                    day = zone?.let { cachedDay(savedAt.toLocalDateTime(it).date, now.toLocalDateTime(it).date) } ?: CachedDay.Today,
+                    offline = offline,
+                ),
         )
     }
 
@@ -218,6 +227,21 @@ private fun scopeName(
         VenueScope.All -> ScopeName.AllVenues
         is VenueScope.Venue -> (list as? VenueList.Loaded)?.venues?.firstOrNull { it.id == scope.venueId }?.let { ScopeName.Venue(it.name) }
     }
+
+/** Today, a weekday within the last week, or the date. */
+internal fun cachedDay(
+    saved: LocalDate,
+    today: LocalDate,
+): CachedDay {
+    val daysAgo = saved.daysUntil(today)
+    return when {
+        daysAgo <= 0 -> CachedDay.Today
+        daysAgo < DAYS_IN_A_WEEK -> CachedDay.Weekday(saved.dayOfWeek)
+        else -> CachedDay.Date(saved)
+    }
+}
+
+private const val DAYS_IN_A_WEEK = 7
 
 private fun DataError.toTodayMessage(): UiText =
     when ((this as? DataError.Api)?.code) {

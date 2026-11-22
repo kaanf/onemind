@@ -54,6 +54,10 @@ import com.onemind.today.presentation.generated.resources.today_account_descript
 import com.onemind.today.presentation.generated.resources.today_all_venues
 import com.onemind.today.presentation.generated.resources.today_cached
 import com.onemind.today.presentation.generated.resources.today_cached_offline
+import com.onemind.today.presentation.generated.resources.today_cached_unknown
+import com.onemind.today.presentation.generated.resources.today_cached_unknown_offline
+import com.onemind.today.presentation.generated.resources.today_cached_when_date
+import com.onemind.today.presentation.generated.resources.today_cached_when_weekday
 import com.onemind.today.presentation.generated.resources.today_data_gaps_lead
 import com.onemind.today.presentation.generated.resources.today_date_time
 import com.onemind.today.presentation.generated.resources.today_guests
@@ -168,10 +172,8 @@ private fun TodayContentColumn(
     val type = OneMindTheme.typography
     ScreenTitle(title = title, dateLine = today.dateLine())
     cached?.let { marker ->
-        val time = marker.savedAt.orEmpty()
         Text(
-            text =
-                stringResource(if (marker.offline) Res.string.today_cached_offline else Res.string.today_cached, time),
+            text = marker.text(),
             style = type.caption,
             color = if (marker.offline) colors.warningText else colors.textSecondary,
         )
@@ -232,6 +234,32 @@ private fun ScreenTitle(
             modifier = Modifier.semantics { heading() },
         )
     }
+}
+
+/** *Last updated 21:40*, *Last updated Thursday 21:40*, *… 6 November 21:40*, with *· offline*; never an empty time. */
+@Composable
+private fun CachedMarker.text(): String {
+    val time = time ?: return stringResource(if (offline) Res.string.today_cached_unknown_offline else Res.string.today_cached_unknown)
+    val whenText =
+        when (val day = day) {
+            CachedDay.Today -> {
+                time
+            }
+
+            is CachedDay.Weekday -> {
+                stringResource(Res.string.today_cached_when_weekday, stringResource(day.dayOfWeek.nameRes()), time)
+            }
+
+            is CachedDay.Date -> {
+                stringResource(
+                    Res.string.today_cached_when_date,
+                    day.date.day,
+                    stringResource(day.date.month.nameRes()),
+                    time,
+                )
+            }
+        }
+    return stringResource(if (offline) Res.string.today_cached_offline else Res.string.today_cached, whenText)
 }
 
 @Composable

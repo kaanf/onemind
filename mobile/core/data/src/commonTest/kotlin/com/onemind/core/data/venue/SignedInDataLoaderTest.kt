@@ -27,6 +27,7 @@ import kotlin.time.Instant
 /** An in-memory [ScreenCache] for loader tests. */
 private class MemoryScreenCache : ScreenCache {
     val entries = mutableMapOf<String, CachedScreen>()
+    override var generation = 0L
 
     override suspend fun read(key: String) = entries[key]
 
@@ -34,11 +35,16 @@ private class MemoryScreenCache : ScreenCache {
         key: String,
         body: String,
         etag: String?,
+        generation: Long,
     ) {
+        if (generation != this.generation) return
         entries[key] = CachedScreen(body, etag, Instant.parse("2026-11-22T20:40:00Z"))
     }
 
-    override suspend fun clear() = entries.clear()
+    override suspend fun clear() {
+        generation++
+        entries.clear()
+    }
 }
 
 class SignedInDataLoaderTest {
@@ -82,7 +88,7 @@ class SignedInDataLoaderTest {
             assertEquals(VenueScope.Venue("v1"), scope.selected.value)
             assertEquals("KF", profile.profile.value?.initials)
 
-            cache.write("dashboard/today?venueIds=v1", "{}", null)
+            cache.write("dashboard/today?venueIds=v1", "{}", null, cache.generation)
             sessions.state.value = SessionState.SignedOut
             eventually { venues.venues.value == VenueList.Loading && profile.profile.value == null }
             assertNull(scope.selected.value)

@@ -52,6 +52,7 @@ class TodayRepositoryImplTest {
 
     private class MemoryCache : ScreenCache {
         val entries = mutableMapOf<String, CachedScreen>()
+        override var generation = 0L
 
         override suspend fun read(key: String) = entries[key]
 
@@ -59,11 +60,15 @@ class TodayRepositoryImplTest {
             key: String,
             body: String,
             etag: String?,
+            generation: Long,
         ) {
-            entries[key] = CachedScreen(body, etag, SAVED_AT)
+            if (generation == this.generation) entries[key] = CachedScreen(body, etag, SAVED_AT)
         }
 
-        override suspend fun clear() = entries.clear()
+        override suspend fun clear() {
+            generation++
+            entries.clear()
+        }
     }
 
     private class Fixture(
@@ -275,6 +280,43 @@ class TodayRepositoryImplTest {
             assertEquals(Money(4_832_000, czk), cached.summary.paidSoFar)
             assertEquals(SAVED_AT, cached.savedAt)
             assertNull(fixture.repository.cachedToday(listOf(VENUE_B)))
+        }
+
+    @Test
+    fun anAnswerArrivingAfterASignOutIsNotWrittenBack() =
+        runTest {
+            val cache = MemoryCache()
+            val fixture =
+                Fixture(backgroundScope, cache) {
+                    // The account signs out while its poll is on the way.
+                    cache.clear()
+                    json(READY_JSON, etag = "\"v1\"")
+                }
+
+            assertIs<Result.Success<TodaySummary>>(fixture.repository.getToday(listOf(VENUE_A)))
+
+            assertTrue(cache.entries.isEmpty())
+        }
+
+    @Test
+    fun failedOrUnreadableAnswersLeaveTheCacheEmpty() =
+        runTest {
+            val answers =
+                listOf(
+                    "server error" to { scope: MockRequestHandleScope -> scope.respond("", HttpStatusCode.InternalServerError) },
+                    "unparsable 200" to { scope: MockRequestHandleScope -> scope.json("{ not json") },
+                    "unknown status" to
+                        { scope: MockRequestHandleScope ->
+                            scope.json(READY_JSON.replaceFirst("\"status\": \"READY\"", "\"status\": \"PAUSED\""))
+                        },
+                )
+            answers.forEach { (name, answer) ->
+                val fixture = Fixture(backgroundScope) { answer(this) }
+
+                assertIs<Result.Failure<DataError>>(fixture.repository.getToday(listOf(VENUE_A)), name)
+
+                assertTrue(fixture.cache.entries.isEmpty(), name)
+            }
         }
 
     @Test
