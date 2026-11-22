@@ -27,7 +27,7 @@ import kotlin.test.assertTrue
 
 /** Places → venues and menu/desks sync (STORYOUS.md, sync strategy) against the demo POS. */
 @Import(TestcontainersConfiguration::class, PosSyncCatalogTests.Config::class)
-@SpringBootTest(properties = ["db-scheduler.enabled=false", "onemind.pos.provider=mock"])
+@SpringBootTest(properties = ["db-scheduler.enabled=false", "onemind.pos.provider=mock", "onemind.pos.sync.initial-days=1"])
 class PosSyncCatalogTests {
     @TestConfiguration(proxyBeanMethods = false)
     class Config {

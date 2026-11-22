@@ -9,7 +9,9 @@ Items marked **(?)** need confirmation; see `../OPEN_QUESTIONS.md`.
 
 - A venue's business day starts at its `businessDayStart` cut-off (default **05:00** local time)
   and ends just before the next one. A bill belongs to the business day in which it was
-  **closed** (paid); open tabs belong to the current business day. **(?)**
+  **closed** (paid); open tabs belong to the current business day. **(?)** Close vs open time is
+  open question M1; the sync stores `pos.bill.business_day` by payment time through one seam,
+  `pos/domain/BillAttribution`, so answering M1 changes only that function (plus a rebuild).
 - All times are in the venue's time zone (`Europe/Prague`). Store timestamps in UTC; convert at
   aggregation time. Handle DST days (23/25 h).
 - "Today" = current business day. "Last Friday" = the business day exactly 7 days earlier.

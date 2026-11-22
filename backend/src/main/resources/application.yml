@@ -78,6 +78,9 @@ onemind:
   # application-local.yml in the dev-only mock source set, and a prod start with it fails. Later `storyous`.
   pos:
     provider: ${POS_PROVIDER:}
+    sync:
+      # Business days of bills imported when a venue is first synced.
+      initial-days: 90
   # Lowest supported app version per platform; older apps get 426 (ADR 0001). Empty = no check.
   app-version:
     minimum-ios: ${MIN_APP_VERSION_IOS:}

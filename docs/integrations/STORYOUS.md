@@ -138,6 +138,27 @@ most hourly, so a bad menu isn't refetched every run).
 - POS calls never run inside a transaction (tested). Without a configured provider the run does nothing
   and logs one warning.
 
+Bills (`SyncBills`, each run, after menu and desks): the `sync_cursor` `BILLS` cursor is
+`INITIAL|<next business day>|<import start>` while the initial import runs, then `SINCE|<instant>`.
+The initial import fetches `onemind.pos.sync.initial-days` (default 90) business days, one `from`/`till`
+window per day (the venue's zone and cut-off), oldest first; the cursor moves after each finished day,
+so an interrupted import resumes at that day, and ends at `SINCE|<import start>` so nothing changed
+during the import is missed. Then `modifiedSince` = cursor (inclusive), `includeDeleted=true`. For each
+page, only bills whose `lastModifiedAt` differs from the stored one get a `billDetail` call; then one
+transaction upserts staff (`createdBy`/`paidBy`, per connection), upserts the bills by
+`(venue_id, external_id)` (unchanged ones are skipped), replaces the items, discounts and payments of
+changed ones, moves the cursor and publishes `BillsSynced(venueId, businessDays)` for the days written,
+only when something was written. `business_day` comes from `paidAt` (M1 seam:
+`pos/domain/BillAttribution`). Desk, product and staff references resolve by POS ID; unknown ones stay
+null. `raw_payload` is not written yet.
+
+Assumptions in the bill mapping, to verify against the real API: item `price` is the unit price with
+VAT and `amount` the quantity; line `total_minor` = price × amount (rounded half-up to the minor unit)
+− the item's discounts; a discount's amount is `absoluteValue`, else `percentValue` % of
+`originalPrice`, else 0 (the raw discount row is still stored); `finalPrice` excludes `tips`;
+`payment.method_kind` is `CARD` / `CASH` when the raw method contains "card" / "cash", else `OTHER`
+(raw value kept in `method_raw`).
+
 Assumptions in the catalog mapping, to verify against the real API: product `price` is the price
 with VAT in the merchant currency; `vatRate` is a percentage (`"21"`) and is stored as given;
 **sub-minor menu prices** (more fraction digits than the currency) are not expected; such a product is
