@@ -62,8 +62,11 @@ Application ID / bundle ID: `com.onemind.app` (dev builds `com.onemind.app.dev`)
 - `core:api` bundles the split spec with Redocly (`npx`, same version as CI lint), then generates
   models with OpenAPI Generator (`kotlin`, `multiplatform`) into `build/generated/openapi`, package
   `com.onemind.core.api.model`. Free-form values (`additionalProperties: true`) are `JsonElement`.
-  The generator cannot map unknown enum values to `UNKNOWN` for kotlinx: solve this when the first
-  enum enters the spec.
+  String enums get an `UNKNOWN` entry and a serializer that reads any value the app doesn't know as
+  `UNKNOWN` (two generator templates in `core/api/templates`, changed only in their multiplatform
+  branch; re-copy them from the generator jar on a version bump). `UNKNOWN` is never sent. Mappers
+  decide per field: leave the value out when that is safe (an unavailable figure, a chart bar, a named
+  component), reject the answer when guessing could show a wrong figure (a data status).
 - One `HttpClient` from `core:data` (`HttpClientFactory`, Koin): base `ApiConfig.baseUrl + /api/v1/`,
   so paths are relative (`client.post("auth/email/start")`). It adds `X-App-Version`, `X-Platform`
   and a fresh `X-Request-Id` to every request, the access token to every call outside `auth/...`, and

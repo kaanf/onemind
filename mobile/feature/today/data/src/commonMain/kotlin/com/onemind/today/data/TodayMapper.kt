@@ -30,13 +30,16 @@ import com.onemind.core.api.model.UnavailableFigure as UnavailableFigureDto
 
 /**
  * The domain summary, or `null` when the answer breaks the contract (a bad currency code, time zone
- * or decimal): the caller reports it like an unreadable body rather than showing a guessed figure.
+ * or decimal) or carries a data status this app doesn't know: the caller reports it like an unreadable
+ * body rather than showing a guessed figure. Other values added to the API later (`UNKNOWN`) are left
+ * out: an unavailable figure the app doesn't draw anyway, an hour of a kind it can't colour, and a loss
+ * component it can't name (the server's total still includes it).
  */
 internal fun TodaySummaryDto.toDomainOrNull(): TodaySummary? =
     try {
         toDomain()
     } catch (_: IllegalArgumentException) {
-        // Currency, DecimalValue.parse and TimeZone.of (IllegalTimeZoneException) all reject with it.
+        // Currency, DecimalValue.parse, TimeZone.of (IllegalTimeZoneException) and an unknown status reject with it.
         null
     }
 
@@ -53,7 +56,7 @@ internal fun TodaySummaryDto.toDomain(): TodaySummary =
         perGuest = perGuest?.toDomain(),
         possibleLoss = possibleLoss?.toDomain(),
         hourly = hourly?.toDomain(),
-        unavailable = unavailable.mapTo(mutableSetOf()) { it.toDomain() },
+        unavailable = unavailable.mapNotNullTo(mutableSetOf()) { it.toDomain() },
         dataGaps = dataGaps.toDomain(),
     )
 
@@ -62,7 +65,11 @@ private fun MoneyDto.toDomain() = Money(amountMinor, Currency(currency))
 private fun DataStatusDto.toDomain() =
     when (this) {
         DataStatusDto.READY -> DataStatus.READY
+
         DataStatusDto.NO_DATA_YET -> DataStatus.NO_DATA_YET
+
+        // Whether figures are real depends on it: never guess.
+        DataStatusDto.UNKNOWN -> throw IllegalArgumentException("Unknown data status")
     }
 
 private fun TodayVenueDto.toDomain() =
@@ -83,39 +90,39 @@ private fun TodayComparisonDto.toDomain() =
         deltaPercent = deltaPercent?.let(DecimalValue::parse),
     )
 
-private fun PossibleLossDto.toDomain() = PossibleLoss(total.toDomain(), components.map { it.toDomain() })
+private fun PossibleLossDto.toDomain() = PossibleLoss(total.toDomain(), components.mapNotNull { it.toDomain() })
 
-private fun LossComponentDto.toDomain() =
-    LossComponent(
-        kind =
-            when (kind) {
-                LossComponentDto.Kind.DISCOUNTS -> LossKind.DISCOUNTS
-                LossComponentDto.Kind.REFUNDS -> LossKind.REFUNDS
-                LossComponentDto.Kind.DELETED_BILLS -> LossKind.DELETED_BILLS
-            },
-        amount = amount.toDomain(),
-    )
+private fun LossComponentDto.toDomain(): LossComponent? {
+    val kind =
+        when (kind) {
+            LossComponentDto.Kind.DISCOUNTS -> LossKind.DISCOUNTS
+            LossComponentDto.Kind.REFUNDS -> LossKind.REFUNDS
+            LossComponentDto.Kind.DELETED_BILLS -> LossKind.DELETED_BILLS
+            LossComponentDto.Kind.UNKNOWN -> return null
+        }
+    return LossComponent(kind, amount.toDomain())
+}
 
-private fun TodayHourlyDto.toDomain() = TodayHourly(currentHour, hours.map { it.toDomain() })
+private fun TodayHourlyDto.toDomain() = TodayHourly(currentHour, hours.mapNotNull { it.toDomain() })
 
-private fun HourlyBarDto.toDomain() =
-    HourlyBar(
-        hour = hour,
-        kind =
-            when (kind) {
-                HourlyBarDto.Kind.PAST -> HourKind.PAST
-                HourlyBarDto.Kind.CURRENT -> HourKind.CURRENT
-                HourlyBarDto.Kind.FORECAST -> HourKind.FORECAST
-            },
-        amount = amount?.toDomain(),
-    )
+private fun HourlyBarDto.toDomain(): HourlyBar? {
+    val kind =
+        when (kind) {
+            HourlyBarDto.Kind.PAST -> HourKind.PAST
+            HourlyBarDto.Kind.CURRENT -> HourKind.CURRENT
+            HourlyBarDto.Kind.FORECAST -> HourKind.FORECAST
+            HourlyBarDto.Kind.UNKNOWN -> return null
+        }
+    return HourlyBar(hour, kind, amount?.toDomain())
+}
 
-private fun UnavailableFigureDto.toDomain() =
+private fun UnavailableFigureDto.toDomain(): UnavailableFigure? =
     when (this) {
         UnavailableFigureDto.OPEN_TABS -> UnavailableFigure.OPEN_TABS
         UnavailableFigureDto.OCCUPANCY_NOW -> UnavailableFigure.OCCUPANCY_NOW
         UnavailableFigureDto.STAFF_ON_SHIFT -> UnavailableFigure.STAFF_ON_SHIFT
         UnavailableFigureDto.TIPS_CARD_SHARE -> UnavailableFigure.TIPS_CARD_SHARE
+        UnavailableFigureDto.UNKNOWN -> null
     }
 
 private fun DataGapsDto.toDomain() =
