@@ -103,6 +103,17 @@ class GuardFixturesTest {
         }
     }
 
+    @Test
+    fun uiHasNoLiteralsOutsidePreviewsAndComments() =
+        assertOffenders(
+            Guards.uiHasNoLiterals(fixtures),
+            "UiLiterals.kt:7: literal text",
+            "UiLiterals.kt:8: literal text",
+            "UiLiterals.kt:11: literal text",
+            "UiLiterals.kt:12: hard-coded colour",
+            "UiLiterals.kt:13: literal sp size",
+        )
+
     private fun assertOffenders(
         actual: List<String>,
         vararg expected: String,

@@ -43,6 +43,12 @@ data class SourceFile(
     /** Source with comments and string literals blanked, so line scans see code only. */
     val code: String by lazy { stripCommentsAndStrings(file.text) }
 
+    /** Source with comments blanked but string literals kept (for rules about literals themselves). */
+    val codeWithStrings: String by lazy { stripComments(file.text) }
+
+    /** App code, not tests: `src/<sourceSet>Main/…`. */
+    val isMainSource: Boolean get() = Regex("/src/[A-Za-z]*Main/").containsMatchIn(relativePath)
+
     override fun toString() = relativePath
 }
 
@@ -117,6 +123,17 @@ private val blockComment = Regex("""/\*[\s\S]*?\*/""")
 private val stringLiteral = Regex(""""(?:\\.|[^"\\\n])*"""")
 private val charLiteral = Regex("""'(?:\\.|[^'\\\n])'""")
 private val lineComment = Regex("""//[^\n]*""")
+
+private val token = Regex("\"\"\"[\\s\\S]*?\"\"\"|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\\\n])'|/\\*[\\s\\S]*?\\*/|//[^\\n]*")
+
+/**
+ * Blanks comments only, keeping strings, line breaks and offsets. One left-to-right scan over strings and
+ * comments together, so `"//"` inside a string is not a comment and `"…"` inside a comment is not a string.
+ */
+fun stripComments(text: String): String =
+    token.replace(text) { match ->
+        if (match.value.startsWith("/")) match.value.replace(Regex("[^\n]"), " ") else match.value
+    }
 
 /** Blanks comments and string/char literals, keeping line breaks so line numbers stay right. */
 fun stripCommentsAndStrings(text: String): String {

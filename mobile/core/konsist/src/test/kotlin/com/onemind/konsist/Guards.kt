@@ -131,6 +131,45 @@ object Guards {
     fun deviceTimeZoneNeverUsed(files: List<SourceFile>): List<String> =
         files.flatMap { file -> file.linesMatching { line -> deviceTimeZoneCode.any { it.containsMatchIn(line) } } }
 
+    // --- UI text and tokens (mobile/AGENTS.md, UI rules) ----------------------------------------------
+
+    private val uiLiterals =
+        listOf(
+            Regex("""\bColor\s*\(\s*0[xX]""") to "hard-coded colour (use OneMindTheme.colors)",
+            Regex("""\b\d+(\.\d+)?\s*\.\s*sp\b""") to "literal sp size (use OneMindTheme.typography)",
+            Regex("""\bText\s*\(\s*"""") to "literal text (use a string resource)",
+            Regex("""\btext\s*=\s*"""") to "literal text (use a string resource)",
+        )
+
+    /**
+     * Feature presentation and `composeApp` main sources use design-system tokens and string resources:
+     * no `Color(0x…)`, no literal `.sp`, no `Text("…")` or `text = "…"` (also split over lines). Code inside
+     * `@Preview` functions is exempt (sample data), and comments are ignored.
+     */
+    fun uiHasNoLiterals(files: List<SourceFile>): List<String> =
+        files.filter { ((it.layer == Layer.Ui && it.feature != null) || it.layer == Layer.App) && it.isMainSource }.flatMap { file ->
+            val text = file.codeWithStrings
+            val previews = previewRanges(file)
+            uiLiterals
+                .flatMap { (pattern, what) ->
+                    pattern.findAll(text).filter { match -> previews.none { match.range.first in it } }.map { match ->
+                        val line = text.substring(0, match.range.first).count { it == '\n' } + 1
+                        line to "$file:$line: $what: ${file.file.text.lines()[line - 1].trim()}"
+                    }
+                }.sortedBy { it.first }
+                .map { it.second }
+        }
+
+    /** Character ranges of `@Preview` functions in the file. */
+    private fun previewRanges(file: SourceFile): List<IntRange> =
+        file.file
+            .functions(includeNested = true)
+            .filter { function -> function.annotations.any { it.name == "Preview" } }
+            .mapNotNull { function ->
+                val start = file.file.text.indexOf(function.text)
+                if (start < 0) null else start until start + function.text.length
+            }
+
     // --- helpers ----------------------------------------------------------------------------------
 
     private fun String.isUnder(prefix: String) = this == prefix || startsWith("$prefix.")
