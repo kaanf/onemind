@@ -58,6 +58,10 @@ The backend issues and verifies **its own tokens** with Spring Security.
 - **Access token:** ES256 (P-256). The signing key is a private JWK with `kid` in `JWT_SIGNING_KEY`
   (`./gradlew generateJwtKey`); required in `prod`, a temporary key per process otherwise. Claims:
   `iss` `https://api.onemind.app`, `aud` `onemind-app`, `sub` user ID, `iat`, `exp`, `jti`.
+- **Clock skew (owner, 2026-11-22):** none for our access tokens: we issue and check them with the
+  same clock, so a token is rejected right after `exp`. Apple/Google ID tokens allow 60 s, because
+  the providers' clocks aren't ours. Refresh tokens are opaque and checked in the database, so no
+  skew applies to them.
 - **Key rotation:** generate a new key, set it as `JWT_SIGNING_KEY` and put the old key's public JWK
   in `JWT_PREVIOUS_PUBLIC_KEY`; remove it after 15 minutes (the access-token lifetime). Refresh tokens
   are not affected.
