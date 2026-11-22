@@ -1,0 +1,25 @@
+type: object
+description: One requested venue and where its data stands.
+required:
+  - venueId
+  - businessDay
+  - timeZone
+  - status
+properties:
+  venueId:
+    type: string
+    format: uuid
+  businessDay:
+    type: string
+    format: date
+    description: The venue's current business day (its own time zone and cut-off).
+  timeZone:
+    type: string
+    example: Europe/Prague
+  status:
+    $ref: ./DataStatus.yaml
+  dataAsOf:
+    type: string
+    format: date-time
+    nullable: true
+    description: When the venue's bills were last synced; null before the first sync.

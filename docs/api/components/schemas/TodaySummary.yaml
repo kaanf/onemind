@@ -1,0 +1,68 @@
+type: object
+description: |
+  Screen 01. Figures are null when no requested venue has data yet (`status NO_DATA_YET`), never 0;
+  a venue with data and no sales has real zeros.
+required:
+  - status
+  - currency
+  - venues
+  - pendingVenueIds
+  - unavailable
+  - dataGaps
+properties:
+  status:
+    $ref: ./DataStatus.yaml
+  currency:
+    type: string
+    pattern: '^[A-Z]{3}$'
+  venues:
+    type: array
+    items:
+      $ref: ./TodayVenue.yaml
+  pendingVenueIds:
+    type: array
+    description: Requested venues still waiting for their first sync; not in the figures.
+    items:
+      type: string
+      format: uuid
+  paidSoFar:
+    type: object
+    allOf:
+      - $ref: ./Money.yaml
+    nullable: true
+    description: '`paidRevenue` of the current business day, refunds subtracted (METRICS, revenue).'
+  comparison:
+    type: object
+    allOf:
+      - $ref: ./TodayComparison.yaml
+    nullable: true
+  tips:
+    type: object
+    allOf:
+      - $ref: ./Money.yaml
+    nullable: true
+  guests:
+    type: integer
+    nullable: true
+  perGuest:
+    type: object
+    allOf:
+      - $ref: ./Money.yaml
+    nullable: true
+    description: Null when there are no guests yet.
+  possibleLoss:
+    type: object
+    allOf:
+      - $ref: ./PossibleLoss.yaml
+    nullable: true
+  hourly:
+    type: object
+    allOf:
+      - $ref: ./TodayHourly.yaml
+    nullable: true
+  unavailable:
+    type: array
+    items:
+      $ref: ./UnavailableFigure.yaml
+  dataGaps:
+    $ref: ./DataGaps.yaml

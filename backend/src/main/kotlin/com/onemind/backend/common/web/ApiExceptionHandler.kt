@@ -12,6 +12,7 @@ import com.onemind.backend.common.error.ServiceUnavailableException
 import com.onemind.backend.common.error.TooManyRequestsException
 import com.onemind.backend.common.error.UnauthorizedException
 import com.onemind.backend.common.error.UpgradeRequiredException
+import jakarta.validation.ConstraintViolationException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
@@ -65,6 +66,24 @@ class ApiExceptionHandler(
             )
         }
         return response.body(problems.of(status, e.code, e.detail, e.params))
+    }
+
+    /** Method validation of a `@Validated` controller (generated interfaces), for example `@Size` on a query list. */
+    @ExceptionHandler(ConstraintViolationException::class)
+    fun handleConstraintViolation(e: ConstraintViolationException): ResponseEntity<ProblemDetail> {
+        val errors =
+            e.constraintViolations.map { violation ->
+                val field = violation.propertyPath.lastOrNull()?.name ?: "request"
+                FieldError(field, constraintCode(violation.constraintDescriptor.annotation.annotationClass.simpleName))
+            }
+        val problem =
+            problems
+                .of(
+                    HttpStatus.BAD_REQUEST,
+                    VALIDATION_FAILED,
+                    "The request isn't valid.",
+                ).apply { setValidationErrors(errors) }
+        return ResponseEntity.badRequest().body(problem)
     }
 
     @ExceptionHandler(Exception::class)

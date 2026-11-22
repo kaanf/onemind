@@ -1,0 +1,29 @@
+type: object
+description: |
+  Paid so far against the same weekday last week, up to the same local time (METRICS, periods), over
+  the same venues: only those that have that day (`venueIds`); the others are left out of both figures,
+  so a venue synced since makes up no growth. The whole comparison is null when no venue has that day.
+required:
+  - previousBusinessDay
+  - venueIds
+  - current
+  - previous
+properties:
+  previousBusinessDay:
+    type: string
+    format: date
+  venueIds:
+    type: array
+    description: The venues both figures cover.
+    items:
+      type: string
+      format: uuid
+  current:
+    $ref: ./Money.yaml
+  previous:
+    $ref: ./Money.yaml
+  deltaPercent:
+    type: string
+    nullable: true
+    description: One decimal, rounded half-up ("12.4", "-3.0"); null when `previous` is 0.
+    example: '12.4'
