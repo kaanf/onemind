@@ -1,5 +1,6 @@
 package com.onemind.core.designsystem.components
 
+import androidx.compose.ui.text.TextRange
 import com.onemind.core.designsystem.theme.LightColors
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,6 +13,30 @@ class ComponentLogicTest {
         assertEquals("482913", sanitizeOtp("482 913", 6))
         assertEquals("482913", sanitizeOtp("482-9137", 6))
         assertEquals("", sanitizeOtp("abc", 6))
+    }
+
+    @Test
+    fun tappingAFilledOtpBoxSelectsItsDigitAndAnEmptyBoxGoesToTheEnd() {
+        assertEquals(TextRange(1, 2), otpSelectionForTap(1, "4829"))
+        assertEquals(TextRange(0, 1), otpSelectionForTap(0, "482913"))
+        assertEquals(TextRange(4), otpSelectionForTap(5, "4829"))
+        assertEquals(TextRange(0), otpSelectionForTap(3, ""))
+    }
+
+    @Test
+    fun theActiveOtpBoxFollowsTheCursor() {
+        // Typing at the end: the next empty box; a full code keeps the last box.
+        assertEquals(4, otpActiveBox("4829", TextRange(4), 6))
+        assertEquals(5, otpActiveBox("482913", TextRange(6), 6))
+        // A tapped digit is the active box until it is replaced.
+        assertEquals(1, otpActiveBox("482913", TextRange(1, 2), 6))
+    }
+
+    @Test
+    fun aClearedOtpValueResetsTheSelection() {
+        // After a wrong code the screen clears the value; an old selection must not point past it.
+        assertEquals(TextRange(0), TextRange(3, 4).coerceInOtp(""))
+        assertEquals(TextRange(2, 2), TextRange(4, 5).coerceInOtp("48"))
     }
 
     @Test
