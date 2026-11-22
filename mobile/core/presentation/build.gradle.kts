@@ -5,8 +5,17 @@ plugins {
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.core.domain)
+            api(projects.core.domain)
             implementation(libs.kotlinx.datetime)
+            implementation(libs.jetbrains.lifecycle.runtime.compose)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
+}
+
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "com.onemind.core.presentation.generated.resources"
 }

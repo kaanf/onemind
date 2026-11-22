@@ -18,14 +18,20 @@ enum class AppEnvironment(
 /**
  * Where the app talks to: the API host of the build's environment.
  * [baseUrl] is the host without `/api/v1`; the HTTP client appends the spec's server path.
+ * [appVersion] is sent as `X-App-Version` (`projectVersionName` in the version catalog).
  */
 data class ApiConfig(
     val environment: AppEnvironment,
     val baseUrl: String,
+    val appVersion: String,
 ) {
     companion object {
         /** Values compiled in by BuildKonfig for the selected `onemind.environment`. */
         fun fromBuild(): ApiConfig =
-            ApiConfig(environment = AppEnvironment.fromKey(BuildKonfig.ENVIRONMENT), baseUrl = BuildKonfig.API_BASE_URL)
+            ApiConfig(
+                environment = AppEnvironment.fromKey(BuildKonfig.ENVIRONMENT),
+                baseUrl = BuildKonfig.API_BASE_URL,
+                appVersion = BuildKonfig.APP_VERSION,
+            )
     }
 }
