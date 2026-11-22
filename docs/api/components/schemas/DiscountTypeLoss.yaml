@@ -1,0 +1,18 @@
+type: object
+description: |
+  Discounts of one POS `discountType` (item discounts). `UNSPECIFIED` = item discounts without a type.
+  `UNTYPED` ("Other discounts") = bill-level discounts above the typed ones of the same venue and day:
+  bill-wide discounts and the items of bills stored without lines; it has no record count.
+required:
+  - type
+  - amount
+properties:
+  type:
+    type: string
+    example: HAPPY_HOUR
+  records:
+    type: integer
+    nullable: true
+    description: Null for `UNTYPED`.
+  amount:
+    $ref: ./Money.yaml

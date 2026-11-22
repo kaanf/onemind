@@ -17,6 +17,10 @@ data class HourTotals(
     val paymentMismatchBills: Int,
     /** Bills that count in [paidMinor] (V013; 0 on a day stored before RollupVersion 2). */
     val paidBills: Int,
+    /** Refunded bills (V014; 0 on a day stored before RollupVersion 3). */
+    val refundedBills: Int,
+    /** Whole deleted bills. */
+    val deletedBills: Int,
     /** Card / cash / other of [paidMinor]: refunded bills already taken off (0 before RollupVersion 2). */
     val paidCardMinor: Long,
     val paidCashMinor: Long,

@@ -3,8 +3,12 @@ package com.onemind.backend.reporting.web
 import com.onemind.api.v1.model.DataGaps
 import com.onemind.api.v1.model.DataStatus
 import com.onemind.api.v1.model.DaySpan
+import com.onemind.api.v1.model.DiscountTypeLoss
 import com.onemind.api.v1.model.HourlyBar
+import com.onemind.api.v1.model.LossComparison
 import com.onemind.api.v1.model.LossComponent
+import com.onemind.api.v1.model.LossRecords
+import com.onemind.api.v1.model.LossesSummary
 import com.onemind.api.v1.model.Money
 import com.onemind.api.v1.model.PaymentSplit
 import com.onemind.api.v1.model.PossibleLoss
@@ -16,11 +20,14 @@ import com.onemind.api.v1.model.TodayHourly
 import com.onemind.api.v1.model.TodaySummary
 import com.onemind.api.v1.model.TodayVenue
 import com.onemind.api.v1.model.UnavailableFigure
+import com.onemind.api.v1.model.UnavailableLossComponent
 import com.onemind.api.v1.web.DashboardApi
 import com.onemind.backend.common.security.CurrentUser
 import com.onemind.backend.common.web.ETagResponses
+import com.onemind.backend.reporting.application.GetLosses
 import com.onemind.backend.reporting.application.GetSales
 import com.onemind.backend.reporting.application.GetTodaySummary
+import com.onemind.backend.reporting.application.LossesView
 import com.onemind.backend.reporting.application.SalesPeriodUnknownException
 import com.onemind.backend.reporting.application.SalesView
 import com.onemind.backend.reporting.application.ScopedVenue
@@ -31,6 +38,8 @@ import com.onemind.backend.reporting.domain.LossTotals
 import com.onemind.backend.reporting.domain.SalesPeriod
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.Currency
@@ -40,6 +49,7 @@ import java.util.UUID
 class DashboardController(
     private val getTodaySummary: GetTodaySummary,
     private val getSales: GetSales,
+    private val getLosses: GetLosses,
     private val eTags: ETagResponses,
 ) : DashboardApi {
     override fun getToday(
@@ -56,6 +66,57 @@ class DashboardController(
         val salesPeriod = SalesPeriod.entries.firstOrNull { it.name == period } ?: throw SalesPeriodUnknownException()
         return eTags.ok(getSales.get(CurrentUser.id(), venueIds, salesPeriod, date).toDto(), ifNoneMatch)
     }
+
+    override fun getLosses(
+        venueIds: List<UUID>,
+        period: String,
+        date: LocalDate?,
+        ifNoneMatch: String?,
+    ): ResponseEntity<LossesSummary> {
+        val salesPeriod = SalesPeriod.entries.firstOrNull { it.name == period } ?: throw SalesPeriodUnknownException()
+        return eTags.ok(getLosses.get(CurrentUser.id(), venueIds, salesPeriod, date).toDto(), ifNoneMatch)
+    }
+
+    private fun LossesView.toDto(): LossesSummary {
+        val code = currency.currencyCode
+
+        fun money(minor: Long) = Money(minor, code)
+        val figures = figures
+        return LossesSummary(
+            status = if (figures != null) DataStatus.READY else DataStatus.NO_DATA_YET,
+            currency = code,
+            range = SalesRange(SalesRange.Period.valueOf(ranges.period.name), ranges.current.from, ranges.current.to, ranges.finished),
+            venues = venues.map { it.toDto(businessDay, timeZone) },
+            pendingVenueIds = venues.filterNot { it.ready }.map { it.venueId },
+            discountsByType = figures?.discountsByType?.map { DiscountTypeLoss(it.type, money(it.amountMinor), it.records) }.orEmpty(),
+            unavailableComponents =
+                listOf(
+                    UnavailableLossComponent.UNPAID_CLOSED,
+                    UnavailableLossComponent.ITEM_VOIDS,
+                    UnavailableLossComponent.STOCK_CORRECTIONS,
+                ),
+            dataGaps = gaps.toDto(discountMismatchDays = figures?.discountMismatches?.size),
+            possibleLoss = figures?.loss?.toDto(currency),
+            sharePercent = figures?.sharePercent?.oneDecimal(),
+            records = figures?.records,
+            comparison =
+                comparison?.let {
+                    LossComparison(
+                        previous = DaySpan(ranges.previous.from, ranges.previous.to),
+                        compared = DaySpan(it.from, it.to),
+                        upToSameTime = it.upToSameTime,
+                        venueIds = it.venueIds,
+                        currentSharePercent = it.currentSharePercent?.oneDecimal(),
+                        previousSharePercent = it.previousSharePercent?.oneDecimal(),
+                        changePoints = it.changePoints?.toPlainString(),
+                    )
+                },
+            refunds = figures?.refunds?.let { LossRecords(money(it.amountMinor), it.records) },
+            deletedBills = figures?.deletedBills?.let { LossRecords(money(it.amountMinor), it.records) },
+        )
+    }
+
+    private fun BigDecimal.oneDecimal(): String = setScale(1, RoundingMode.HALF_UP).toPlainString()
 
     private fun SalesView.toDto(): SalesSummary {
         val code = currency.currencyCode
@@ -168,12 +229,13 @@ class DashboardController(
         dataAsOf = dataAsOf?.atOffset(ZoneOffset.UTC),
     )
 
-    private fun TodayGapsView.toDto() =
+    private fun TodayGapsView.toDto(discountMismatchDays: Int? = null) =
         DataGaps(
             quarantinedBillCount = quarantinedBills,
             linelessBillCount = billsWithoutLines,
             outdatedBillCount = outdatedBills,
             paymentMismatchBillCount = paymentMismatchBills,
+            discountMismatchDayCount = discountMismatchDays,
         )
 
     private fun LossTotals.toDto(currency: Currency): PossibleLoss {

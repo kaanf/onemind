@@ -39,6 +39,8 @@ class SalesCalculatorTest {
         deletedMinor = 200,
         paymentMismatchBills = 0,
         paidBills = paidBills,
+        refundedBills = 0,
+        deletedBills = 0,
         paidCardMinor = card,
         paidCashMinor = cash,
         paidOtherMinor = other,
