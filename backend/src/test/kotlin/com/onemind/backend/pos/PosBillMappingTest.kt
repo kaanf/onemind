@@ -5,6 +5,7 @@ import com.onemind.backend.pos.domain.PaymentKind
 import com.onemind.backend.pos.domain.QuarantineReason
 import com.onemind.backend.pos.domain.UnreadableBillException
 import com.onemind.backend.pos.infra.client.PosBillDetail
+import com.onemind.backend.pos.infra.client.PosItemDiscount
 import com.onemind.backend.pos.infra.client.PosPlaceRef
 import com.onemind.backend.pos.infra.client.mock.MockPosProvider
 import com.onemind.backend.testing.MutableClock
@@ -70,5 +71,46 @@ class PosBillMappingTest {
                 .first()
                 .unitPriceMinor,
         )
+    }
+
+    @Test
+    fun `a discount's sub-minor original price is rounded like a price, the bill stays whole`() {
+        val line = detail.items.first()
+        val discount =
+            PosItemDiscount(
+                originalPrice = "69.004",
+                amountType = "PERCENT",
+                percentValue = "20",
+                absoluteValue = null,
+                discountType = "HAPPY_HOUR",
+                note = null,
+            )
+        val discounted =
+            detail.copy(
+                items =
+                    listOf(line.copy(price = "69.00", amount = "1", discounts = listOf(discount))) + detail.items.drop(1),
+            )
+
+        val item = PosBillMapping.toSynced(discounted, zone, cutOff).items.first()
+
+        assertEquals(6900, item.discounts.single().originalPriceMinor)
+        assertEquals(1380, item.discountMinor)
+    }
+
+    @Test
+    fun `a sub-minor absolute discount amount is never rounded`() {
+        val line = detail.items.first()
+        val discount =
+            PosItemDiscount(
+                originalPrice = "69.00",
+                amountType = "ABSOLUTE",
+                percentValue = null,
+                absoluteValue = "10.005",
+                discountType = "MANAGER",
+                note = null,
+            )
+        val bad = detail.copy(items = listOf(line.copy(discounts = listOf(discount))) + detail.items.drop(1))
+
+        assertEquals(QuarantineReason.SUB_MINOR_AMOUNT, reasonOf(bad))
     }
 }

@@ -153,7 +153,12 @@ object PosBillMapping {
             amountType = amountType,
             percentValue = percentValue?.let { decimal(it, QuarantineReason.BAD_AMOUNT) },
             absoluteMinor = absoluteValue?.let { money(it, currency) },
-            originalPriceMinor = originalPrice?.let { money(it, currency) },
+            // The pre-discount price is a price: rounded like the unit price; the discount amount stays exact.
+            originalPriceMinor =
+                originalPrice?.let {
+                    decimal(it, QuarantineReason.BAD_AMOUNT)
+                    PosMoney.minorUnitsRounded(it, currency)
+                },
             note = note,
         )
 

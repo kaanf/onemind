@@ -177,7 +177,7 @@ Bills (`SyncBills`, each run, after menu and desks; settings `onemind.pos.sync.*
   `refunded = true` with a later `lastModifiedAt`, so METRICS can date a refund by its bill only.
 
 Assumptions in the bill mapping, to verify against the real API: **detail availability for deleted and
-refunded bills** (if Storyous answers 404 for them, they are stored from their header, flagged); item `price` is the unit price with
+refunded bills** (if Storyous answers 404 for them, they are stored from their header, flagged); a discount's `originalPrice` is the pre-discount line price (rounded half-up like other prices; the discount amount itself stays exact); item `price` is the unit price with
 VAT and `amount` the quantity; line `total_minor` = price × amount (rounded half-up to the minor unit)
 − the item's discounts; a discount's amount is `absoluteValue`, else `percentValue` % of
 `originalPrice`, else the bill is quarantined (never 0); `finalPrice` excludes `tips`;
