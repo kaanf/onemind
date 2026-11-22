@@ -123,7 +123,7 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
 - Immutable data classes for DTOs and value objects. Use `value class` for IDs
   (`VenueId`, `BillId`) and `Money`.
 - **Money:** `Money(amountMinor: Long, currency: Currency)`; sub-minor prices `BigDecimal`. Rounding
-  rules in one place. POS prices finer than the currency (menu product prices, bill line unit prices)
+  rules in one place. POS prices finer than the currency (menu product prices, bill line unit prices, a discount's original price)
   are rounded half-up by `pos/domain/PosMoney.minorUnitsRounded` (owner decision 2026-11-22); totals,
   payments and discounts use the exact `minorUnits` and are never rounded. Gated (`architecture/ProductRules`, rule 5): no `Float`/`Double` in a
   money-named class, field, method or parameter (whole words from `docs/api/lint/money-words.json`,
@@ -225,6 +225,12 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
   aggregation refresh, stock usage and suggestion detectors.
 
 ## Metrics rules
+
+- Rollups (`reporting`, ADR 0013 §5): `reporting/domain/RollupCalculator` computes a venue's business day
+  from `pos/api/PosReadModel` facts; `RefreshRollups` replaces that day's rows (idempotent), called by the
+  `BillsSynced` listener (`RollupListener`) and the hourly `reporting-rebuild` job (`RebuildRollups`:
+  missing days and days below `RollupVersion.CURRENT`, a few per run). **Bump `RollupVersion.CURRENT`
+  whenever a calculation changes** so stored days are recomputed. Screens add `RollupReads.dataGaps`.
 
 - Implement each metric in `docs/domain/METRICS.md` exactly once, in the `reporting`
   module, with a unit test per definition using fixture bills (include a midnight-crossing

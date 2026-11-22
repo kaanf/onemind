@@ -119,14 +119,14 @@ fall-back night the repeated hour is merged into one row.
 
 | Table | Grain (PK) | Columns | Basis |
 |-------|-----------|---------|-------|
-| `hourly_sales` | `venue_id, business_day, hour` | `revenue_minor`, `revenue_without_tax_minor`, `bills`, `guests`, `tips_minor`, `discount_minor`, `card_minor`, `cash_minor`, `other_minor`, `refunded_minor`, `deleted_bills` | Local hour of `paid_at` |
+| `hourly_sales` | `venue_id, business_day, hour` | `revenue_minor`, `revenue_without_tax_minor`, `bills`, `guests`, `tips_minor`, `discount_minor`, `card_minor`, `cash_minor`, `other_minor`, `refunded_minor`, `deleted_bills`, `deleted_minor` (V010) | Local hour of `paid_at` |
 | `hourly_activity` | `venue_id, business_day, hour` | `sessions`, `guests` | Local hour of `session_started_at` (hourly patterns, 02b) |
 | `product_hourly_sales` | `venue_id, business_day, hour, product_id` | `quantity`, `gross_minor`, `discount_minor` | Session hour (no per-item order time) |
 | `staff_daily_sales` | `venue_id, business_day, staff_id` | `bills`, `revenue_minor`, `guests`, `discount_minor`, `deleted_bills` (by `created_by`); `tips_minor` (by `paid_by`) | Sales to the person who **opened** the bill, tips to the person who **closed** it (answers M6). Both IDs stay on `pos.bill`, so a per-venue setting can be added later. |
 | `desk_daily_sales` | `venue_id, business_day, desk_id` | `bills`, `revenue_minor`, `guests`, `occupied_minutes` | `occupied_minutes` = Σ(paid_at − session_started_at) |
 | `discount_daily` | `venue_id, business_day, discount_type` | `records`, `amount_minor` | |
 | `desk_capacity` | `venue_id, desk_id` | `estimated`, `override`, `updated_at`, `version` | Estimated = highest guest count seen in 8 weeks; owner can override (labelled "estimated") |
-| `rollup_state` | `venue_id, business_day` | `refreshed_at`, `source_max_modified_at` | Tracks what is up to date |
+| `rollup_state` | `venue_id, business_day` | `refreshed_at`, `source_max_modified_at`, `rollup_version` (V010) | Tracks what is up to date; the rebuild job recomputes days missing here or below `reporting/domain/RollupVersion.CURRENT` |
 
 Sizing: a busy bar has ~300 bills/day → ~100k bills/year per venue. No partitioning for now;
 revisit at millions of rows (range partitioning by `business_day`).

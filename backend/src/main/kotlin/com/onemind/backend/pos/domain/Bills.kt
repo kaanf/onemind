@@ -2,6 +2,7 @@ package com.onemind.backend.pos.domain
 
 import com.onemind.backend.common.time.BusinessDayCalendar
 import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -129,4 +130,20 @@ object BillAttribution {
         zone: ZoneId,
         businessDayStart: LocalTime,
     ): LocalDate = BusinessDayCalendar.businessDate(paidAt, zone, businessDayStart)
+}
+
+/** The amount of one item discount (STORYOUS.md, assumptions): the absolute value, else the percentage of the original price. */
+object DiscountAmount {
+    /** `null` when the POS sent neither; such a bill is quarantined, never counted as 0. */
+    fun of(
+        absoluteMinor: Long?,
+        percentValue: BigDecimal?,
+        originalPriceMinor: Long?,
+    ): Long? =
+        absoluteMinor
+            ?: if (percentValue != null && originalPriceMinor != null) {
+                (BigDecimal.valueOf(originalPriceMinor) * percentValue).divide(BigDecimal(100), 0, RoundingMode.HALF_UP).longValueExact()
+            } else {
+                null
+            }
 }
