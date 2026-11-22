@@ -39,6 +39,8 @@ paths:
     $ref: ./paths/onboarding/demo.yaml
   /dashboard/today:
     $ref: ./paths/dashboard/today.yaml
+  /dashboard/sales:
+    $ref: ./paths/dashboard/sales.yaml
 components:
   securitySchemes:
     bearerAuth:

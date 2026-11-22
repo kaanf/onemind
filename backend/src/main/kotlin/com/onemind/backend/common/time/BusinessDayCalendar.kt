@@ -7,6 +7,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 
 /**
  * The one place that turns an instant into a venue's business day (AGENTS.md rule 6,
@@ -48,6 +49,12 @@ object BusinessDayCalendar {
         at: Instant,
         zone: ZoneId,
     ): Int = at.atZone(zone).hour
+
+    /** The start of the local clock hour [at] is in ("21:00 to 22:00" so far); in the repeated DST hour, that occurrence's start. */
+    fun startOfLocalHour(
+        at: Instant,
+        zone: ZoneId,
+    ): Instant = at.atZone(zone).truncatedTo(ChronoUnit.HOURS).toInstant()
 
     /**
      * The local clock hours of a business date in order, each once: 24 on a normal day, 23 on the spring

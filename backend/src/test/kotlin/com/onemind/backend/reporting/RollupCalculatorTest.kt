@@ -104,14 +104,17 @@ class RollupCalculatorTest {
     @Test
     fun `deleted bills count only as deleted, refunded bills stay in their paid day (M13)`() {
         val deleted = bill("2026-11-20T20:00:00Z", total = 7_000, deleted = true)
-        val refunded = bill("2026-11-20T20:05:00Z", total = 3_000, refunded = true)
+        val refunded = bill("2026-11-20T20:05:00Z", total = 3_000, payments = listOf(RollupPayment("CASH", 3_000)), refunded = true)
         val paid = bill("2026-11-20T20:10:00Z", total = 10_000)
 
         val row = RollupCalculator.compute(listOf(deleted, refunded, paid), emptyList(), day("2026-11-20"), zone).hourlySales.single()
 
         assertEquals(13_000, row.revenueMinor)
         assertEquals(2, row.bills)
+        assertEquals(1, row.paidBills)
         assertEquals(3_000, row.refundedMinor)
+        assertEquals(3_000, row.refundedCashMinor)
+        assertEquals(0, row.refundedCardMinor + row.refundedOtherMinor)
         assertEquals(1, row.deletedBills)
         assertEquals(7_000, row.deletedMinor)
     }
@@ -234,6 +237,7 @@ class RollupCalculatorTest {
         assertEquals(row.revenueMinor, row.cardMinor + row.cashMinor + row.otherMinor)
         assertEquals(2, row.billsPaymentMismatch)
         assertEquals(3, row.bills)
+        assertEquals(1, row.paidBills)
         assertEquals(setOf(tipsTooHigh.billId, unpaid.billId), rollups.paymentMismatchBillIds.toSet())
     }
 }

@@ -26,7 +26,7 @@ class TodayCalculatorTest {
         refunded: Long = 0,
         guests: Int = 0,
         tips: Long = 0,
-    ) = HourTotals(day, hour, paid + refunded, refunded, tips, guests, 0, 0, 0)
+    ) = HourTotals(day, hour, paid + refunded, refunded, tips, guests, 0, 0, 0, 0, 0, 0, 0)
 
     private fun weeksAgo(weeks: Long) = today.minusWeeks(weeks)
 

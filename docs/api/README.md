@@ -209,7 +209,7 @@ RFC 9457 Problem Details with extension members:
 |--------|------|--------|
 | GET | `/dashboard/today` | 01 (built: `ETag` / `If-None-Match`, per-venue `status`, `unavailable`, `dataGaps`) |
 | GET | `/dashboard/tables?mode=now\|week` | 01a |
-| GET | `/dashboard/sales?period=…` | 02 |
+| GET | `/dashboard/sales?period=…&date=…` | 02 (built: `HOUR`/`DAY`/`WEEK`/`MONTH`, `date` anchor, M3 comparison, `ETag`) |
 | GET | `/dashboard/products?day=…&category=…` | 02a |
 | GET | `/dashboard/hourly-patterns?weeks=8` | 02b |
 | GET | `/dashboard/losses?period=…` | 02c |

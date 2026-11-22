@@ -1,0 +1,42 @@
+type: object
+description: |
+  Revenue against the previous period (METRICS, periods), over the same venues: only those whose data
+  starts by `compared.from` (`venueIds`); the others are left out of both figures. A finished period is
+  compared with the whole previous one. An unfinished one with the same elapsed span: as many business
+  days from the start, the last one up to the same local time (`upToSameTime`); a month whose elapsed day
+  doesn't exist in the previous month is compared with the whole previous month (M3 default). The whole
+  comparison is null when no venue's data starts by then.
+required:
+  - previous
+  - compared
+  - upToSameTime
+  - venueIds
+  - current
+  - previousRevenue
+properties:
+  previous:
+    allOf:
+      - $ref: ./DaySpan.yaml
+    description: The whole previous period ("vs last week", "vs October").
+  compared:
+    allOf:
+      - $ref: ./DaySpan.yaml
+    description: The part of the previous period the figures are compared with.
+  upToSameTime:
+    type: boolean
+    description: True when `compared.to` is cut at the same local time as now.
+  venueIds:
+    type: array
+    description: The venues both figures cover.
+    items:
+      type: string
+      format: uuid
+  current:
+    $ref: ./Money.yaml
+  previousRevenue:
+    $ref: ./Money.yaml
+  deltaPercent:
+    type: string
+    nullable: true
+    description: One decimal, rounded half-up ("8.1", "-3.0"); null when `previousRevenue` is 0.
+    example: '8.1'

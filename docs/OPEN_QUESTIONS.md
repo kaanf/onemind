@@ -27,7 +27,7 @@ reference the question ID in a code comment / PR. When a question is answered, m
 | ID | Question |
 |----|----------|
 | M2 | Revenue gross (incl. VAT) or net? Margins on net price? |
-| M3 | Week/month comparisons: full previous period or same elapsed span? |
+| M3 | Week/month comparisons: full previous period or same elapsed span? Default (first release): an unfinished period vs the same elapsed span (whole days, then the next day up to the same local time; a month past the previous month's last day vs the whole previous month); a finished period vs the whole previous one (`domain/METRICS.md`, periods). Accept? |
 | M4 | Payment methods other than card/cash (vouchers, meal cards, Benefit): how to show? |
 | M5 | Guest count when the POS has none: count 1 per bill, or exclude? |
 | M7 | Happy Hour "extra sales" baseline method. |

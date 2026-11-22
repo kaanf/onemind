@@ -1,0 +1,44 @@
+get:
+  tags:
+    - Dashboard
+  operationId: getSales
+  summary: Sales (02)
+  description: |
+    Revenue, guests, average bill, per guest, tips and the card/cash split of a period for one or more
+    venues (screen 02; `docs/domain/METRICS.md`), compared with the previous period. Venues are resolved
+    as on Today: figures sum the venues that have data (`READY`), the others are in `pendingVenueIds`;
+    figures the POS can't give are in `unavailable`. Polling: `ETag` / `If-None-Match` → `304` (ADR 0005).
+
+    Errors: `400 VALIDATION_FAILED` without a venue; `400 SALES_PERIOD_UNKNOWN` for another period; `400 SALES_DATE_IN_FUTURE`
+    for a `date` after the current business day; `400 SALES_HOUR_NOT_TODAY` for `HOUR` with another date;
+    `404 VENUE_NOT_FOUND` for a venue that isn't the caller's; `422 CURRENCIES_DIFFER`;
+    `422 BUSINESS_DAYS_DIFFER` (as on Today).
+  parameters:
+    - $ref: ../../components/parameters/VenueIds.yaml
+    - $ref: ../../components/parameters/SalesPeriod.yaml
+    - $ref: ../../components/parameters/SalesDate.yaml
+    - $ref: ../../components/parameters/IfNoneMatch.yaml
+  responses:
+    '200':
+      description: The period's figures.
+      headers:
+        ETag:
+          description: Version of this answer, for `If-None-Match`.
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/SalesSummary.yaml
+    '304':
+      description: Unchanged since the `If-None-Match` version.
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '422':
+      $ref: ../../components/responses/UnprocessableEntity.yaml
+    '426':
+      $ref: ../../components/responses/UpgradeRequired.yaml

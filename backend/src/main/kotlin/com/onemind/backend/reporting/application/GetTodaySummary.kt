@@ -1,9 +1,5 @@
 package com.onemind.backend.reporting.application
 
-import com.onemind.backend.account.api.VenueAccess
-import com.onemind.backend.account.api.VenueBusinessDay
-import com.onemind.backend.account.api.VenueRegistry
-import com.onemind.backend.common.error.RuleViolationException
 import com.onemind.backend.common.time.BusinessDayCalendar
 import com.onemind.backend.pos.api.PosReadModel
 import com.onemind.backend.reporting.domain.BillRevenue
@@ -18,18 +14,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.util.Currency
 import java.util.UUID
-
-class BusinessDaysDifferException :
-    RuleViolationException(
-        code = "BUSINESS_DAYS_DIFFER",
-        detail = "These venues don't share one time zone and cut-off, so their hours can't share one chart.",
-    )
-
-class CurrenciesDifferException :
-    RuleViolationException(
-        code = "CURRENCIES_DIFFER",
-        detail = "These venues don't share one currency, so their amounts can't be added up.",
-    )
 
 /** One requested venue: its business day and whether it has data yet (rule 2). */
 data class TodayVenueView(
@@ -79,8 +63,7 @@ data class TodayView(
  */
 @Service
 class GetTodaySummary(
-    private val venueAccess: VenueAccess,
-    private val venueRegistry: VenueRegistry,
+    private val scopes: DashboardScopes,
     private val rollups: RollupRepository,
     private val pos: PosReadModel,
     private val clock: Clock,
@@ -89,52 +72,25 @@ class GetTodaySummary(
         userId: UUID,
         venueIds: Collection<UUID>,
     ): TodayView {
-        val ids = venueIds.distinct()
-        require(ids.isNotEmpty()) { "at least one venue (the API validates it)" }
-        ids.forEach { venueAccess.requireAccess(userId, it) }
-        val settings = ids.associateWith { requireNotNull(venueRegistry.businessDay(it)) { "an accessible venue has settings" } }
-        val currency =
-            settings.values
-                .map { it.currency }
-                .distinct()
-                .singleOrNull() ?: throw CurrenciesDifferException()
-        // One chart, one clock: venues on different zones or cut-offs are a first-release limit (rule 6).
-        if (settings.values
-                .map { it.zone to it.businessDayStart }
-                .distinct()
-                .size > 1
-        ) {
-            throw BusinessDaysDifferException()
-        }
+        val scope = scopes.resolve(userId, venueIds)
         val now = clock.instant()
-
-        val venues =
-            ids.map { id ->
-                val venue = settings.getValue(id)
-                val dataAsOf = pos.lastBillsSyncAt(id)
-                TodayVenueView(id, today(venue, now), venue.zone.id, ready = dataAsOf != null, dataAsOf = dataAsOf)
-            }
+        val businessDay = scope.businessDay(now)
+        val venues = scope.venues.map { TodayVenueView(it.venueId, businessDay, scope.zone.id, it.ready, it.dataAsOf) }
         val ready = venues.filter { it.ready }
-        val shared = settings.getValue(venues.first().venueId)
-        val currentHour = BusinessDayCalendar.localHour(now, shared.zone)
-        val dayHours = BusinessDayCalendar.localHours(venues.first().businessDay, shared.zone, shared.businessDayStart)
+        val currentHour = BusinessDayCalendar.localHour(now, scope.zone)
+        val dayHours = BusinessDayCalendar.localHours(businessDay, scope.zone, scope.businessDayStart)
 
         val inputs = ready.associateWith { venue -> venueToday(venue) }
         val figures = if (ready.isEmpty()) null else TodayCalculator.compute(inputs.values.toList(), currentHour, dayHours)
         return TodayView(
-            currency = currency,
+            currency = scope.currency,
             venues = venues,
             figures = figures,
-            comparison = comparison(inputs, shared, now),
+            comparison = comparison(inputs, scope, now),
             currentHour = currentHour,
             gaps = gaps(ready, figures),
         )
     }
-
-    private fun today(
-        venue: VenueBusinessDay,
-        now: Instant,
-    ): LocalDate = BusinessDayCalendar.businessDate(now, venue.zone, venue.businessDayStart)
 
     private fun venueToday(venue: TodayVenueView): VenueToday {
         val sameWeekdays = (1L..SAME_WEEKDAYS).map { venue.businessDay.minusWeeks(it) }
@@ -152,10 +108,10 @@ class GetTodaySummary(
      */
     private fun comparison(
         inputs: Map<TodayVenueView, VenueToday>,
-        shared: VenueBusinessDay,
+        scope: DashboardScope,
         now: Instant,
     ): TodayComparisonView? {
-        val cut = BusinessDayCalendar.sameLocalTimeDaysEarlier(now, shared.zone, DAYS_IN_WEEK)
+        val cut = BusinessDayCalendar.sameLocalTimeDaysEarlier(now, scope.zone, DAYS_IN_WEEK)
         val compared =
             inputs.filterKeys { venue -> rollups.daysWithRollups(venue.venueId, listOf(venue.businessDay.minusWeeks(1))).isNotEmpty() }
         if (compared.isEmpty()) return null
@@ -184,7 +140,7 @@ class GetTodaySummary(
         ready: List<TodayVenueView>,
         figures: TodayFigures?,
     ): TodayGapsView {
-        val pos = ready.map { pos.dataGaps(it.venueId, it.businessDay) }
+        val pos = ready.map { pos.dataGaps(it.venueId, it.businessDay..it.businessDay) }
         return TodayGapsView(
             quarantinedBills = pos.sumOf { it.quarantinedBills },
             billsWithoutLines = pos.sumOf { it.billsWithoutLines },

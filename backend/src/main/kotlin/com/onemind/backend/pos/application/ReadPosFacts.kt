@@ -44,8 +44,9 @@ class ReadPosFacts(
     /** Gaps of the venue; lineless and outdated bills of [day] only when given (quarantined ones have no day). */
     fun dataGaps(
         venueId: UUID,
-        day: LocalDate? = null,
-    ): PosDataGaps = PosDataGaps(reads.quarantinedBills(venueId), reads.billsWithoutLines(venueId, day), reads.outdatedBills(venueId, day))
+        days: ClosedRange<LocalDate>? = null,
+    ): PosDataGaps =
+        PosDataGaps(reads.quarantinedBills(venueId), reads.billsWithoutLines(venueId, days), reads.outdatedBills(venueId, days))
 
     fun lastBillsSyncAt(venueId: UUID): Instant? = reads.lastBillsSyncAt(venueId)
 

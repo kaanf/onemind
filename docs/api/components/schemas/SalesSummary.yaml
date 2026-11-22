@@ -1,0 +1,82 @@
+type: object
+description: |
+  Screen 02. Figures are null when no requested venue has data yet (`status NO_DATA_YET`), never 0; a
+  venue with data and no sales has real zeros.
+required:
+  - status
+  - currency
+  - range
+  - venues
+  - pendingVenueIds
+  - unavailable
+  - dataGaps
+properties:
+  status:
+    $ref: ./DataStatus.yaml
+  currency:
+    type: string
+    pattern: '^[A-Z]{3}$'
+  range:
+    $ref: ./SalesRange.yaml
+  venues:
+    type: array
+    items:
+      $ref: ./TodayVenue.yaml
+  pendingVenueIds:
+    type: array
+    description: Requested venues still waiting for their first sync; not in the figures.
+    items:
+      type: string
+      format: uuid
+  revenue:
+    type: object
+    allOf:
+      - $ref: ./Money.yaml
+    nullable: true
+    description: '`paidRevenue` of the period so far, refunds subtracted (METRICS, revenue).'
+  comparison:
+    type: object
+    allOf:
+      - $ref: ./SalesComparison.yaml
+    nullable: true
+  guests:
+    type: integer
+    nullable: true
+  averageBill:
+    type: object
+    allOf:
+      - $ref: ./Money.yaml
+    nullable: true
+    description: |
+      Revenue / paid bills (not deleted, not refunded, payments add up). Null without paid bills, or while
+      a day of the period is still being recomputed by a newer calculation.
+  perGuest:
+    type: object
+    allOf:
+      - $ref: ./Money.yaml
+    nullable: true
+    description: Null when there are no guests.
+  tips:
+    type: object
+    allOf:
+      - $ref: ./Money.yaml
+    nullable: true
+    description: The tips total; the card share is unavailable (`TIPS_CARD_SHARE`).
+  byPayment:
+    type: object
+    allOf:
+      - $ref: ./PaymentSplit.yaml
+    nullable: true
+    description: Null when there is no data, or while a day of the period is still being recomputed.
+  possibleLoss:
+    type: object
+    allOf:
+      - $ref: ./PossibleLoss.yaml
+    nullable: true
+    description: The period's possible loss (first-release components), for the Discounts & losses link.
+  unavailable:
+    type: array
+    items:
+      $ref: ./UnavailableFigure.yaml
+  dataGaps:
+    $ref: ./DataGaps.yaml
