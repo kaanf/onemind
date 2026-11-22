@@ -74,6 +74,10 @@ onemind:
         client-ids: ${GOOGLE_CLIENT_IDS:}
   mail:
     from: ${MAIL_FROM:OneMind <no-reply@onemind.app>}
+  # Which POS the sync reads: `mock` (demo data, dev only; a prod start with it fails) or, later,
+  # `storyous`. Prod sets POS_PROVIDER.
+  pos:
+    provider: ${POS_PROVIDER:mock}
   # Lowest supported app version per platform; older apps get 426 (ADR 0001). Empty = no check.
   app-version:
     minimum-ios: ${MIN_APP_VERSION_IOS:}

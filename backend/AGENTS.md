@@ -208,6 +208,11 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
 
 ## POS sync rules
 
+- POS access goes through `pos/infra/client/PosProvider` (read-only; types in `PosModels.kt`, money as
+  decimal strings → `pos/domain/PosMoney` at the boundary). `onemind.pos.provider` picks it: `mock`
+  (dev default in `application.yml`, env `POS_PROVIDER`) is `pos/infra/client/mock/MockPosProvider`,
+  never created in `prod`, and a prod start with `mock` fails. The mock emits only verified Storyous
+  fields (`docs/integrations/STORYOUS.md`, *Mock provider*); don't add a field the real API lacks.
 - Storyous client exposes **read methods only**. Gated (`architecture/ProductRules`, rule 1): no
   mutating HTTP call anywhere in `pos`. The real client's recorded-fixture tests must also fail on any
   non-GET request.
