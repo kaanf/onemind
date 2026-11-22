@@ -3,6 +3,7 @@ package com.onemind.today.presentation.today
 import com.onemind.core.designsystem.components.BadgeTone
 import com.onemind.core.presentation.format.VenueLocale
 import com.onemind.core.presentation.format.formatClockTime
+import com.onemind.core.presentation.format.formatCount
 import com.onemind.core.presentation.format.formatDeltaPercent
 import com.onemind.core.presentation.format.formatMoney
 import com.onemind.today.domain.DataStatus
@@ -58,8 +59,8 @@ data class HourlyUi(
 data class HourBarUi(
     val hour: Int,
     val kind: HourKind,
-    /** Bar height against the day's largest bar, 0–1; 0 for a forecast without any earlier weekday. */
-    val heightFraction: Float,
+    /** Bar height against the day's largest bar, 0–1; `null` (nothing drawn) for a forecast without any earlier weekday. */
+    val heightFraction: Float?,
 )
 
 data class PossibleLossUi(
@@ -113,7 +114,7 @@ fun TodaySummary.toUi(now: Instant): TodayUi {
         tips = tips?.let { formatMoney(it, locale) },
         hourly = hourly?.toUi(),
         occupancyUnavailable = UnavailableFigure.OCCUPANCY_NOW in unavailable,
-        guests = guests?.toString(),
+        guests = guests?.let { formatCount(it.toLong(), locale) },
         perGuest = perGuest?.let { formatMoney(it, locale) },
         possibleLoss =
             possibleLoss?.let { loss ->
@@ -134,17 +135,24 @@ private fun TodayHourly.toUi(): HourlyUi {
     return HourlyUi(
         bars =
             hours.map { bar ->
-                val minor = bar.amount?.amountMinor ?: 0L
                 HourBarUi(
                     hour = bar.hour,
                     kind = bar.kind,
-                    heightFraction = if (largest == null || minor <= 0) 0f else minor.toFloat() / largest.toFloat(),
+                    heightFraction =
+                        bar.amount?.amountMinor?.let { minor ->
+                            if (largest == null || minor <= 0) 0f else minor.toFloat() / largest.toFloat()
+                        },
                 )
             },
         peakHour =
             hours
-                .filter { it.kind != HourKind.FORECAST && (it.amount?.amountMinor ?: 0L) > 0 }
-                .maxByOrNull { it.amount!!.amountMinor }
-                ?.hour,
+                .filter { it.kind != HourKind.FORECAST }
+                .mapNotNull { bar ->
+                    bar.amount
+                        ?.amountMinor
+                        ?.takeIf { it > 0 }
+                        ?.let { bar.hour to it }
+                }.maxByOrNull { it.second }
+                ?.first,
     )
 }

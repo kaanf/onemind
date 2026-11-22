@@ -33,15 +33,17 @@ class TodayRepositoryImpl(
     private var last: Last? = null
 
     override suspend fun getToday(venueIds: List<String>): Result<TodaySummary, DataError> {
-        require(venueIds.isNotEmpty()) { "Today needs at least one venue" }
-        val venueSet = venueIds.sorted().joinToString(",")
+        // The server answers 400 VALIDATION_FAILED without a venue; say so without the round trip.
+        if (venueIds.isEmpty()) return Result.Failure(DataError.Api(HttpStatusCode.BadRequest.value, VALIDATION_FAILED))
+        // Sorted, so the same set is the same request and the same ETag key in any order.
+        val venueSet = venueIds.distinct().sorted().joinToString(",")
         val previous = mutex.withLock { last?.takeIf { it.venueSet == venueSet } }
         var etag: String? = null
         val result =
             safeCall<TodaySummaryDto> {
                 client
                     .get("dashboard/today") {
-                        parameter("venueIds", venueIds.joinToString(","))
+                        parameter("venueIds", venueSet)
                         previous?.let { header(HttpHeaders.IfNoneMatch, it.etag) }
                     }.also { etag = it.headers[HttpHeaders.ETag] }
             }
@@ -62,5 +64,9 @@ class TodayRepositoryImpl(
                 Result.Success(summary)
             }
         }
+    }
+
+    private companion object {
+        const val VALIDATION_FAILED = "VALIDATION_FAILED"
     }
 }

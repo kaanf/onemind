@@ -23,6 +23,16 @@ class ComponentLogicTest {
     }
 
     @Test
+    fun aBarWithoutAValueIsAnEmptySlotNotAZero() {
+        val muted = LightColors.chartMuted
+        val bars = listOf(Bar(45f, muted), Bar(90f, muted), Bar(0f, muted), Bar(null, muted))
+
+        // 0 still draws (the minimum stub); null draws nothing and doesn't count towards the tallest.
+        assertEquals(listOf(0.5f, 1f, 0f, null), drawnFractions(bars))
+        assertEquals(listOf(null, null), drawnFractions(listOf(Bar(null, muted), Bar(null, muted))))
+    }
+
+    @Test
     fun floorPlanPutsSpanningTileOnItsOwnRow() {
         val bar = FloorTile("Bar", "2 420", TileTone.Busy, "Bar", spanRow = true)
         val table = FloorTile("T1", "Free", TileTone.Free, "T1")

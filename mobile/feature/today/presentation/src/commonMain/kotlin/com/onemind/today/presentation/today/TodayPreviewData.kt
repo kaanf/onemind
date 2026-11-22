@@ -33,7 +33,8 @@ internal object TodayPreviewData {
                                         index == 6 -> HourKind.CURRENT
                                         else -> HourKind.FORECAST
                                     },
-                                heightFraction = height / 90f,
+                                // The last forecast hour has no earlier weekday: an empty slot.
+                                heightFraction = if (index == heights.lastIndex) null else height / 90f,
                             )
                         },
                     peakHour = 21,

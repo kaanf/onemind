@@ -42,6 +42,7 @@ import com.onemind.core.designsystem.components.PlaceholderScreen
 import com.onemind.core.designsystem.components.StatTile
 import com.onemind.core.designsystem.components.WarningCard
 import com.onemind.core.designsystem.icons.OneMindIcons
+import com.onemind.core.designsystem.theme.OneMindColors
 import com.onemind.core.designsystem.theme.OneMindTheme
 import com.onemind.core.presentation.util.UiText
 import com.onemind.today.domain.HourKind
@@ -271,22 +272,22 @@ private fun HourlyChart(hourly: HourlyUi) {
     val description =
         hourly.peakHour?.let { stringResource(Res.string.today_hourly_description, it.hourLabel()) }
             ?: stringResource(Res.string.today_hourly_description_no_peak)
-    BarChart(
-        bars =
-            hourly.bars.map { bar ->
-                Bar(
-                    value = bar.heightFraction,
-                    color =
-                        when (bar.kind) {
-                            HourKind.PAST -> colors.chartMutedStrong
-                            HourKind.CURRENT -> colors.accent
-                            HourKind.FORECAST -> colors.chartFuture
-                        },
-                )
-            },
-        contentDescription = description,
-    )
+    BarChart(bars = hourly.chartBars(colors), contentDescription = description)
 }
+
+/** The bars [BarChart] draws: past `chartMutedStrong`, current `accent`, forecast `chartFuture`; no height → empty slot. */
+internal fun HourlyUi.chartBars(colors: OneMindColors): List<Bar> =
+    bars.map { bar ->
+        Bar(
+            value = bar.heightFraction,
+            color =
+                when (bar.kind) {
+                    HourKind.PAST -> colors.chartMutedStrong
+                    HourKind.CURRENT -> colors.accent
+                    HourKind.FORECAST -> colors.chartFuture
+                },
+        )
+    }
 
 @Composable
 private fun LiveFigures(today: TodayUi) {

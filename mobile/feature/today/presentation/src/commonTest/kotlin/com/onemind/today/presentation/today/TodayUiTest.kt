@@ -1,6 +1,7 @@
 package com.onemind.today.presentation.today
 
 import com.onemind.core.designsystem.components.BadgeTone
+import com.onemind.core.designsystem.theme.LightColors
 import com.onemind.core.domain.quantity.DecimalValue
 import com.onemind.today.domain.DataGaps
 import com.onemind.today.domain.DataStatus
@@ -29,6 +30,13 @@ class TodayUiTest {
         assertEquals(TodayFixtures.shown("48·320_Kč"), ui.paidSoFar)
         assertEquals(TodayFixtures.shown("3·940_Kč"), ui.tips)
         assertEquals("286", ui.guests)
+        assertEquals(
+            TodayFixtures.shown("1·846"),
+            TodayFixtures.ready
+                .copy(guests = 1_846)
+                .toUi(now)
+                .guests,
+        )
         assertEquals(TodayFixtures.shown("169_Kč"), ui.perGuest)
         assertEquals(TodayFixtures.shown("1·870_Kč"), ui.possibleLoss?.total)
         assertEquals(listOf(LossKind.DISCOUNTS, LossKind.REFUNDS), ui.possibleLoss?.includes)
@@ -145,10 +153,24 @@ class TodayUiTest {
     fun hourlyBarsScaleToTheLargestAndAForecastWithoutHistoryIsEmpty() {
         val hourly = TodayFixtures.ready.toUi(now).hourly!!
 
-        assertEquals(listOf(0.5f, 4_200f / 18_200f, 1f, 0f), hourly.bars.map { it.heightFraction })
+        // The forecast without any earlier weekday is null: an empty slot, never a 0 bar.
+        assertEquals(listOf(0.5f, 4_200f / 18_200f, 1f, null), hourly.bars.map { it.heightFraction })
         assertEquals(listOf(HourKind.PAST, HourKind.CURRENT, HourKind.FORECAST, HourKind.FORECAST), hourly.bars.map { it.kind })
         // The spoken peak is of revenue paid so far, never a forecast.
         assertEquals(20, hourly.peakHour)
+    }
+
+    @Test
+    fun theChartGetsAnEmptySlotForAForecastWithoutHistory() {
+        val colors = LightColors
+        val bars =
+            TodayFixtures.ready
+                .toUi(now)
+                .hourly!!
+                .chartBars(colors)
+
+        assertEquals(listOf(colors.chartMutedStrong, colors.accent, colors.chartFuture, colors.chartFuture), bars.map { it.color })
+        assertEquals(listOf(0.5f, 4_200f / 18_200f, 1f, null), bars.map { it.value })
     }
 
     @Test

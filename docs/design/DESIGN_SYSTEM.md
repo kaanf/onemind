@@ -106,7 +106,7 @@ Treat accent as a single token so it can be switched.
 | **Avatar initials** | Initials (*TN*, *EP*) in a 40 × 40 rounded square (radius 12, `surfaceMuted`) in staff rows, as on the canvas; the dark 44 circle is the account button. |
 | **Hint card** | `accentSoft` bg, sparkle icon in accent, bold lead sentence + body. Used for generated insights. |
 | **Warning card** | `warningSurface` bg, 1 px `warningBorder`, warning icon in `warningText`, text `textPrimary` with a bold lead (canvas). Optional trailing arrow when it links. |
-| **Bar chart** | Rounded bars (3 px), optional value labels, axis labels 10–11 px, highlight colors per rule. |
+| **Bar chart** | Rounded bars (3 px), optional value labels, axis labels 10–11 px, highlight colors per rule. A bar without a value is an empty slot (no bar, no stub, no label), so it never reads as 0; a 0 draws the 2 px minimum. |
 | **Heatmap** | Grid of buttons with accessible labels (*Sat 22:00, 54 guests*). **Touch target exception:** with 10 hour columns (17:00 to 02:00, canvas 02b) a cell is about 29 × 28 dp, so 44 × 44 is impossible; cells stay at least 24 × 24 (WCAG 2.5.8 AA), one tap handler on the cell area selects the nearest cell (no dead zones between cells, a drag still scrolls), and every cell is its own accessibility node with its spoken label. |
 | **Floor plan** | Grid of table tiles; Bar spans the row; selected outline `selection`. |
 | **Progress row** | Status icon (done ✓ green / running ring accent / waiting dashed), name, meta, optional progress bar 4 px. |

@@ -35,6 +35,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlin.time.Instant
 
 class TodayRepositoryImplTest {
@@ -130,11 +131,11 @@ class TodayRepositoryImplTest {
         }
 
     @Test
-    fun sendsTheVenueIdsAsOneCommaSeparatedParameter() =
+    fun sendsTheVenueIdsSortedAsOneCommaSeparatedParameter() =
         runTest {
             val fixture = Fixture(backgroundScope) { json(NO_DATA_JSON) }
 
-            fixture.repository.getToday(listOf(VENUE_A, VENUE_B))
+            fixture.repository.getToday(listOf(VENUE_B, VENUE_A))
 
             val request = fixture.engine.requestHistory.single()
             assertEquals("/api/v1/dashboard/today", request.url.encodedPath)
@@ -170,6 +171,17 @@ class TodayRepositoryImplTest {
 
             assertNull(fixture.engine.requestHistory[1].headers[HttpHeaders.IfNoneMatch])
             assertEquals("\"v1\"", fixture.engine.requestHistory[2].headers[HttpHeaders.IfNoneMatch])
+        }
+
+    @Test
+    fun noVenueIsAValidationErrorWithoutARequest() =
+        runTest {
+            val fixture = Fixture(backgroundScope) { json(NO_DATA_JSON) }
+
+            val error = assertIs<Result.Failure<DataError>>(fixture.repository.getToday(emptyList())).error
+
+            assertEquals("VALIDATION_FAILED", assertIs<DataError.Api>(error).code)
+            assertTrue(fixture.engine.requestHistory.isEmpty())
         }
 
     @Test
