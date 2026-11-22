@@ -45,6 +45,9 @@ version in use.
 | `scheduled_tasks` | db-scheduler task table (DDL from db-scheduler 17.1, `V005`). `db-scheduler.table-name=platform.scheduled_tasks`. |
 | `idempotency_record` | `user_id → account.app_user` (cascade), `key uuid`, `method`, `path`, `request_hash bytea` (SHA-256 of method, path, query and body; multipart: of the parts), `claim_id uuid` (new per claim; only the claiming request may complete or release the row), `status (IN_PROGRESS\|COMPLETED)`, `response_status`, `response_headers jsonb` (`Content-Type`, `Location`), `response_body text` (not `jsonb`: replays send the original bytes), `created_at`, `expires_at` (24 h). PK `(user_id, key)`, index on `expires_at` (`V006`). An `IN_PROGRESS` row older than 5 minutes is taken over by a retry of the same request (crashed instance). A db-scheduler job deletes expired rows hourly. |
 
+Every foreign key has an index led by its columns (partial `where … is not null` is fine for nullable
+ones); `MigrationTests` checks the catalog and fails on a new key without one.
+
 ## `account`
 
 | Table | Key columns | Notes |
