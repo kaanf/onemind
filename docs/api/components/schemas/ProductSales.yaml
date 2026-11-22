@@ -9,7 +9,6 @@ required:
   - sold
   - gross
   - hourly
-  - peakHour
 properties:
   venueId:
     type: string
@@ -40,4 +39,7 @@ properties:
     type: integer
     minimum: 0
     maximum: 23
-    description: The hour with the most sold; the first in business-day order on ties.
+    nullable: true
+    description: |
+      The hour with the most sold (a positive quantity), the first in business-day order on ties; null when
+      no hour has a positive quantity. A product whose sold and gross both net to 0 is not listed.

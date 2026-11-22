@@ -22,7 +22,9 @@ data class ProductsView(
     val today: LocalDate,
     val timeZone: String,
     val venues: List<ScopedVenue>,
-    /** Null when no requested venue has data yet; empty lists on a real day without sales. */
+    /** The venues with data for [businessDay]: synced, and their data starts on or before it. */
+    val coveredVenueIds: Set<UUID>,
+    /** Null when no requested venue has data for the day; empty lists on a real day without sales. */
     val figures: ProductsFigures?,
     val gaps: TodayGapsView,
 )
@@ -30,7 +32,9 @@ data class ProductsView(
 /**
  * Screen 02a: products sold on one business day, per hour of bill opening (`docs/domain/METRICS.md`,
  * products and hours). Venues are resolved like Today and Sales ([DashboardScopes]); figures come from
- * the stored product hours, names and categories from the POS menu ([PosReadModel.menu]).
+ * the stored product hours, names and categories from the POS menu ([PosReadModel.menu]). Only venues
+ * whose data covers the day count (synced, first rollup day on or before it); none: no data, never an
+ * empty day.
  */
 @Service
 class GetProducts(
@@ -49,8 +53,10 @@ class GetProducts(
         val day = date ?: today
         if (day.isAfter(today)) throw SalesDateInFutureException()
 
+        // A day before a venue's data starts is no data for it (rule 2), not a day without sales.
+        val covered = scope.ready.filter { venue -> rollups.firstDay(venue.venueId)?.let { !it.isAfter(day) } == true }
         val inputs =
-            scope.ready.map { venue ->
+            covered.map { venue ->
                 val hours = rollups.productHours(venue.venueId, day)
                 val menu = pos.menu(venue.venueId, hours.map { it.productId }.distinct())
                 VenueProducts(
@@ -62,20 +68,21 @@ class GetProducts(
             }
         val dayHours = BusinessDayCalendar.localHours(day, scope.zone, scope.businessDayStart)
         val figures = if (inputs.isEmpty()) null else ProductsCalculator.compute(inputs, dayHours)
-        val posGaps = scope.ready.map { pos.dataGaps(it.venueId, day..day) }
+        val posGaps = covered.map { pos.dataGaps(it.venueId, day..day) }
         return ProductsView(
             currency = scope.currency,
             businessDay = day,
             today = today,
             timeZone = scope.zone.id,
             venues = scope.venues,
+            coveredVenueIds = covered.map { it.venueId }.toSet(),
             figures = figures,
             gaps =
                 TodayGapsView(
                     quarantinedBills = posGaps.sumOf { it.quarantinedBills },
                     billsWithoutLines = posGaps.sumOf { it.billsWithoutLines },
                     outdatedBills = posGaps.sumOf { it.outdatedBills },
-                    // Payment mismatches don't touch product figures (lines still count).
+                    // Always 0 here: a bill whose payments don't add up still has its lines in product figures.
                     paymentMismatchBills = 0,
                 ),
         )

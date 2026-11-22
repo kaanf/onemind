@@ -44,8 +44,8 @@ data class ProductSales(
     val grossMinor: Long,
     /** Hours with a quantity, in business-day order. */
     val hourly: List<ProductQuantity>,
-    /** The hour with the most sold, the first in business-day order on ties. */
-    val peakHour: Int,
+    /** The hour with the most sold (a positive quantity), the first in business-day order on ties; null without one. */
+    val peakHour: Int?,
 )
 
 data class ProductsFigures(
@@ -62,6 +62,8 @@ data class ProductsFigures(
  *   first, then by name, then by product id.
  * - Sold = sum of quantities, gross = sum of line totals (quantity × unit price − discount), deleted bills
  *   never counted (the rollups leave them out); hours are bill opening hours (Storyous has no item time).
+ * - A product whose sold and gross both net to 0 is left out (nothing sold, nothing earned); the peak hour
+ *   is the hour with the most sold among hours with a positive quantity, null without one.
  * - Categories = those of the listed products and their ancestors, by name.
  */
 object ProductsCalculator {
@@ -93,13 +95,13 @@ object ProductsCalculator {
                             hourly = hourly,
                             peakHour =
                                 hourly
-                                    .maxWithOrNull(
-                                        compareBy<ProductQuantity> { it.quantity }.thenByDescending { position(it.hour) },
-                                    )?.hour
-                                    ?: rows.minBy { position(it.hour) }.hour,
+                                    .filter { it.quantity.signum() > 0 }
+                                    .maxWithOrNull(compareBy<ProductQuantity> { it.quantity }.thenByDescending { position(it.hour) })
+                                    ?.hour,
                         )
                     }
-                }.sortedWith(compareByDescending<ProductSales> { it.grossMinor }.thenBy { it.name }.thenBy { it.productId })
+                }.filterNot { it.sold.signum() == 0 && it.grossMinor == 0L }
+                .sortedWith(compareByDescending<ProductSales> { it.grossMinor }.thenBy { it.name }.thenBy { it.productId })
         val hours = products.flatMap { product -> product.hourly.map { it.hour } }.distinct().sortedBy(position)
         return ProductsFigures(hours, categories(venues, products), products)
     }

@@ -193,7 +193,8 @@ First release: only *This week*; the *Now* tab is not shown (`MVP_SCOPE.md`).
 ## 02a · Products by hour — `AltProducts`
 
 - Back to Sales. Subtitle: *"Thu, 5 Nov · menu synced from POS"* (one business day).
-- Category chips: **All · Beer · Cocktails · Wine · Daily menu** (categories come from the POS menu).
+- Category chips: **All · Beer · Cocktails · Wine · Daily menu** (categories come from the POS menu;
+  the app filters the day's product list on the device, no extra call).
 - Hourly bar chart for the selected product, 16:00 → 02:00, value labels on bars. Happy Hour hours
   in accent, peak hour dark, rest grey. Header: product name, *n sold*, *Peak 22:00*.
 - Caption: *"Happy Hour 17:00 to 19:00, by bill opening time"* (hours are bucketed by **bill opening

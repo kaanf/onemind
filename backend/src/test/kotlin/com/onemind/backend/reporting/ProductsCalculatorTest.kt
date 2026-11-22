@@ -1,5 +1,6 @@
 package com.onemind.backend.reporting
 
+import com.onemind.backend.common.time.BusinessDayCalendar
 import com.onemind.backend.reporting.domain.MenuCategory
 import com.onemind.backend.reporting.domain.ProductHour
 import com.onemind.backend.reporting.domain.ProductName
@@ -8,6 +9,9 @@ import com.onemind.backend.reporting.domain.ProductsCalculator
 import com.onemind.backend.reporting.domain.VenueProducts
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 import java.util.UUID
 import kotlin.test.assertEquals
 
@@ -96,6 +100,48 @@ class ProductsCalculatorTest {
             )
 
         assertEquals(listOf(venueA to beer, venueB to wine), figures.products.map { it.venueId to it.productId })
+    }
+
+    @Test
+    fun `on the DST days the axis follows the day's own local hours`() {
+        val zone = ZoneId.of("Europe/Prague")
+        val cutOff = LocalTime.of(5, 0)
+        // Sunday 29 March 2026: 02:00 doesn't exist; Sunday 25 October 2026: 02:00 happens twice, one bucket.
+        val spring = BusinessDayCalendar.localHours(LocalDate.parse("2026-03-28"), zone, cutOff)
+        val autumn = BusinessDayCalendar.localHours(LocalDate.parse("2026-10-24"), zone, cutOff)
+        val names = mapOf(beer to ProductName("Beer", null))
+        val rows = listOf(row(beer, 23, "1", 100), row(beer, 1, "2", 200), row(beer, 3, "2", 200))
+
+        val springFigures = ProductsCalculator.compute(listOf(VenueProducts(venueA, rows, names, emptyList())), spring)
+        val autumnFigures =
+            ProductsCalculator.compute(listOf(VenueProducts(venueA, rows + row(beer, 2, "5", 500), names, emptyList())), autumn)
+
+        assertEquals(23, spring.size)
+        assertEquals(listOf(23, 1, 3), springFigures.hours)
+        assertEquals(1, springFigures.products.single().peakHour)
+        assertEquals(24, autumn.size)
+        assertEquals(listOf(23, 1, 2, 3), autumnFigures.hours)
+        assertEquals(2, autumnFigures.products.single().peakHour)
+    }
+
+    @Test
+    fun `a product that nets to nothing is left out, a peak needs a positive quantity`() {
+        val figures =
+            ProductsCalculator.compute(
+                listOf(
+                    VenueProducts(
+                        venueA,
+                        listOf(row(beer, 20, "1", 500), row(beer, 21, "-1", -500), row(wine, 20, "1", 0), row(wine, 21, "-1", 300)),
+                        mapOf(beer to ProductName("Beer", null), wine to ProductName("Wine", null)),
+                        emptyList(),
+                    ),
+                ),
+                dayHours,
+            )
+
+        // Beer: 0 sold, 0 gross → not listed. Wine: 0 sold but 300 gross → listed, its peak is 20:00.
+        assertEquals(listOf(wine), figures.products.map { it.productId })
+        assertEquals(20, figures.products.single().peakHour)
     }
 
     @Test

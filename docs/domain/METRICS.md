@@ -121,6 +121,7 @@ previous period.
 | Product *gross* | Sum of `qty × unitPrice − discount` for those items. The list is sorted by gross, largest first, then by name, then by product id (stable output). |
 | Product hourly | Bucketed by the hour the bill was opened (session start, else paid time): Storyous has no per-item order time (`product/MVP_SCOPE.md`). |
 | Peak hour | Hour with the max qty (on ties the first in business-day order: 23:00 before 01:00). |
+| Products, no data vs empty (02a) | A day before a venue's data starts (first rollup day) is **no data** for that venue, never a day without sales (rule 2); a covered day without product sales is a real empty day. A product whose sold and gross both net to 0 is not listed; the peak hour counts only hours with a positive quantity. |
 | Products axis (02a) | The day's local hours with product sales, in business-day order (the data-derived axis of the Today chart, M12); none on a day without sales (a real empty day, not "no data"). |
 | Hourly patterns | For each weekday × hour: average guests over the **last 8 weeks** (bills bucketed by `openedAt` hour; guests counted in the hour the bill opened) **(?)**. |
 | Peak / Quietest window | Two-hour window with max / min average guests in opening hours. |

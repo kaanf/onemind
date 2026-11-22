@@ -102,18 +102,33 @@ class ProductsApiTests {
     }
 
     @Test
-    fun `a day without sales is a real empty day, a venue without data is pending`() {
+    fun `a day before the data starts is no data, never a day without sales (rule 2)`() {
         val (owner, venue) = syncedOwner()
         val pending = newVenue(owner, "CZK")
 
-        // The demo data starts 29 days back.
-        val empty = get(owner, "date=2026-10-01", venue)
+        // The demo data starts 29 days back (22 October).
+        val beforeData = get(owner, "date=2026-10-01", venue)
         val alone = get(owner, "date=2026-11-20", pending)
+
+        assertEquals("NO_DATA_YET", beforeData["status"].asString())
+        assertTrue(beforeData["products"].isNull && beforeData["hours"].isNull && beforeData["categories"].isNull)
+        assertEquals(listOf(venue.toString()), beforeData["pendingVenueIds"].toList().map { it.asString() })
+        assertEquals("NO_DATA_YET", beforeData["venues"][0]["status"].asString())
+        assertEquals("NO_DATA_YET", alone["status"].asString())
+        assertTrue(alone["products"].isNull && alone["hours"].isNull)
+    }
+
+    @Test
+    fun `a covered day without product sales is a real empty day`() {
+        val (owner, venue) = syncedOwner()
+        // As if nothing was sold that day (a closed day inside the data).
+        jdbc.update("delete from reporting.product_hourly_sales where venue_id = ? and business_day = '2026-11-19'", venue)
+
+        val empty = get(owner, "date=2026-11-19", venue)
 
         assertEquals("READY", empty["status"].asString())
         assertTrue(empty["products"].isEmpty && empty["hours"].isEmpty && empty["categories"].isEmpty)
-        assertEquals("NO_DATA_YET", alone["status"].asString())
-        assertTrue(alone["products"].isNull && alone["hours"].isNull)
+        assertTrue(empty["pendingVenueIds"].isEmpty)
     }
 
     @Test

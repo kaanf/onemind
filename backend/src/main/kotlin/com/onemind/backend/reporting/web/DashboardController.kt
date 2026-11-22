@@ -135,8 +135,11 @@ class DashboardController(
             status = if (figures != null) DataStatus.READY else DataStatus.NO_DATA_YET,
             currency = code,
             businessDay = businessDay,
-            venues = venues.map { it.toDto(today, timeZone) },
-            pendingVenueIds = venues.filterNot { it.ready }.map { it.venueId },
+            venues =
+                venues.map {
+                    it.toDto(today, timeZone).copy(status = if (it.venueId in coveredVenueIds) DataStatus.READY else DataStatus.NO_DATA_YET)
+                },
+            pendingVenueIds = venues.filterNot { it.venueId in coveredVenueIds }.map { it.venueId },
             dataGaps = gaps.toDto(),
             hours = figures?.hours,
             categories = figures?.categories?.map { ProductCategory(it.categoryId, it.name, it.parentId) },

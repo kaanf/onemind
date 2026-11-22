@@ -1,7 +1,9 @@
 type: object
 description: |
   Screen 02a for one business day. `products`, `hours` and `categories` are null when no requested venue
-  has data yet (`status NO_DATA_YET`); on a day without product sales they are empty lists (`READY`).
+  has data **for that day** (`status NO_DATA_YET`: not synced yet, or the day is before its data starts);
+  on a covered day without product sales they are empty lists (`READY`). `dataGaps.paymentMismatchBillCount`
+  is always 0 here: a bill whose payments don't add up still has its lines in these figures.
   Products are sorted by gross, largest first, then by name, then by product id. The Happy Hour band on
   the chart is not sent until the time-based menu is defined (`product/MVP_SCOPE.md`).
 required:
@@ -27,6 +29,7 @@ properties:
       $ref: ./TodayVenue.yaml
   pendingVenueIds:
     type: array
+    description: Requested venues without data for the day (not synced yet, or the day is before their data starts).
     items:
       type: string
       format: uuid
