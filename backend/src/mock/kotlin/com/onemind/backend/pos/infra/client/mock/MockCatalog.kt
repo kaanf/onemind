@@ -11,6 +11,7 @@ import com.onemind.backend.pos.infra.client.PosPerson
 import com.onemind.backend.pos.infra.client.PosPlace
 import com.onemind.backend.pos.infra.client.PosPlaceState
 import com.onemind.backend.pos.infra.client.PosProduct
+import com.onemind.backend.pos.infra.client.PosProviderConfig
 import com.onemind.backend.pos.infra.client.PosSection
 import java.time.DayOfWeek
 import java.time.ZoneId
@@ -21,7 +22,11 @@ import java.util.Currency
  * (product rule 2); every place name starts with "Demo".
  */
 internal object MockCatalog {
-    const val MERCHANT_ID = "demo-merchant"
+    const val MERCHANT_ID = PosProviderConfig.DEMO_MERCHANT_ID
+
+    /** `demo-merchant` itself or a per-organization demo connection, `demo-merchant/<organizationId>`. */
+    fun isDemoMerchant(merchantId: String) = merchantId == MERCHANT_ID || merchantId.startsWith("$MERCHANT_ID/")
+
     val ZONE: ZoneId = ZoneId.of("Europe/Prague")
     val CURRENCY: Currency = Currency.getInstance("CZK")
 

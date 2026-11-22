@@ -49,6 +49,7 @@ class SyncPlaces(
         val venues =
             requireNotNull(
                 transactions.execute {
+                    venueLinks.lockConnection(connection.id)
                     val links = venueLinks.linked(connection.id).associateBy { it.externalPlaceId }
                     val reported =
                         merchant.places.mapNotNull { place ->
