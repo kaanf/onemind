@@ -14,6 +14,7 @@ import com.onemind.core.domain.venue.VenueRepository
 import com.onemind.core.domain.venue.VenueScope
 import com.onemind.core.domain.venue.VenueScopeRepository
 import com.onemind.core.presentation.util.UiText
+import com.onemind.today.domain.CachedToday
 import com.onemind.today.domain.TodayErrorCodes
 import com.onemind.today.domain.TodayRepository
 import com.onemind.today.domain.TodaySummary
@@ -33,6 +34,8 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalDate
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -102,10 +105,14 @@ class TodayViewModelTest {
         val results = ArrayDeque<Result<TodaySummary, DataError>>()
         var fallback: Result<TodaySummary, DataError> = Result.Success(TodayFixtures.ready)
 
+        var cached: CachedToday? = null
+
         override suspend fun getToday(venueIds: List<String>): Result<TodaySummary, DataError> {
             calls += venueIds
             return results.removeFirstOrNull() ?: fallback
         }
+
+        override suspend fun cachedToday(venueIds: List<String>) = cached
     }
 
     /** Virtual time from 21:40:00 Prague on the fixture's Friday. */
@@ -335,6 +342,100 @@ class TodayViewModelTest {
                 cancelAndIgnoreRemainingEvents()
             }
         }
+
+    @Test
+    fun cachedFiguresShowAtOnceWithTheirAgeAndFreshOnesDropTheMarker() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            // Received at 21:12 Prague, shown at launch before the network answers.
+            repository.cached = CachedToday(TodayFixtures.ready.copy(guests = 100), Instant.parse("2026-11-06T20:12:00Z"))
+
+            viewModel(repository).state.test {
+                val cached = assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                assertEquals(CachedMarker(time = "21:12", day = CachedDay.Today, offline = false), cached.cached)
+                assertEquals("100", cached.today.guests)
+
+                val fresh = assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                assertNull(fresh.cached)
+                assertEquals("286", fresh.today.guests)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun offlineTheCachedFiguresStayMarkedOffline() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            repository.cached = CachedToday(TodayFixtures.ready, Instant.parse("2026-11-06T20:12:00Z"))
+            repository.fallback = Result.Failure(DataError.Network.NO_INTERNET)
+
+            viewModel(repository).state.test {
+                skipItems(1)
+                assertEquals(
+                    CachedMarker("21:12", CachedDay.Today, offline = false),
+                    assertIs<TodayContent.Ready>(awaitNonLoading().content).cached,
+                )
+                val offline = assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                assertEquals(CachedMarker("21:12", CachedDay.Today, offline = true), offline.cached)
+                // The offline marker says it; no second error line.
+                assertNull(offline.refreshError)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun aServerErrorWithCachedFiguresKeepsTheAgeAndShowsTheError() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            repository.cached = CachedToday(TodayFixtures.ready, Instant.parse("2026-11-06T20:12:00Z"))
+            repository.fallback = Result.Failure(DataError.Api(422, TodayErrorCodes.BUSINESS_DAYS_DIFFER))
+
+            viewModel(repository).state.test {
+                skipItems(1)
+                awaitNonLoading()
+                val failed = assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                assertEquals(CachedMarker("21:12", CachedDay.Today, offline = false), failed.cached)
+                assertEquals(UiText.Resource(Res.string.today_error_venues_differ), failed.refreshError)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun cachedFiguresFromAnEarlierDayNameTheDay() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            // Thursday 23:50 Prague; now is Friday 21:40.
+            repository.cached = CachedToday(TodayFixtures.ready, Instant.parse("2026-11-05T22:50:00Z"))
+
+            viewModel(repository).state.test {
+                val cached = assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                assertEquals(CachedMarker("23:50", CachedDay.Weekday(DayOfWeek.THURSDAY), offline = false), cached.cached)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun cachedFiguresWithoutAVenueZoneAreStillMarkedNeverBare() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            repository.cached = CachedToday(TodayFixtures.ready.copy(venues = emptyList()), Instant.parse("2026-11-06T20:12:00Z"))
+
+            viewModel(repository).state.test {
+                val cached = assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                // No time to show: the screen says "Saved figures" instead of an empty "Last updated ".
+                assertEquals(CachedMarker(time = null, day = CachedDay.Today, offline = false), cached.cached)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun theCachedDayIsTodayAWeekdayOrTheDate() {
+        val friday = LocalDate(2026, 11, 6)
+        assertEquals(CachedDay.Today, cachedDay(friday, friday))
+        assertEquals(CachedDay.Weekday(DayOfWeek.THURSDAY), cachedDay(LocalDate(2026, 11, 5), friday))
+        assertEquals(CachedDay.Weekday(DayOfWeek.SATURDAY), cachedDay(LocalDate(2026, 10, 31), friday))
+        assertEquals(CachedDay.Date(LocalDate(2026, 10, 30)), cachedDay(LocalDate(2026, 10, 30), friday))
+    }
 
     private fun Int.minutes() = (this * 60).seconds
 

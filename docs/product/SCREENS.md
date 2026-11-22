@@ -163,6 +163,12 @@ Live overview of the current business day for the selected venue (or all venues)
     chevron and no click until the switcher sheet exists (P7). The account button shows the initials of
     `GET /me` `displayName` (first and last word); without a name it is not drawn (no invented
     initials). Signing out forgets the venues, the scope and the profile.
+  - Offline (ADR 0006): the last answer is saved on the device. On launch it shows at once with
+    *Last updated 21:40* until the first poll answers; after a network failure the cached figures stay
+    with *Last updated 21:40 · offline*. Figures from an earlier day name it (*Last updated Thursday
+    23:50*, older than a week: *… 30 October 21:40*); without a time zone the line reads *Saved figures*.
+    Cached figures never show without that line. A fresh answer removes it. The cache is emptied on
+    sign-out, and an answer still on the way at sign-out is not written back.
   - The 5 min interval for a closed venue waits for the API to say whether the venue is open.
 
 ## 01a · Tables — `AltTables` (opened from Today › Occupancy)

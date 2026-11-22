@@ -10,8 +10,10 @@ import com.onemind.core.domain.venue.VenueRepository
 import com.onemind.core.domain.venue.VenueScope
 import com.onemind.core.domain.venue.VenueScopeRepository
 import com.onemind.core.domain.venue.venueIds
+import com.onemind.core.presentation.format.formatClockTime
 import com.onemind.core.presentation.util.UiText
 import com.onemind.core.presentation.util.toUiText
+import com.onemind.today.domain.CachedToday
 import com.onemind.today.domain.TodayErrorCodes
 import com.onemind.today.domain.TodayRepository
 import com.onemind.today.domain.TodaySummary
@@ -32,6 +34,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.daysUntil
+import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -103,30 +108,65 @@ class TodayViewModel(
     private fun poll(venueIds: List<String>): Flow<TodayContent> =
         flow {
             emit(TodayContent.Loading)
+            // ADR 0006: the figures saved on the device show at once, always with their age.
+            val cached = repository.cachedToday(venueIds)
+            if (cached != null) emit(cached.content(offline = false, error = null))
             var summary: TodaySummary? = null
             while (true) {
-                var error: UiText? = null
+                var failure: DataError? = null
                 when (val result = repository.getToday(venueIds)) {
                     is Result.Success -> summary = result.data
-                    is Result.Failure -> error = result.error.toTodayMessage()
+                    is Result.Failure -> failure = result.error
                 }
                 refreshing.value = false
-                val shown = summary
-                if (shown == null) {
-                    emit(TodayContent.Failed(error ?: DataError.Network.UNKNOWN.toUiText()))
-                } else {
-                    emit(TodayContent.Ready(shown.toUi(clock.now()), error))
-                }
+                val content = content(summary, cached, failure)
+                emit(content)
                 // Wait for the next poll, redrawing the clock at each minute; a refresh request ends the wait.
                 var remaining = pollInterval.after(summary)
                 while (remaining > Duration.ZERO) {
                     val step = minOf(remaining, untilNextMinute())
                     if (withTimeoutOrNull(step) { refreshRequests.receive() } != null) break
                     remaining -= step
-                    if (remaining > Duration.ZERO && shown != null) emit(TodayContent.Ready(shown.toUi(clock.now()), error))
+                    if (remaining > Duration.ZERO && content is TodayContent.Ready) emit(content(summary, cached, failure))
                 }
             }
         }
+
+    /**
+     * What the latest poll leaves on screen: this session's figures (with a note when the poll failed);
+     * else the cached ones with their age, marked offline after a network failure; else the error.
+     */
+    private fun content(
+        summary: TodaySummary?,
+        cached: CachedToday?,
+        failure: DataError?,
+    ): TodayContent {
+        val error = failure?.toTodayMessage()
+        return when {
+            summary != null -> TodayContent.Ready(summary.toUi(clock.now()), error)
+            cached != null -> cached.content(offline = failure is DataError.Network, error = error)
+            else -> TodayContent.Failed(error ?: DataError.Network.UNKNOWN.toUiText())
+        }
+    }
+
+    private fun CachedToday.content(
+        offline: Boolean,
+        error: UiText?,
+    ): TodayContent.Ready {
+        // Venues on one Today share a time zone (422 BUSINESS_DAYS_DIFFER otherwise).
+        val zone = summary.venues.firstOrNull()?.timeZone
+        val now = clock.now()
+        return TodayContent.Ready(
+            today = summary.toUi(now),
+            refreshError = error.takeUnless { offline },
+            cached =
+                CachedMarker(
+                    time = zone?.let { formatClockTime(savedAt, it) },
+                    day = zone?.let { cachedDay(savedAt.toLocalDateTime(it).date, now.toLocalDateTime(it).date) } ?: CachedDay.Today,
+                    offline = offline,
+                ),
+        )
+    }
 
     private fun untilNextMinute(): Duration {
         val intoMinute = clock.now().toEpochMilliseconds().mod(1.minutes.inWholeMilliseconds)
@@ -187,6 +227,21 @@ private fun scopeName(
         VenueScope.All -> ScopeName.AllVenues
         is VenueScope.Venue -> (list as? VenueList.Loaded)?.venues?.firstOrNull { it.id == scope.venueId }?.let { ScopeName.Venue(it.name) }
     }
+
+/** Today, a weekday within the last week, or the date. */
+internal fun cachedDay(
+    saved: LocalDate,
+    today: LocalDate,
+): CachedDay {
+    val daysAgo = saved.daysUntil(today)
+    return when {
+        daysAgo <= 0 -> CachedDay.Today
+        daysAgo < DAYS_IN_A_WEEK -> CachedDay.Weekday(saved.dayOfWeek)
+        else -> CachedDay.Date(saved)
+    }
+}
+
+private const val DAYS_IN_A_WEEK = 7
 
 private fun DataError.toTodayMessage(): UiText =
     when ((this as? DataError.Api)?.code) {

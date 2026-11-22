@@ -1,5 +1,7 @@
 package com.onemind.core.data.venue
 
+import com.onemind.core.data.cache.CachedScreen
+import com.onemind.core.data.cache.ScreenCache
 import com.onemind.core.data.network.TestApi
 import com.onemind.core.data.network.respondJson
 import com.onemind.core.data.network.session
@@ -20,6 +22,30 @@ import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.time.Instant
+
+/** An in-memory [ScreenCache] for loader tests. */
+private class MemoryScreenCache : ScreenCache {
+    val entries = mutableMapOf<String, CachedScreen>()
+    override var generation = 0L
+
+    override suspend fun read(key: String) = entries[key]
+
+    override suspend fun write(
+        key: String,
+        body: String,
+        etag: String?,
+        generation: Long,
+    ) {
+        if (generation != this.generation) return
+        entries[key] = CachedScreen(body, etag, Instant.parse("2026-11-22T20:40:00Z"))
+    }
+
+    override suspend fun clear() {
+        generation++
+        entries.clear()
+    }
+}
 
 class SignedInDataLoaderTest {
     private class FakeSessions : SessionRepository {
@@ -54,16 +80,20 @@ class SignedInDataLoaderTest {
             val scope = InMemoryVenueScopeRepository()
             val venues = VenueRepositoryImpl(api.client, scope)
             val profile = ProfileRepositoryImpl(api.client)
-            SignedInDataLoader(sessions, venues, profile, backgroundScope + Dispatchers.Default).start()
+            val cache = MemoryScreenCache()
+            SignedInDataLoader(sessions, venues, profile, cache, backgroundScope + Dispatchers.Default).start()
 
             sessions.state.value = SessionState.SignedIn
             eventually { venues.venues.value is VenueList.Loaded && profile.profile.value != null }
             assertEquals(VenueScope.Venue("v1"), scope.selected.value)
             assertEquals("KF", profile.profile.value?.initials)
 
+            cache.write("dashboard/today?venueIds=v1", "{}", null, cache.generation)
             sessions.state.value = SessionState.SignedOut
             eventually { venues.venues.value == VenueList.Loading && profile.profile.value == null }
             assertNull(scope.selected.value)
+            // The read cache is account data too.
+            eventually { cache.entries.isEmpty() }
         }
 
     @Test
@@ -88,7 +118,8 @@ class SignedInDataLoaderTest {
             val sessions = FakeSessions()
             val venues = VenueRepositoryImpl(api.client, InMemoryVenueScopeRepository())
             val profile = ProfileRepositoryImpl(api.client)
-            SignedInDataLoader(sessions, venues, profile, backgroundScope + Dispatchers.Default).start()
+            val cache = MemoryScreenCache()
+            SignedInDataLoader(sessions, venues, profile, cache, backgroundScope + Dispatchers.Default).start()
 
             sessions.state.value = SessionState.SignedIn
             eventually { meCalls == 1 }

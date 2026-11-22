@@ -47,5 +47,5 @@ val coreDataModule =
         single { VenueRepositoryImpl(client = get(), venueScope = get()) } bind VenueRepository::class
         single { ProfileRepositoryImpl(client = get()) } bind ProfileRepository::class
         // Started once by initKoin (composeApp): loads the venues and the profile on sign-in, forgets them on sign-out.
-        single { SignedInDataLoader(sessions = get(), venues = get(), profile = get(), scope = get(AppScope)) }
+        single { SignedInDataLoader(sessions = get(), venues = get(), profile = get(), screenCache = get(), scope = get(AppScope)) }
     }

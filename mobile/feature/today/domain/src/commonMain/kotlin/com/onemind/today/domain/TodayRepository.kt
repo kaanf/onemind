@@ -2,6 +2,7 @@ package com.onemind.today.domain
 
 import com.onemind.core.domain.util.DataError
 import com.onemind.core.domain.util.Result
+import kotlin.time.Instant
 
 /** Screen 01 (`GET /dashboard/today`). */
 interface TodayRepository {
@@ -11,7 +12,19 @@ interface TodayRepository {
      * previous summary without a body.
      */
     suspend fun getToday(venueIds: List<String>): Result<TodaySummary, DataError>
+
+    /**
+     * The last answer saved on the device for [venueIds] (ADR 0006), with when it was received; `null`
+     * when there is none or it can't be read. Shown only with its age.
+     */
+    suspend fun cachedToday(venueIds: List<String>): CachedToday?
 }
+
+/** A cached Today answer and when the app received it. */
+data class CachedToday(
+    val summary: TodaySummary,
+    val savedAt: Instant,
+)
 
 /** Problem codes of `GET /dashboard/today` the screen handles (`docs/api/paths/dashboard/today.yaml`). */
 object TodayErrorCodes {
