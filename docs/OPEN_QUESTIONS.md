@@ -36,6 +36,7 @@ reference the question ID in a code comment / PR. When a question is answered, m
 | M9 | Stock corrections in losses at sale price or cost? |
 | M10 | Order-plan forecast and safety buffer method; idle "very slow" threshold; variance threshold. |
 | M11 | Unit cost: last purchase price or weighted average? |
+| M12 | Today hourly chart start/end hour: derived from data (e.g. earliest/latest hour with paid bills on the last 4 same weekdays, fallback `business_day_start`) or an owner-set opening hour per venue? Decide before phase 5 (01 Today). |
 
 ## Integration
 

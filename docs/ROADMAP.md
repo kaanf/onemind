@@ -19,7 +19,8 @@ Last updated: 2026-11-22.
   auth rule tests + `VenueAccess` cross-venue check (#30), 426 min-version check (#36). App shell is
   done (#32). ADR 0013 audit (#40, #41), ArchUnit gates (#42), product-rule gates (#43) and the
   Konsist guard module (#39), gate follow-ups (#47, #48), the end-to-end auth smoke test (#49) and
-  JWT clock skew 0 s for own tokens (#50) are in `dev`. Phase 4 runs on mock POS data (owner,
+  JWT clock skew 0 s for own tokens (#50), mobile `dev`/`prod` variants (#52), the organization purge
+  job (#53) and the first-release data-source table (#54, R28) are in `dev`. Phase 4 runs on mock POS data (owner,
   2026-11-21).
 - **Blockers outside the code:** Storyous partnership / API credentials (P15, owner; not needed
   until the real client is connected); design
@@ -89,18 +90,31 @@ real code in that job with a scope proven non-empty (owner, 2026-11-21).
 - [x] Design system: tokens, Inter / Inter Tight, components from `docs/design/DESIGN_SYSTEM.md`
       (light palette only; dark palette waits for P7)
 - [x] App shell: navigation root, 4-tab bar (Today, Sales, Staff, Stock later), Koin + graph test (#32)
-- [ ] Variants `dev`/`prod` with BuildKonfig (Sentry moved to phase 7, owner 2026-11-22)
+- [x] Variants `dev`/`prod` with BuildKonfig (Sentry moved to phase 7, owner 2026-11-22) (#52)
 - [x] GitHub Actions: common tests + Android build on PR; iOS build on `dev`/`main` + nightly
       (nightly/manual iOS runs start once `main` has the workflow, i.e. after the first release)
 - [x] `:core:konsist` guard module: ADR 0011 module rules, no `Float`/`Double` money, one clock seam
       (Konsist 0.18.1). No mobile feature screen starts before this merges. (#39)
-- [ ] Phase-end `REVIEW pr: audit`
+- [x] Phase-end `REVIEW pr: audit` (2026-11-22: 0 blockers, follow-ups below)
+- [ ] Audit follow-up: 44×44 touch targets: `OneMindFilterChip` hit area via
+      `minimumInteractiveComponentSize()`; heatmap cells either larger hit areas or a documented
+      exception in `DESIGN_SYSTEM.md` with another way to reach each value (mobile)
+- [ ] Audit follow-up: `core:domain` `Money` (minor units + currency) / `Quantity` and the
+      `core:presentation` money formatter (expect/actual, venue currency, tests incl. negative and
+      large values); before the first dashboard screen. `Result`/`DataError`, `UiText`,
+      `ObserveAsEvents` come with mobile auth (mobile)
+- [ ] Audit follow-up: Konsist rule for feature presentation sources: no `Color(0x…)`, no literal
+      `.sp`, no literal `Text("…")` outside `@Preview`, with fixtures (guard file; mobile)
+- [ ] Audit nits: chart-label type token instead of `10.sp` in `BarChart`, KDoc on `Bar.value`
+      (drawing only), ADR 0011 bundle-ID line cross-references ADR 0012 §2 (mobile)
 
 ## Phase 3 — Auth (first vertical slice)
 
 - [x] Backend: email code (start/verify), Apple, Google, JWT access + rotating refresh, logout,
       `DELETE /me` (ADR 0004)
 - [ ] Mobile: A1 sign in, A2 email code, secure token storage, refresh on 401, update screen on 426
+- [ ] Mobile: Sign in with Apple / Google (A1): native SDKs + client IDs; buttons hidden behind the
+      `SignInProviders` seam until then (deferred from mobile auth, 2026-11-22)
 - [x] Backend: minimum app version (`X-App-Version` / `X-Platform`) → `426 Upgrade Required` (#36)
 - [x] ADR 0013 "Backend module internal structure" (replaces ADR 0009) (#34)
 - [x] Audit existing backend code against ADR 0013 and fix deviations (before the gates, no baseline)
@@ -151,7 +165,12 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
       paging), built and tested against recorded fixtures that fail on any non-GET call; drop
       `allowEmptyShould(true)` from `ProductRules.posIsReadOnly` so the gate proves a non-empty
       scope; onboarding A3–A5 (no OAuth redirect; see `docs/integrations/STORYOUS.md`)
-- [ ] Purge job: delete organizations whose `deletion_due_at` has passed (set by `DELETE /me`, #28)
+- [x] Purge job: delete organizations whose `deletion_due_at` has passed (set by `DELETE /me`, #28) (#53)
+- [ ] Indexes on the `ON DELETE SET NULL` FKs (`bill.desk_id`, `bill.created_by_staff_id`,
+      `bill.paid_by_staff_id`, `bill_item.product_id`, `product.category_id`, `category.parent_id`,
+      `desk.section_id`), additive migration before real data (from the #53 review)
+- [ ] Alertable signal for an organization the purge job keeps failing on (today: ERROR log), with
+      phase 7 Sentry (from the #53 review)
 - [ ] Phase-end `REVIEW pr: audit`
 
 ## Phase 5 — Dashboards
@@ -166,6 +185,8 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
 ## Phase 6 — Stock (depends on P13/P14)
 
 - [ ] Decide P13 (dashboards-only first release?) and P14 (stock positioning)
+- [ ] Stock retention decision (rule 4 + GDPR) before stock adds its `OrganizationPurging` listener
+      (from the #53 review)
 - [ ] `stock` schema + migrations; acceptance: the app DB role cannot DELETE/UPDATE stock history
       tables (REVOKE or trigger), proven by a test
 - [ ] Purchase receipts: upload, ISDOC parsing, Claude Haiku 5.5 extraction, review, approve (ADR 0007)
