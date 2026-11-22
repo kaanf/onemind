@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- A1 Sign in -->
+    <string name="auth_brand" translatable="false">OneMind</string>
+    <string name="auth_headline">Your bar,\nhour by hour.</string>
+    <string name="auth_subline">Sales, staff, tables and losses from your POS, with suggestions on what to do next.</string>
+    <string name="auth_email_label">Work email</string>
+    <string name="auth_email_placeholder" translatable="false">owner@yourbar.cz</string>
+    <string name="auth_send_code">Send me a code</string>
+    <string name="auth_footer">No password. By continuing you agree to the Terms and Privacy Policy.</string>
+
+    <!-- A2 Email code -->
+    <string name="auth_back">Back</string>
+    <string name="auth_code_title">Check your email</string>
+    <string name="auth_code_body">We sent a 6-digit code to %1$s. It expires in 10 minutes.</string>
+    <string name="auth_code_label">Code</string>
+    <string name="auth_code_resend_prompt">Didn\'t get it?</string>
+    <string name="auth_code_resend_in">Resend in %1$s</string>
+    <string name="auth_code_resend">Resend</string>
+    <string name="auth_code_verify">Verify</string>
+    <string name="auth_code_different_email">Use a different email</string>
+
+    <!-- Errors (problem codes of /auth/email/*) -->
+    <string name="auth_error_code_invalid">That code isn\'t right.</string>
+    <string name="auth_error_code_invalid_attempts">That code isn\'t right. Attempts left: %1$s.</string>
+    <string name="auth_error_code_expired">This code has expired. Send a new one.</string>
+    <string name="auth_error_code_attempts_exceeded">Too many wrong attempts. Send a new code.</string>
+</resources>

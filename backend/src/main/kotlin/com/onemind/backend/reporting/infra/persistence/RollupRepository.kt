@@ -1,5 +1,6 @@
 package com.onemind.backend.reporting.infra.persistence
 
+import com.onemind.backend.common.lock.infra.persistence.advisoryXactLock
 import com.onemind.backend.reporting.domain.DayRollups
 import com.onemind.backend.reporting.domain.HourTotals
 import com.onemind.db.reporting.tables.references.DESK_DAILY_SALES
@@ -12,11 +13,7 @@ import com.onemind.db.reporting.tables.references.STAFF_DAILY_SALES
 import org.jooq.DSLContext
 import org.jooq.Query
 import org.jooq.impl.DSL.excluded
-import org.jooq.impl.DSL.function
-import org.jooq.impl.DSL.inline
 import org.jooq.impl.DSL.sum
-import org.jooq.impl.DSL.value
-import org.jooq.impl.SQLDataType
 import org.springframework.stereotype.Repository
 import java.time.Instant
 import java.time.LocalDate
@@ -37,11 +34,7 @@ class RollupRepository(
     fun lockDay(
         venueId: UUID,
         day: LocalDate,
-    ) {
-        // A hash collision between two keys only makes their refreshes wait for each other.
-        val key = function("hashtextextended", SQLDataType.BIGINT, value("rollup:$venueId:$day"), inline(0L))
-        dsl.select(function("pg_advisory_xact_lock", SQLDataType.OTHER, key)).fetch()
-    }
+    ) = dsl.advisoryXactLock("rollup:$venueId:$day")
 
     fun replaceDay(
         venueId: UUID,

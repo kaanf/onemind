@@ -113,6 +113,10 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
   graph contains the current destination, so detail screens keep their parent tab active; switching
   tabs saves and restores each tab's back stack. Navigation stays out of business logic.
 - The Stock graph lives in `composeApp` until `feature:stock` exists (phase 6).
+- The app root (`composeApp/App.kt`) is the auth gate: `appScreen(session, update)` picks the update
+  screen (any `426`), a blank screen while the session loads, the auth graph (`authGraph`, A1 → A2)
+  when signed out, or `NavigationRoot` (tabs) when signed in. Each has its own `NavController`, so a
+  sign-out lands on a fresh A1 and a sign-in on Today; screens never navigate across the gate.
 - Koin: one module per feature layer (`xxxDataModule`, `xxxPresentationModule`), listed in
   `appModules` (`composeApp/di/KoinHelper.kt`); platform bindings in `expect val platformModule`.
   Hosts call `initKoin` once (`OneMindApplication` on Android, `iOSApp.init` on iOS).

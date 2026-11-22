@@ -7,7 +7,6 @@ package com.onemind.backend.pos.infra.client
  * (dev/demo only) now, the Storyous client later (P15); ADR 0013 R9 exception. A POS that can't be read
  * is a [PosProviderException]; anything else thrown is a bug.
  */
-
 interface PosProvider {
     /** `GET /merchants/{merchantId}`: the merchant and its places, or `null` if it isn't assigned to us. */
     fun merchant(merchantId: String): PosMerchant?

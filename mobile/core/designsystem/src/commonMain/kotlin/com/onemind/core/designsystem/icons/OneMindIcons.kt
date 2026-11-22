@@ -14,6 +14,9 @@ import androidx.compose.ui.unit.dp
  */
 object OneMindIcons {
     val Back = strokeIcon("Back", 2f, "M19 12H5", "m11 6-6 6 6 6")
+
+    /** The brand mark (a glass), white on a dark 36 box on A1. */
+    val Brand = strokeIcon("Brand", 2f, "M5 4h14l-7 8z", "M12 12v7", "M8 20h8")
     val Forward = strokeIcon("Forward", 2f, "M5 12h14", "m13 6 6 6-6 6")
     val ChevronDown = strokeIcon("ChevronDown", 2f, "m6 9.5 6 6 6-6")
     val Check = strokeIcon("Check", 3f, "m5 12 5 5 9-10")

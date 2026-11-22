@@ -11,10 +11,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.onemind.core.designsystem.theme.OneMindTheme
 
 enum class PrimaryButtonStyle {
@@ -50,7 +48,7 @@ fun PrimaryButton(
             ),
         contentPadding = PaddingValues(horizontal = 20.dp),
     ) {
-        Text(text = text, style = OneMindTheme.typography.body.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold))
+        Text(text = text, style = OneMindTheme.typography.button)
     }
 }
 
@@ -78,6 +76,6 @@ fun OutlineButton(
             ),
         contentPadding = PaddingValues(horizontal = 16.dp),
     ) {
-        Text(text = text, style = OneMindTheme.typography.body.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold))
+        Text(text = text, style = OneMindTheme.typography.button)
     }
 }
