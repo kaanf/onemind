@@ -44,6 +44,11 @@ real code in that job with a scope proven non-empty (owner, 2026-11-21).
       on mobile PRs feeds it (#33)
 - [x] Rulesets: `dev` PR + `CI result` + squash only; `main` PR + `CI result` + merge commit only; no
       force push or deletion (applied 2026-11-21)
+- [ ] Turn "iOS framework compile" back on (off since 2026-11-22 by the owner, repo variable
+      `CI_IOS_COMPILE=off`, because it takes 20–30 min per PR): first make it faster (cache
+      `~/.konan`, simulator tests only when iOS code changes), then `gh variable delete CI_IOS_COMPILE`.
+      Until then mobile PRs run `:composeApp:linkDebugFrameworkIosSimulatorArm64` and the iOS tests
+      locally and say so in the PR; ios.yml still builds the app after each merge to dev (ci)
 - [ ] Label PRs touching guard files `guard-files` and comment the list (ci)
 - [ ] `permissions.deny` snippets for each lane's `.claude/settings.local.json` (orchestrator)
 - [ ] detekt 2.0 as a non-blocking report job with baseline, backend and mobile; one PR, half a day;
