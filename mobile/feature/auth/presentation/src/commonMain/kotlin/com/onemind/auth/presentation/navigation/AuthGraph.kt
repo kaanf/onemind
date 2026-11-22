@@ -26,9 +26,13 @@ fun NavGraphBuilder.authGraph(navController: NavController) {
             EmailCodeRoot(
                 email = route.email,
                 resendAfterSeconds = route.resendAfterSeconds,
-                // Back to A1, never past it: a second back (system back + button) must not empty the graph.
-                onBack = { navController.popBackStack<AuthGraphRoutes.SignIn>(inclusive = false) },
+                onBack = navController::backToSignIn,
             )
         }
     }
+}
+
+/** Back to A1, never past it: a second back (system back + button) must not empty the graph. */
+internal fun NavController.backToSignIn() {
+    popBackStack<AuthGraphRoutes.SignIn>(inclusive = false)
 }
