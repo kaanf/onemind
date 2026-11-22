@@ -1,0 +1,15 @@
+type: object
+description: The hourly chart over the hours that have sales at these venues (METRICS, M12 closed).
+required:
+  - currentHour
+  - hours
+properties:
+  currentHour:
+    type: integer
+    minimum: 0
+    maximum: 23
+  hours:
+    type: array
+    description: In business-day order (from the cut-off), contiguous.
+    items:
+      $ref: ./HourlyBar.yaml

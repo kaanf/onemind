@@ -45,7 +45,14 @@ couldn't be read are missing from them; screens show that gap (`RollupReads.data
 | Week   | Mon–Sun (ISO week) containing today     | previous week, same elapsed span **(?)**       | *+8.1% vs last week*                  |
 | Month  | calendar month                          | previous month, same elapsed span **(?)**      | *+3.6% vs October*                    |
 
-`delta% = (current − previous) / previous × 100`, one decimal. Not shown when previous is 0.
+`delta% = (current − previous) / previous × 100`, one decimal, rounded half-up. Not shown when previous
+is 0 or missing.
+
+- **Today (Day period):** "up to the same time" is the same **local clock time** on the business day 7
+  days earlier (`BusinessDayCalendar.sameLocalTimeDaysEarlier`, so a DST change in between doesn't
+  shift it). Hourly rollups can't cut mid-hour, so the earlier figure is computed from that day's POS
+  facts with the same per-bill revenue rule as the rollups (`reporting/domain/BillRevenue`).
+- Week and month comparisons (M3) stay open; they come with the Sales screen.
 
 ## Revenue
 
@@ -59,7 +66,7 @@ couldn't be read are missing from them; screens show that gap (`RollupReads.data
 | `guests`         | Sum of `guestCount` on bills paid in the period ("since opening" for today). If the POS has no guest count for a bill, count 1 **(?, M5)**. |
 | `averageBill`    | `paidRevenue / number of paid bills`. |
 | `revenuePerGuest`| `paidRevenue / guests`. |
-| Hourly chart (Today) | `paidRevenue` per clock hour, over the hours that have sales at that venue (data-derived; owner decision 2026-11-22, M12 closed): Storyous has no opening hours and `business_day_start` is the cut-off, not the opening. Future hours = average of the same hour over the last 4 same weekdays (shown in a lighter colour). |
+| Hourly chart (Today) | `paidRevenue` per local clock hour over the hours that have sales at the venue(s) (owner decision 2026-11-22, M12 closed): every hour with paid revenue today or on any of the last 4 same weekdays, contiguous from the first to the last in business-day order (from the cut-off), plus the current hour. Past hours = paid in that hour; current hour = paid so far; future hours = the average of that hour over those of the last 4 same weekdays that have data (an hour without sales on such a day counts 0), rounded half-up; no forecast without any earlier same weekday. Several venues add up hour by hour (forecast = sum of each venue's average). |
 
 ## Occupancy and tables
 

@@ -16,6 +16,8 @@ tags:
     description: The signed-in user's own account.
   - name: Onboarding
     description: Interim demo onboarding (dev/demo only) until the Storyous connection exists (P15).
+  - name: Dashboard
+    description: Screen-shaped reads of POS figures (docs/domain/METRICS.md).
 paths:
   /auth/email/start:
     $ref: ./paths/account/auth-email-start.yaml
@@ -35,6 +37,8 @@ paths:
     $ref: ./paths/onboarding/demo-places.yaml
   /onboarding/demo:
     $ref: ./paths/onboarding/demo.yaml
+  /dashboard/today:
+    $ref: ./paths/dashboard/today.yaml
 components:
   securitySchemes:
     bearerAuth:

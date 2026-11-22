@@ -9,11 +9,13 @@ import com.onemind.db.pos.tables.references.BILL_ITEM
 import com.onemind.db.pos.tables.references.BILL_ITEM_DISCOUNT
 import com.onemind.db.pos.tables.references.BILL_QUARANTINE
 import com.onemind.db.pos.tables.references.PAYMENT
+import com.onemind.db.pos.tables.references.SYNC_CURSOR
 import com.onemind.db.pos.tables.references.VENUE_LINK
 import org.jooq.DSLContext
 import org.jooq.Field
 import org.jooq.Record
 import org.jooq.impl.DSL.exists
+import org.jooq.impl.DSL.noCondition
 import org.jooq.impl.DSL.notExists
 import org.jooq.impl.DSL.selectOne
 import org.springframework.stereotype.Repository
@@ -171,7 +173,10 @@ class PosReadRepository(
      * Bills stored in an older version whose newer version couldn't be read at all: the stored figures
      * may be out of date (a later refund or deletion may be missing).
      */
-    fun outdatedBills(venueId: UUID): Int {
+    fun outdatedBills(
+        venueId: UUID,
+        day: LocalDate? = null,
+    ): Int {
         val q = BILL_QUARANTINE
         return dsl.fetchCount(
             q,
@@ -179,7 +184,8 @@ class PosReadRepository(
                 exists(
                     selectOne()
                         .from(BILL)
-                        .where(BILL.VENUE_ID.eq(q.VENUE_ID), BILL.EXTERNAL_ID.eq(q.EXTERNAL_ID), BILL.ITEMS_UNREADABLE.isFalse),
+                        .where(BILL.VENUE_ID.eq(q.VENUE_ID), BILL.EXTERNAL_ID.eq(q.EXTERNAL_ID), BILL.ITEMS_UNREADABLE.isFalse)
+                        .and(day?.let { BILL.BUSINESS_DAY.eq(it) } ?: noCondition()),
                 ),
             ),
         )
@@ -189,7 +195,27 @@ class PosReadRepository(
      * Bills stored from their header only (no lines). Counted by bill row, so a bill both stored this
      * way and quarantined for its detail counts here, not twice.
      */
-    fun billsWithoutLines(venueId: UUID): Int = dsl.fetchCount(BILL, BILL.VENUE_ID.eq(venueId).and(BILL.ITEMS_UNREADABLE.isTrue))
+    fun billsWithoutLines(
+        venueId: UUID,
+        day: LocalDate? = null,
+    ): Int =
+        dsl.fetchCount(
+            BILL,
+            BILL.VENUE_ID
+                .eq(venueId)
+                .and(BILL.ITEMS_UNREADABLE.isTrue)
+                .and(day?.let { BILL.BUSINESS_DAY.eq(it) } ?: noCondition()),
+        )
+
+    /** When the venue's bills last synced successfully; `null` before the first sync. */
+    fun lastBillsSyncAt(venueId: UUID): Instant? =
+        dsl
+            .select(SYNC_CURSOR.LAST_SUCCESS_AT)
+            .from(SYNC_CURSOR)
+            .where(SYNC_CURSOR.VENUE_ID.eq(venueId), SYNC_CURSOR.RESOURCE.eq(BILLS_RESOURCE))
+            .fetchOne(SYNC_CURSOR.LAST_SUCCESS_AT)
 }
+
+private const val BILLS_RESOURCE = "BILLS"
 
 private fun <T> Record.required(field: Field<T?>): T = get(field) ?: error("${field.name} is null")

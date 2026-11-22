@@ -49,6 +49,16 @@ object BusinessDayCalendar {
         zone: ZoneId,
     ): Int = at.atZone(zone).hour
 
+    /**
+     * The instant [days] days before [at] at the same local clock time in [zone] ("last Friday, up to the
+     * same time"), so a DST change in between doesn't shift it by an hour.
+     */
+    fun sameLocalTimeDaysEarlier(
+        at: Instant,
+        zone: ZoneId,
+        days: Long,
+    ): Instant = at.atZone(zone).minusDays(days).toInstant()
+
     /** The instants a business date covers, `[start, end)`. */
     fun range(
         date: LocalDate,

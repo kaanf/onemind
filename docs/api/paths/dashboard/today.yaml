@@ -1,0 +1,41 @@
+get:
+  tags:
+    - Dashboard
+  operationId: getToday
+  summary: Today (01)
+  description: |
+    The current business day of one or more venues (screen 01; `docs/domain/METRICS.md`). Each venue's
+    business day is its own (time zone and cut-off). Figures sum the venues that have data (`READY`);
+    venues still waiting for their first sync are listed in `pendingVenueIds`, so the app can say so.
+    Figures the POS can't give are listed in `unavailable` and never sent as a value (product rule 2).
+    Polling: send the last `ETag` as `If-None-Match`; an unchanged answer is `304` (ADR 0005).
+
+    Errors: `404 VENUE_NOT_FOUND` for a venue that isn't the caller's; `422 CURRENCIES_DIFFER` when the
+    venues don't share one currency (amounts are never converted).
+  parameters:
+    - $ref: ../../components/parameters/VenueIds.yaml
+    - $ref: ../../components/parameters/IfNoneMatch.yaml
+  responses:
+    '200':
+      description: Today's figures.
+      headers:
+        ETag:
+          description: Version of this answer, for `If-None-Match`.
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/TodaySummary.yaml
+    '304':
+      description: Unchanged since the `If-None-Match` version.
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '422':
+      $ref: ../../components/responses/UnprocessableEntity.yaml
+    '426':
+      $ref: ../../components/responses/UpgradeRequired.yaml
