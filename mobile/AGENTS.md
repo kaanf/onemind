@@ -4,9 +4,10 @@ Kotlin Multiplatform app (Android + iOS, shared Compose UI) for OneMind. Read th
 [`../AGENTS.md`](../AGENTS.md) first, then
 [ADR 0011](../docs/architecture/adr/0011_MOBILE_ARCHITECTURE.md).
 
-> **Status:** build logic, version catalog, module skeleton, `core:api` generation, design system
-> and the app shell (navigation root, 4-tab bar with placeholder screens, Koin) are in place;
-> variants/Sentry and screens come next, see `docs/ROADMAP.md`. The structure follows the owner's
+> **Status:** build logic, version catalog, module skeleton, `core:api` generation, design system,
+> the app shell (navigation root, 4-tab bar with placeholder screens, Koin) and the `dev`/`prod`
+> variants are in place; screens come next (Sentry is deferred to phase 7), see `docs/ROADMAP.md`.
+> The structure follows the owner's
 > other KMP app, **crew-kmp** (`~/Projects/crew/crew-kmp`). Use it as the reference implementation for structure, Gradle
 > convention plugins and patterns — not for product code or copy.
 
@@ -126,7 +127,33 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
 
 ## Environments, text and diagnostics ([ADR 0012](../docs/architecture/adr/0012_CROSS_CUTTING_CONCERNS.md))
 
-- Variants `dev` (`com.onemind.app.dev`) and `prod`; base URL and Sentry DSN via BuildKonfig.
+- Variants `dev` (`com.onemind.app.dev`, "OneMind Dev") and `prod` (`com.onemind.app`), installable
+  side by side. One switch, the Gradle property `onemind.environment` (`dev` default in
+  `gradle.properties`, `-Ponemind.environment=prod` for prod):
+  - it is the BuildKonfig flavor of `core:data`, which generates `ENVIRONMENT` and `API_BASE_URL`
+    (host only; the client appends `/api/v1`). Read them through `ApiConfig` (bound in
+    `coreDataModule`, environment as `AppEnvironment`), never `BuildKonfig` directly from other
+    modules. The unflavored `defaultConfigs` holds the dev values; the convention plugin fails the
+    build when `defaultConfigs("prod")` misses a field or a module uses unflavored `targetConfigs`;
+  - Android has flavors `dev`/`prod`, and only the flavor matching `onemind.environment` is enabled
+    (shared modules are compiled once per build, so a dev APK can never carry prod values).
+    `devRelease` is disabled as well: release builds (and the release key) are always prod, so a
+    plain `assembleRelease` without `-Ponemind.environment=prod` fails with "task not found". The dev
+    flavor allows plain HTTP (`src/dev/res/xml/network_security_config.xml`); prod is HTTPS only;
+  - iOS: the Debug configuration is dev, Release is prod (`iosApp/Configuration/Debug.xcconfig`,
+    `Release.xcconfig`, both including `Config.xcconfig`); the Gradle build phase passes
+    `ONEMIND_ENVIRONMENT` as `-Ponemind.environment`. `Debug.xcconfig` also sets `ONEMIND_DEV=1`,
+    which keeps the local-networking ATS exception in `Info.plist`. An IDE-driven iOS build
+    (`OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED=YES`) skips that phase and builds the framework with the
+    default `dev`: for a prod build from the IDE, set `onemind.environment=prod` there, or build with
+    Xcode/`xcodebuild -configuration Release`.
+- API hosts: dev is the local docker backend, `http://10.0.2.2:8080` on the Android emulator and
+  `http://localhost:8080` on the iOS simulator; a phone on the LAN uses
+  `onemind.apiBaseUrl=http://<ip>:8080` in the git-ignored `local.properties` (dev only; checked to
+  be `scheme://host[:port]`). Prod is
+  `https://api.onemind.app`, a **placeholder** (the JWT issuer of ADR 0004) to be confirmed with
+  the hosting setup in phase 7. The app contains no secrets; Sentry DSN joins BuildKonfig with Sentry
+  (phase 7).
 - Strings in Compose resources (English; Czech before release). Plurals use CLDR categories
   (Czech: one/few/many/other) — test them.
 - Money via platform formatters (`expect/actual` in `core:presentation`), by the venue's currency,
@@ -192,8 +219,8 @@ It is a guard file (`docs/PARALLEL_WORK.md#guard-files`): never weaken a rule to
 | `cmp.library` | `core:designsystem`, `core:presentation` | `kmp.library` + Compose Multiplatform, Material 3, resources, previews |
 | `cmp.feature` | `feature:*:presentation` | `cmp.library` + `core:presentation`, `core:designsystem`, ViewModel, Navigation, Koin, Turbine |
 | `cmp.application` | `composeApp` | `cmp.library` + the single static iOS framework `ComposeApp` |
-| `android.application(.compose)` | `androidApp` | AGP 9 app (built-in Kotlin), release signing from `ONEMIND_*` properties/env, Compose |
-| `buildkonfig` | modules with build config | BuildKonfig with the module's package |
+| `android.application(.compose)` | `androidApp` | AGP 9 app (built-in Kotlin), `dev`/`prod` flavors (only the selected one enabled, no `devRelease`), release signing from `ONEMIND_*` properties/env, Compose |
+| `buildkonfig` | `core:data` | BuildKonfig with the module's package; flavor = `onemind.environment` (a conflicting `-Pbuildkonfig.flavor` fails); every field set for prod too |
 | `ktlint` | applied by the above | same ktlint setup as the backend |
 
 Namespaces come from the Gradle path (`:feature:sales:presentation` → `com.onemind.sales.presentation`).
@@ -211,11 +238,12 @@ Run from `mobile/`. Needs JDK 21, Node.js (`npx`, for the `core:api` spec bundle
 ./gradlew testAndroidHostTest                              # commonTest of every module on the JVM
 ./gradlew :core:konsist:test                               # architecture, money and clock guards
 ./gradlew :core:api:openApiGenerate                        # regenerate API models after a spec change
-./gradlew :androidApp:assembleDebug                        # Android debug APK
-./gradlew :androidApp:assembleRelease                      # Android release (R8); unsigned without ONEMIND_* signing values
+./gradlew :androidApp:assembleDebug                        # Android dev debug APK (com.onemind.app.dev)
+./gradlew -Ponemind.environment=prod :androidApp:assembleRelease  # Android prod release (R8); unsigned without ONEMIND_* signing values
 ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64  # iOS framework (shared code compiles for iOS)
 
-# Full iOS app for the simulator (runs the Gradle framework build as an Xcode build phase)
+# Full iOS app for the simulator (runs the Gradle framework build as an Xcode build phase);
+# -configuration Debug is dev, Release is prod
 xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug \
   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```

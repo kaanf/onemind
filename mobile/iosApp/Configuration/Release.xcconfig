@@ -1,0 +1,6 @@
+#include "Config.xcconfig"
+
+// prod variant (ADR 0012 §2).
+ONEMIND_ENVIRONMENT=prod
+PRODUCT_BUNDLE_IDENTIFIER=com.onemind.app
+ONEMIND_DISPLAY_NAME=OneMind

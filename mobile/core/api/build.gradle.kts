@@ -67,3 +67,9 @@ kotlin {
         }
     }
 }
+
+// AGP's release-only art profile task looks for `baselineProfiles` next to each Kotlin source dir,
+// so it reads the generator output too; declare the order (`assembleRelease` fails without it).
+tasks.matching { it.name == "prepareAndroidMainArtProfile" }.configureEach {
+    dependsOn(tasks.openApiGenerate)
+}

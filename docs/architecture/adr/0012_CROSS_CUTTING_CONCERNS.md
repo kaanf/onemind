@@ -33,6 +33,7 @@ owner's other KMP project (crew-kmp).
   when real users arrive (ADR 0008).
 - Mobile variants: `dev` (`com.onemind.app.dev`) and `prod` (`com.onemind.app`) on Android, matching
   Xcode configurations on iOS; installable side by side.
+  On iOS the Debug configuration is `dev` and Release is `prod` (`mobile/AGENTS.md`).
 - Per-variant values (API base URL, Sentry DSN) via **BuildKonfig** (crew-kmp convention plugin).
   The app contains no secrets (DSN and OAuth client IDs are public by design).
 
