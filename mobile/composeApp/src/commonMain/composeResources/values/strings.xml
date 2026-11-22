@@ -6,4 +6,9 @@
     <string name="tab_stock">Stock</string>
     <string name="stock_title">Stock</string>
     <string name="stock_placeholder_message">Coming soon.</string>
+    <!-- Shown on 426 APP_UPGRADE_REQUIRED. Not designed yet (P7); no store button until the listings exist (phase 7). -->
+    <string name="update_title">Update OneMind</string>
+    <string name="update_body">This version of OneMind is no longer supported. Update the app from the store to continue.</string>
+    <string name="update_body_version">This version of OneMind is no longer supported. Update to version %1$s or later from the store to continue.</string>
+    <string name="update_check_again">Check again</string>
 </resources>

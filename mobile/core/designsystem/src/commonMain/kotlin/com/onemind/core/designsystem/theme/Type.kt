@@ -37,6 +37,8 @@ data class OneMindTypography(
     val figure: TextStyle,
     /** Detail screen titles, card values. */
     val headline: TextStyle,
+    /** Lead paragraphs and input text on sign-in (16). */
+    val bodyLarge: TextStyle,
     /** Rows and chat text. */
     val body: TextStyle,
     /** Secondary rows, buttons in chips, date lines. */
@@ -49,6 +51,12 @@ data class OneMindTypography(
     val tabLabel: TextStyle,
     /** Chart axis and value labels (bar values, heatmap hours). */
     val chartLabel: TextStyle,
+    /** Field and group labels (*Work email*, *Code*). */
+    val label: TextStyle,
+    /** Button text (16 SemiBold). */
+    val button: TextStyle,
+    /** The *OneMind* wordmark next to the brand mark. */
+    val brand: TextStyle,
 )
 
 @Composable
@@ -94,11 +102,15 @@ internal fun oneMindTypography(
         title = style(interTight, 28, FontWeight.SemiBold, lineHeight = 1.15, letterSpacing = -0.02),
         figure = style(interTight, 22, FontWeight.SemiBold, lineHeight = 1.15),
         headline = style(inter, 17, FontWeight.SemiBold, lineHeight = 1.3),
+        bodyLarge = style(inter, 16, FontWeight.Normal, lineHeight = 1.5),
         body = style(inter, 15, FontWeight.Normal, lineHeight = 1.45),
         bodySmall = style(inter, 13, FontWeight.Normal, lineHeight = 1.4),
         caption = style(inter, 12, FontWeight.Normal, lineHeight = 1.4),
         overline = style(inter, 11, FontWeight.SemiBold, lineHeight = 1.3, letterSpacing = 0.08),
         tabLabel = style(inter, 11, FontWeight.Medium, lineHeight = 1.3),
         chartLabel = style(inter, 10, FontWeight.Normal, lineHeight = 1.3),
+        label = style(inter, 13, FontWeight.Medium, lineHeight = 1.4),
+        button = style(inter, 16, FontWeight.SemiBold, lineHeight = 1.3),
+        brand = style(interTight, 20, FontWeight.Bold, lineHeight = 1.2, letterSpacing = -0.02),
     )
 }

@@ -29,6 +29,12 @@ Shown once, on first launch. See [NAVIGATION.md](NAVIGATION.md) for the flow.
   **Send me a code**.
 - Footer: *"No password. By continuing you agree to the Terms and Privacy Policy."*
 - Behaviour: passwordless. Email path goes to A2.
+- **Built (phase 3):** email path only. *Continue with Apple / Google* and the *or with email*
+  divider are hidden until the native provider flows land (roadmap: "Mobile: Sign in with Apple /
+  Google (A1)"). *Send me a code* is enabled for a plausible address (one `@`, a dot in the domain);
+  the server validates. Terms and Privacy Policy are plain text until their pages exist (phase 7).
+  If a code was sent less than 30 s ago (`429 EMAIL_CODE_RESEND_TOO_SOON`), A1 goes on to A2 with the
+  server's `retryAfterSeconds` as the countdown.
 
 ### A2 · Email code — `AuthCode`
 
@@ -37,6 +43,22 @@ Shown once, on first launch. See [NAVIGATION.md](NAVIGATION.md) for the flow.
 - *"Didn't get it? Resend in 0:24"*: resend is disabled until the countdown ends.
 - **Verify** (primary), **Use a different email** (back to A1).
 - After verify: new account → A3; existing account with connected POS → Today.
+- **Built (phase 3):** the resend countdown starts at 30 s (ADR 0004) or the server's
+  `retryAfterSeconds`. Errors under the code: `EMAIL_CODE_INVALID` "That code isn't right. Attempts
+  left: n." (only this clears the boxes), `EMAIL_CODE_EXPIRED` and `EMAIL_CODE_ATTEMPTS_EXCEEDED` ask
+  for a new code; other errors (offline, timeout) keep the code for a retry and use the shared
+  messages or the server's `detail`. While a code is being checked, back, *Use a different email*,
+  Resend and the code boxes are disabled, so a code the server accepted can't be lost before the
+  session is stored. Back and *Use a different email* always return to A1, never past it. Until A3–A5 exist (phase 4
+  interim onboarding), **every** successful verify goes to Today: the app gate switches to the tab
+  shell when the session is stored. A refresh that fails with `401` (or a sign-out) returns to a fresh A1.
+
+### App update required (426) — `UpdateScreen`
+
+Not designed (P7). Shown over everything, sign-in included, when any call answers
+`426 APP_UPGRADE_REQUIRED`: title *Update OneMind*, body with `params.minimumVersion` when sent,
+**Check again** (hides it; the next call asks the server again). No store button until the App Store
+and Play listings exist (phase 7).
 
 ### Interim onboarding (dev/demo builds, until P15)
 
