@@ -3,7 +3,6 @@ package com.onemind.backend.reporting.application
 import com.onemind.backend.common.error.InvalidRequestException
 import com.onemind.backend.common.time.BusinessDayCalendar
 import com.onemind.backend.pos.api.PosReadModel
-import com.onemind.backend.reporting.domain.BillRevenue
 import com.onemind.backend.reporting.domain.HourTotals
 import com.onemind.backend.reporting.domain.RollupVersion
 import com.onemind.backend.reporting.domain.SalesCalculator
@@ -71,16 +70,16 @@ data class SalesView(
  * resolved like Today ([DashboardScopes]); figures sum the venues with data, the others are pending.
  *
  * Figures come from the stored hours of the period's days up to today (for `HOUR`: the current hour of
- * today). The comparison takes the compared span of the previous period ([SalesRanges], M3 default):
- * whole days from the stored hours, the cut day from that day's POS facts up to the same local time as
- * each venue's figures reach, its last bills sync (hourly rollups can't cut inside an hour), with the one revenue rule ([BillRevenue.paid]). Only venues
- * whose data starts by the compared span's first day count in it, in both figures, so a venue synced
- * since makes up no growth; none: no comparison.
+ * today). The comparison takes the compared span of the previous period ([SalesRanges], M3 default)
+ * from [ComparedSpans]: whole days from the stored hours, the cut day from its POS facts up to the same
+ * local time as each venue's last bills sync. Only venues whose data starts by the compared span's first
+ * day count in it, in both figures, so a venue synced since makes up no growth; none: no comparison.
  */
 @Service
 class GetSales(
     private val scopes: DashboardScopes,
     private val rollups: RollupRepository,
+    private val comparedSpans: ComparedSpans,
     private val pos: PosReadModel,
     private val clock: Clock,
 ) {
@@ -129,46 +128,18 @@ class GetSales(
         now: Instant,
         today: LocalDate,
     ): SalesComparisonView? {
-        val compared = current.keys.filter { venueId -> rollups.firstDay(venueId)?.let { !it.isAfter(ranges.comparedFrom) } == true }
+        val compared = comparedSpans.venues(current.keys, ranges)
         if (compared.isEmpty()) return null
-        val cutDay = ranges.comparedCutDay
         val dataAsOf = scope.ready.associate { it.venueId to requireNotNull(it.dataAsOf) }
-        // HOUR: the previous side also starts at the start of the same hour.
-        val hourStart =
-            if (ranges.period == SalesPeriod.HOUR && cutDay != null) {
-                BusinessDayCalendar.sameLocalTimeDaysEarlier(
-                    BusinessDayCalendar.startOfLocalHour(now, scope.zone),
-                    scope.zone,
-                    ChronoUnit.DAYS.between(cutDay, today),
-                )
-            } else {
-                null
-            }
         val previous =
             compared.sumOf { venueId ->
-                val whole = rollups.hours(venueId, ranges.comparedWholeDays).sumOf { it.paidMinor }
-                val partial =
-                    if (cutDay == null) {
-                        0
-                    } else {
-                        // Up to the same local time as the venue's figures reach (its last bills sync), not now:
-                        // between syncs the current side lags, and cutting the earlier side later would bias the delta.
-                        val asOf = minOf(now, dataAsOf.getValue(venueId))
-                        val cut = BusinessDayCalendar.sameLocalTimeDaysEarlier(asOf, scope.zone, ChronoUnit.DAYS.between(cutDay, today))
-                        val bills = allPages { after -> pos.bills(venueId, listOf(cutDay), after).let { it.items to it.next } }
-                        BillRevenue.paid(
-                            bills
-                                .filter { it.paidAt.isBefore(cut) && (hourStart == null || !it.paidAt.isBefore(hourStart)) }
-                                .map { it.toRollup() },
-                        )
-                    }
-                whole + partial
+                comparedSpans.hours(venueId, ranges, scope, today, now, dataAsOf.getValue(venueId)).sumOf { it.paidMinor }
             }
         val currentMinor = compared.sumOf { venueId -> current.getValue(venueId).sumOf { it.paidMinor } }
         return SalesComparisonView(
             from = ranges.comparedFrom,
             to = ranges.comparedTo,
-            upToSameTime = cutDay != null,
+            upToSameTime = ranges.comparedCutDay != null,
             venueIds = compared,
             currentMinor = currentMinor,
             previousMinor = previous,

@@ -5,6 +5,7 @@ import com.onemind.backend.common.time.BusinessDayRange
 import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
 
@@ -13,8 +14,8 @@ import java.util.UUID
  * job then recomputes every stored day (`rollup_state.rollup_version`).
  */
 object RollupVersion {
-    /** 2: `paidBills` and the refunded card/cash/other split (V013). */
-    const val CURRENT = 2
+    /** 2: `paidBills` and the refunded card/cash/other split (V013). 3: `refundedBills` (V014). */
+    const val CURRENT = 3
 }
 
 // Inputs: the POS facts of one venue and business day (pos/api/PosReadModel), amounts in minor units.
@@ -76,6 +77,8 @@ data class HourlySalesRow(
     val cashMinor: Long,
     val otherMinor: Long,
     val refundedMinor: Long,
+    /** Refunded bills (the records behind [refundedMinor]). */
+    val refundedBills: Int,
     /** [refundedMinor] by payment kind, so card + cash + other of paidRevenue = card − refundedCard, … */
     val refundedCardMinor: Long,
     val refundedCashMinor: Long,
@@ -83,6 +86,26 @@ data class HourlySalesRow(
     val deletedBills: Int,
     val deletedMinor: Long,
 )
+
+/** The row as a reader sees a stored hour of [day] (`RollupRepository.hours` reads the same columns). */
+fun HourlySalesRow.toTotals(day: LocalDate) =
+    HourTotals(
+        day = day,
+        hour = hour,
+        revenueMinor = revenueMinor,
+        refundedMinor = refundedMinor,
+        tipsMinor = tipsMinor,
+        guests = guests,
+        discountMinor = discountMinor,
+        deletedMinor = deletedMinor,
+        paymentMismatchBills = billsPaymentMismatch,
+        paidBills = paidBills,
+        refundedBills = refundedBills,
+        deletedBills = deletedBills,
+        paidCardMinor = cardMinor - refundedCardMinor,
+        paidCashMinor = cashMinor - refundedCashMinor,
+        paidOtherMinor = otherMinor - refundedOtherMinor,
+    )
 
 data class HourlyActivityRow(
     val hour: Int,
@@ -270,6 +293,7 @@ object RollupCalculator {
                     cashMinor = byKind.sumOf { it.getValue(BillRevenue.CASH) },
                     otherMinor = byKind.sumOf { it.getValue(BillRevenue.OTHER) },
                     refundedMinor = kept.filter { it.refunded }.sumOf { BillRevenue.revenue(it) },
+                    refundedBills = kept.count { it.refunded },
                     refundedCardMinor = refundedByKind.sumOf { it.getValue(BillRevenue.CARD) },
                     refundedCashMinor = refundedByKind.sumOf { it.getValue(BillRevenue.CASH) },
                     refundedOtherMinor = refundedByKind.sumOf { it.getValue(BillRevenue.OTHER) },

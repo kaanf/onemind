@@ -40,6 +40,10 @@
     <string name="today_loss_discounts">discounts</string>
     <string name="today_loss_refunds">refunds</string>
     <string name="today_loss_deleted_bills">deleted bills</string>
+    <string name="today_loss_other">other losses</string>
+    <!-- The total also has components this app version can't name yet. -->
+    <string name="today_loss_includes_and_other">Includes %1$s and other losses</string>
+    <string name="today_loss_includes_other_only">Includes other losses</string>
 
     <string name="today_data_gaps_lead">Some bills are missing from these figures.</string>
     <plurals name="today_gap_unreadable">

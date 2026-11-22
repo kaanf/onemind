@@ -19,3 +19,9 @@ properties:
   paymentMismatchBillCount:
     type: integer
     description: Bills of the screen's business days whose payments don't add up; left out of revenue.
+  discountMismatchDayCount:
+    type: integer
+    nullable: true
+    description: |
+      Discounts & losses (02c) only: venue days whose typed item discounts are above their bill-level
+      discounts; their by-type list shows the typed ones only. Null on other screens.

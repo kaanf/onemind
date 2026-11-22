@@ -43,6 +43,8 @@ paths:
     $ref: ./paths/dashboard/today.yaml
   /dashboard/sales:
     $ref: ./paths/dashboard/sales.yaml
+  /dashboard/losses:
+    $ref: ./paths/dashboard/losses.yaml
 components:
   securitySchemes:
     bearerAuth:
