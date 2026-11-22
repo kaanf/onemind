@@ -38,6 +38,15 @@ Shown once, on first launch. See [NAVIGATION.md](NAVIGATION.md) for the flow.
 - **Verify** (primary), **Use a different email** (back to A1).
 - After verify: new account → A3; existing account with connected POS → Today.
 
+### Interim onboarding (dev/demo builds, until P15)
+
+Until the Storyous connection exists, a new account goes from A2 straight to a variant of A5,
+**Pick demo venues**: the demo POS places (`GET /onboarding/demo-places`), every card with a visible
+**Demo data** badge (product rule 2). Picking creates the account's organization ("Demo organization"),
+its venues and the followed venues (`POST /onboarding/demo`) and lands on **Today**, which shows empty
+states until the first sync (about two minutes). A3 and A4 are skipped (no sync-status endpoint yet).
+In production the endpoints answer `404 FEATURE_UNAVAILABLE`, so this flow never appears there.
+
 ### A3 · Connect Storyous — `AuthConnect` (Step 1 of 3)
 
 - *"Connect your Storyous account. Sign in as the venue owner. You will approve access on Storyous

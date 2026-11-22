@@ -35,7 +35,8 @@ reference the question ID in a code comment / PR. When a question is answered, m
 | M9 | Stock corrections in losses at sale price or cost? |
 | M10 | Order-plan forecast and safety buffer method; idle "very slow" threshold; variance threshold. |
 | M11 | Unit cost: last purchase price or weighted average? |
-| M12 | Today hourly chart start/end hour: derived from data (e.g. earliest/latest hour with paid bills on the last 4 same weekdays, fallback `business_day_start`) or an owner-set opening hour per venue? Decide before phase 5 (01 Today). |
+| M13 | Refunds: METRICS wants them in the period of the refund, but Storyous has no refund time. Default (first release): in the bill's own paid business day. Accept, or use the bill's last-modified time as the refund time? |
+| M14 | Card/cash split without tips: Storyous gives tips per bill, payments include them. Default: tips off card payments first, then cash. An approximation for bills paid partly by card and partly in cash; accept? |
 
 ## Integration
 

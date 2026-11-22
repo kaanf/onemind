@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +31,8 @@ fun OneMindFilterChip(
         contentAlignment = Alignment.Center,
         modifier =
             modifier
+                // 36 high as designed, but the touch target is at least 48 × 48 (44 × 44 rule).
+                .minimumInteractiveComponentSize()
                 .heightIn(min = 36.dp)
                 .background(if (selected) colors.textPrimary else colors.surface, shape)
                 .border(

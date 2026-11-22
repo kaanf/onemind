@@ -1,0 +1,13 @@
+type: object
+description: The caller's new demo organization and its venues.
+required:
+  - organizationId
+  - venues
+properties:
+  organizationId:
+    type: string
+    format: uuid
+  venues:
+    type: array
+    items:
+      $ref: ./DemoVenue.yaml

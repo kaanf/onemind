@@ -20,10 +20,14 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.onemind.core.designsystem.theme.OneMindTheme
 
-/** One bar; [color] comes from the screen's highlight rule (accent, `chartMuted`, `chartFuture`, …). */
+/**
+ * One bar; [color] comes from the screen's highlight rule (accent, `chartMuted`, `chartFuture`, …).
+ * [value] only sets the bar's height relative to the other bars (drawing, so `Float` is fine); never
+ * pass money through it for display. The amount or count a user reads is [valueLabel], formatted
+ * exactly by the caller.
+ */
 data class Bar(
     val value: Float,
     val color: Color,
@@ -61,7 +65,7 @@ fun BarChart(
                     if (bar.valueLabel != null) {
                         Text(
                             text = bar.valueLabel,
-                            style = OneMindTheme.typography.caption.copy(fontSize = 10.sp),
+                            style = OneMindTheme.typography.chartLabel,
                             color = labelColor,
                             maxLines = 1,
                         )
