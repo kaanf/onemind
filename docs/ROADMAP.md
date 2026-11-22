@@ -19,7 +19,8 @@ Last updated: 2026-11-22.
   auth rule tests + `VenueAccess` cross-venue check (#30), 426 min-version check (#36). App shell is
   done (#32). ADR 0013 audit (#40, #41), ArchUnit gates (#42), product-rule gates (#43) and the
   Konsist guard module (#39), gate follow-ups (#47, #48), the end-to-end auth smoke test (#49) and
-  JWT clock skew 0 s for own tokens (#50) are in `dev`. Phase 4 runs on mock POS data (owner,
+  JWT clock skew 0 s for own tokens (#50), mobile `dev`/`prod` variants (#52), the organization purge
+  job (#53) and the first-release data-source table (#54, R28) are in `dev`. Phase 4 runs on mock POS data (owner,
   2026-11-21).
 - **Blockers outside the code:** Storyous partnership / API credentials (P15, owner; not needed
   until the real client is connected); design
@@ -89,7 +90,7 @@ real code in that job with a scope proven non-empty (owner, 2026-11-21).
 - [x] Design system: tokens, Inter / Inter Tight, components from `docs/design/DESIGN_SYSTEM.md`
       (light palette only; dark palette waits for P7)
 - [x] App shell: navigation root, 4-tab bar (Today, Sales, Staff, Stock later), Koin + graph test (#32)
-- [ ] Variants `dev`/`prod` with BuildKonfig (Sentry moved to phase 7, owner 2026-11-22)
+- [x] Variants `dev`/`prod` with BuildKonfig (Sentry moved to phase 7, owner 2026-11-22) (#52)
 - [x] GitHub Actions: common tests + Android build on PR; iOS build on `dev`/`main` + nightly
       (nightly/manual iOS runs start once `main` has the workflow, i.e. after the first release)
 - [x] `:core:konsist` guard module: ADR 0011 module rules, no `Float`/`Double` money, one clock seam
@@ -151,7 +152,13 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
       paging), built and tested against recorded fixtures that fail on any non-GET call; drop
       `allowEmptyShould(true)` from `ProductRules.posIsReadOnly` so the gate proves a non-empty
       scope; onboarding A3–A5 (no OAuth redirect; see `docs/integrations/STORYOUS.md`)
-- [ ] Purge job: delete organizations whose `deletion_due_at` has passed (set by `DELETE /me`, #28)
+- [x] Purge job: delete organizations whose `deletion_due_at` has passed (set by `DELETE /me`, #28) (#53)
+- [ ] Indexes on the `ON DELETE SET NULL` FKs (`bill.desk_id`, `bill.created_by_staff_id`,
+      `bill.paid_by_staff_id`, `product.category_id`, `desk.section_id`), additive migration before real
+      data (from the #53 review)
+- [ ] Alertable signal for an organization the purge job keeps failing on (today: ERROR log), with
+      phase 7 Sentry; stock adds its `OrganizationPurging` listener only after the rule-4 + GDPR
+      retention decision (from the #53 review)
 - [ ] Phase-end `REVIEW pr: audit`
 
 ## Phase 5 — Dashboards
