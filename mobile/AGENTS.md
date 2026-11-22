@@ -64,11 +64,23 @@ Application ID / bundle ID: `com.onemind.app` (dev builds `com.onemind.app.dev`)
   `com.onemind.core.api.model`. Free-form values (`additionalProperties: true`) are `JsonElement`.
   The generator cannot map unknown enum values to `UNKNOWN` for kotlinx: solve this when the first
   enum enters the spec.
+- One `HttpClient` from `core:data` (`HttpClientFactory`, Koin): base `ApiConfig.baseUrl + /api/v1/`,
+  so paths are relative (`client.post("auth/email/start")`). It adds `X-App-Version`, `X-Platform`
+  and a fresh `X-Request-Id` to every request, the access token to every call outside `auth/...`, and
+  reports `426 APP_UPGRADE_REQUIRED` to `AppUpdateRepository`. No logging plugin: never log requests,
+  bodies, tokens, `AuthTokens` or `StoredSession` (its `toString()` is redacted; generated DTOs are not).
+  `X-App-Version` is the store version: iOS reads `CFBundleShortVersionString` (Xcode
+  `MARKETING_VERSION`) at runtime, Android uses `projectVersionName` (its `versionName`); keep the two
+  equal when releasing.
+- Wrap each call in `safeCall<T> { client.post(...) }`: it returns `Result<T, DataError>` (`core:domain`):
+  the body on 2xx, `DataError.Api(status, code, detail, params)` for an RFC 9457 problem (params as
+  strings), `DataError.Network.*` for transport failures; it never throws except on cancellation.
 - Write requests by hand in the feature repository (method, path, query, headers). Send an
   `Idempotency-Key` (UUID) on creating POSTs and reuse it on retries of the same action.
 - JSON: `ignoreUnknownKeys = true`; unknown enum values → `UNKNOWN`.
 - Errors: map RFC 9457 problems to domain errors by `code`; show a localised string; for unknown
-  codes show the server's English `detail`. Hint cards with an unknown `code` are hidden.
+  codes show the server's English `detail`. Features map their own codes to `UiText` first and fall
+  back to `DataError.toUiText()` (`core:presentation`: network errors, `RATE_LIMITED`, else `detail`). Hint cards with an unknown `code` are hidden.
 - Money arrives as minor units, quantities and rates as decimal strings: never parse into `Double`.
 - Live screens poll only while visible and in the foreground (Today 30 s, 5 min when closed;
   Staff/Tables 60 s; sync status 2 s), send `If-None-Match`, treat `304` as unchanged
@@ -82,7 +94,10 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
   `dataAsOf` for offline data).
 - `XxxAction` — sealed interface of user intents.
 - `XxxEvent` — sealed interface of one-off effects (navigation, snackbar), sent through a
-  `Channel` and collected with `ObserveAsEvents` (lifecycle-aware, `Dispatchers.Main.immediate`).
+  `Channel` and collected with `ObserveAsEvents` (`core:presentation`; collects only while STARTED,
+  on `Dispatchers.Main.immediate`, so events sent while stopped wait instead of being lost).
+- User-facing text from a ViewModel is `UiText` (`core:presentation`): `Resource(id, args)` or
+  `Dynamic(value)`; composables call `asString()`.
 - `XxxViewModel` — androidx multiplatform ViewModel: `state: StateFlow<XxxState>`,
   `onAction(XxxAction)`, `events: Flow<XxxEvent>`.
 - `XxxRoot` — resolves the ViewModel with Koin, collects state with
@@ -120,9 +135,30 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
 
 - DataStore for settings and the read cache (last response per screen key; cleared on logout).
   Secure storage (Keychain / Keystore) for tokens — never in DataStore or logs.
+- Session (`core:data/session`, ADR 0004): `SessionManager` is the only owner of the tokens. It
+  loads `SecureSessionStore` once at start (`SessionState.Unknown` → `SignedIn`/`SignedOut`) and
+  serializes every read and write behind one mutex. `SecureSessionStore`, with no third-party library:
+  - Android `AndroidSecureSessionStore`: AES-256-GCM, the key generated in the Android Keystore
+    (non-exportable), a random IV per write, the file in `noBackupFilesDir`;
+  - iOS `IosSecureSessionStore`: a Keychain generic password,
+    `AfterFirstUnlockThisDeviceOnly`;
+  - an unreadable value (lost or invalidated key, tampering, unknown format) is deleted and reads as
+    signed out. `StoredSession.toString()` never prints tokens.
+- Features save tokens after sign-in with `SessionManager.save(StoredSession.from(tokens))`;
+  presentation only sees `SessionRepository` (`state`, `signOut()`).
+- `401` on an authenticated call: `SessionRefresher` runs one `auth/refresh` at a time, in the app
+  scope (a cancelled caller can't drop rotated tokens); a caller whose rejected token is already
+  replaced reuses the new one (a rotated refresh token is never sent twice). The original request is
+  retried once. A `401` from refresh signs out; other failures keep the session. Calls under
+  `auth/...` never refresh.
+- `signOut()` forgets the tokens first (not cancellable), then calls `auth/logout` in the app scope.
+- A store that throws on read (iOS Keychain before first unlock) keeps `SessionState.Unknown` and is
+  retried with backoff; only an undecodable value is discarded. The iOS store deletes a Keychain item
+  left over from a previous install (flag in `NSUserDefaults`); the Android store replaces a key the
+  Keystore can no longer use.
 - No database until offline stock counting (then Room via the convention plugin, ADR 0006).
-- Sentry via native SDKs in the hosts, crew-style bridge for shared networking diagnostics.
-- Auth: refresh once on `401` (single-flight), retry, else log out. Sign in with Apple required on
+- Sentry via native SDKs in the hosts, crew-style bridge for shared networking diagnostics (phase 7).
+- Auth: refresh once on `401` (single-flight), retry, else log out (see Session above). Sign in with Apple required on
   iOS when Google is offered.
 
 ## Environments, text and diagnostics ([ADR 0012](../docs/architecture/adr/0012_CROSS_CUTTING_CONCERNS.md))
@@ -172,7 +208,9 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
 - Data tests with Ktor `MockEngine` and JSON fixtures matching the OpenAPI examples.
 - Formatter tests (money, deltas, dates, business-day labels).
 - Koin graph verification test. Compose UI tests for key screens; screenshot tests later.
-- Android success does not verify iOS: build/test both targets.
+- Android success does not verify iOS: build/test both targets. `core:data` has an iOS Keychain test
+  (`src/iosTest`, `./gradlew :core:data:iosSimulatorArm64Test`), which needs an installed iOS simulator
+  runtime; CI runs it in the `ios-compile` job.
 
 ## Guardrails (`:core:konsist`)
 

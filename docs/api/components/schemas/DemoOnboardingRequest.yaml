@@ -1,0 +1,13 @@
+type: object
+description: The demo places to follow (A5).
+required:
+  - placeIds
+properties:
+  placeIds:
+    type: array
+    minItems: 1
+    maxItems: 20
+    uniqueItems: true
+    items:
+      type: string
+      maxLength: 100

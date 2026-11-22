@@ -1,6 +1,7 @@
 package com.onemind.backend.pos.application
 
 import com.onemind.backend.pos.domain.BillAttribution
+import com.onemind.backend.pos.domain.DiscountAmount
 import com.onemind.backend.pos.domain.PaymentKind
 import com.onemind.backend.pos.domain.PosMoney
 import com.onemind.backend.pos.domain.QuarantineReason
@@ -163,11 +164,7 @@ object PosBillMapping {
         )
 
     /** The absolute amount, else the percentage of the original price; neither → the bill can't be stored. */
-    private fun SyncedItemDiscount.amountMinor(): Long {
-        absoluteMinor?.let { return it }
-        val percent = percentValue
-        val original = originalPriceMinor
-        if (percent == null || original == null) throw UnreadableBillException(QuarantineReason.DISCOUNT_AMOUNT_MISSING)
-        return (BigDecimal.valueOf(original) * percent).divide(BigDecimal(100), 0, RoundingMode.HALF_UP).longValueExact()
-    }
+    private fun SyncedItemDiscount.amountMinor(): Long =
+        DiscountAmount.of(absoluteMinor, percentValue, originalPriceMinor)
+            ?: throw UnreadableBillException(QuarantineReason.DISCOUNT_AMOUNT_MISSING)
 }

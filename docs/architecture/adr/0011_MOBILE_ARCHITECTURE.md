@@ -43,7 +43,8 @@ mobile/
 ```
 
 Packages: `com.onemind.<feature|core>.<layer>` (e.g. `com.onemind.sales.presentation`);
-application ID and bundle ID stay `com.onemind.app`.
+application ID and bundle ID stay `com.onemind.app` (the `dev` variant adds `.dev`, see
+[ADR 0012 §2](0012_CROSS_CUTTING_CONCERNS.md)).
 
 ### Layer rules (as in crew-kmp)
 

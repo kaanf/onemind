@@ -1,0 +1,22 @@
+get:
+  tags:
+    - Onboarding
+  operationId: listDemoPlaces
+  summary: Demo places to pick (dev/demo only)
+  description: |
+    Interim onboarding until the Storyous connection exists (P15): the places of the demo POS a new
+    account can pick on A5. Dev/demo only (product rule 2): every place is named "Demo · …" and has
+    `demo: true`. `404 FEATURE_UNAVAILABLE` when no demo POS is configured (always in production).
+  responses:
+    '200':
+      description: The demo merchant and its places.
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/DemoPlaces.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '426':
+      $ref: ../../components/responses/UpgradeRequired.yaml

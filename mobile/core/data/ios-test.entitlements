@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Simulator entitlements for the Kotlin/Native iOS test binary (Keychain tests). The simulator reads
+     them from the binary's __TEXT,__entitlements section, as for Xcode-built simulator apps; without an
+     application identifier the Keychain answers errSecMissingEntitlement (-34018). Tests only. -->
+<plist version="1.0">
+<dict>
+    <key>application-identifier</key>
+    <string>SGWP227GBQ.com.onemind.app.tests</string>
+    <key>keychain-access-groups</key>
+    <array>
+        <string>SGWP227GBQ.com.onemind.app.tests</string>
+    </array>
+</dict>
+</plist>

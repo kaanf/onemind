@@ -13,7 +13,45 @@ kotlin {
             implementation(projects.core.api)
 
             implementation(libs.koin.core)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
         }
+        androidMain.dependencies {
+            implementation(libs.ktor.client.okhttp)
+            implementation(libs.koin.android)
+        }
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
+        }
+        commonTest.dependencies {
+            implementation(libs.ktor.client.mock)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.turbine)
+        }
+    }
+}
+
+// The simulator Keychain needs an application identifier: embed test entitlements in the test binary's
+// __TEXT,__entitlements section, as Xcode does for simulator apps. Not in the code signature: the
+// simulator refuses to launch an ad-hoc signature with restricted entitlements (exit 162 in CI).
+kotlin {
+    iosSimulatorArm64().binaries.getTest("DEBUG").linkerOpts(
+        "-sectcreate",
+        "__TEXT",
+        "__entitlements",
+        layout.projectDirectory
+            .file("ios-test.entitlements")
+            .asFile.absolutePath,
+    )
+}
+
+// iOS tests run in `simctl spawn --standalone` by default, which has no Keychain (errSecNotAvailable).
+// CI boots a simulator and passes its UDID, so the Keychain store is tested in a full simulator.
+providers.gradleProperty("onemind.iosTestDevice").orNull?.let { udid ->
+    tasks.withType<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest>().configureEach {
+        device.set(udid)
+        standalone.set(false)
     }
 }
 
@@ -31,16 +69,21 @@ val localApiBaseUrl: String? =
             }
         }
 
+val appVersion: String = libs.versions.projectVersionName.get()
+
 // API host per environment (ADR 0012 §2); the client appends the spec's `/api/v1`. No secrets here.
 // The unflavored block is dev; the buildkonfig convention plugin fails if prod misses a field.
 buildkonfig {
     defaultConfigs {
         buildConfigField(STRING, "ENVIRONMENT", "dev")
+        // X-App-Version on Android (and the fallback); iOS reads its bundle version (ApiConfig).
+        buildConfigField(STRING, "APP_VERSION", appVersion)
         // The iOS simulator reaches the local docker backend on localhost.
         buildConfigField(STRING, "API_BASE_URL", localApiBaseUrl ?: "http://localhost:8080")
     }
     defaultConfigs("prod") {
         buildConfigField(STRING, "ENVIRONMENT", "prod")
+        buildConfigField(STRING, "APP_VERSION", appVersion)
         // Placeholder until hosting is set up (phase 7); matches the JWT issuer of ADR 0004.
         buildConfigField(STRING, "API_BASE_URL", "https://api.onemind.app")
     }
