@@ -15,7 +15,9 @@ import java.io.File
  * an hour bucket. Business dates and local hours are computed by `common/time/BusinessDayCalendar` in
  * Kotlin and stored as columns. Two gates:
  * - [sqlText]: no date or time-zone function in migrations or in SQL text inside Kotlin.
- * - [noJooqDateFunctions]: no jOOQ call that does the same.
+ * - [noJooqDateFunctions]: no jOOQ call that does the same, including casts to date/time types by
+ *   `SQLDataType` or by a `java.time` class literal in the same method. Not seen: a class that reaches
+ *   the cast through a variable or a parameter (no literal in the casting method); the reviewer checks.
  */
 object DateFunctionRules {
     /** SQL that turns an instant into a date, an hour or local time; matched without case. */
@@ -29,6 +31,11 @@ object DateFunctionRules {
             "extract(…)" to Regex("""\bextract\s*\(""", RegexOption.IGNORE_CASE),
             "current_date" to Regex("""\bcurrent_date\b""", RegexOption.IGNORE_CASE),
             "cast(… as date)" to Regex("""\bas\s+date\b""", RegexOption.IGNORE_CASE),
+            "timezone(…)" to Regex("""\btimezone\s*\(""", RegexOption.IGNORE_CASE),
+            "to_char(…)" to Regex("""\bto_char\s*\(""", RegexOption.IGNORE_CASE),
+            "date_bin(…)" to Regex("""\bdate_bin\s*\(""", RegexOption.IGNORE_CASE),
+            "::timestamp / ::time" to Regex("""::\s*(timestamp|time)\b""", RegexOption.IGNORE_CASE),
+            "cast(… as timestamp / time)" to Regex("""\bas\s+(timestamp|time)\b""", RegexOption.IGNORE_CASE),
         )
 
     /** The forbidden functions found in [sql], comments ignored; empty when it is clean. */
@@ -40,14 +47,14 @@ object DateFunctionRules {
         return SQL_PATTERNS.filter { (_, pattern) -> pattern.containsMatchIn(code) }.map { it.first }
     }
 
-    /** The forbidden functions in string literals of Kotlin [source], comments ignored. */
+    /**
+     * The forbidden functions in string literals of Kotlin [source]. Strings and comments are matched in one
+     * pass, so `//` inside a string (a URL) isn't taken for a comment, and SQL in comments is ignored.
+     */
     fun kotlinText(source: String): List<String> {
-        val code =
-            source
-                .replace(Regex("""/\*.*?\*/""", RegexOption.DOT_MATCHES_ALL), " ")
-                .replace(Regex("""//[^\n]*"""), " ")
-        val strings = Regex("\"\"\"(.*?)\"\"\"|\"((?:[^\"\\\\\\n]|\\\\.)*)\"", RegexOption.DOT_MATCHES_ALL).findAll(code)
-        return sqlText(strings.joinToString("\n") { it.value }).distinct()
+        val tokens = Regex("\"\"\"[\\s\\S]*?\"\"\"|\"(?:[^\"\\\\\\n]|\\\\.)*\"|//[^\\n]*|/\\*[\\s\\S]*?\\*/")
+        val strings = tokens.findAll(source).map { it.value }.filter { it.startsWith("\"") }
+        return sqlText(strings.joinToString("\n")).distinct()
     }
 
     /** Every file under [dir] with [extension] and the forbidden functions it holds, only those with any. */
@@ -94,8 +101,19 @@ object DateFunctionRules {
             "timezone",
             "timezoneHour",
             "timezoneMinute",
+            "toChar",
+            "toTimestamp",
         )
     private val FIELD_METHODS = setOf("atTimeZone")
+    private val CAST_METHODS = setOf("cast", "coerce")
+    private val JAVA_TIME_CLASSES =
+        setOf(
+            "java.time.LocalDate",
+            "java.time.LocalTime",
+            "java.time.LocalDateTime",
+            "java.time.OffsetDateTime",
+            "java.time.ZonedDateTime",
+        )
     private val DATE_TYPES = setOf("DATE", "LOCALDATE", "TIME", "LOCALTIME", "TIMESTAMP", "LOCALDATETIME", "TIMESTAMPWITHTIMEZONE")
 
     /** No jOOQ call or type that makes the database decide a date, an hour or a time zone. */
@@ -118,8 +136,18 @@ object DateFunctionRules {
                 item.directDependenciesFromSelf
                     .filter { it.targetClass.name == "org.jooq.DatePart" }
                     .forEach { events.add(SimpleConditionEvent.violated(item, it.description)) }
+                // A cast by class (`cast(LocalDate::class.java)`, `coerce(…)`): ArchUnit can't see call arguments,
+                // but it sees the class literal; a cast or coerce next to a java.time literal in one method is caught.
+                item.codeUnits
+                    .filter { unit -> unit.methodCallsFromSelf.any { isJooqCast(it) } }
+                    .filter { unit -> unit.referencedClassObjects.any { it.rawType.name in JAVA_TIME_CLASSES } }
+                    .forEach { events.add(SimpleConditionEvent.violated(item, "${it.fullName} casts a jOOQ field to a java.time class")) }
             }
         }
+
+    private fun isJooqCast(call: JavaAccess<*>): Boolean =
+        call.target.name in CAST_METHODS &&
+            (call.targetOwner.name == "org.jooq.impl.DSL" || call.targetOwner.isAssignableTo("org.jooq.Field"))
 
     private val forbidden =
         DescribedPredicate.describe<JavaAccess<*>>("a jOOQ date function") { access ->

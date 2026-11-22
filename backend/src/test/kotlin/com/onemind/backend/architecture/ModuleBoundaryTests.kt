@@ -53,7 +53,8 @@ class ModuleBoundaryTests {
         // 146 classes when this was written; the floor catches an import that lost whole areas.
         const val MIN_CLASSES = 100
 
-        // V001–V009 when the date-function gate was added; repositories in account, pos and reporting.
+        // Floors for the date-function gate's real scope: V001–V009 existed when it was added (a lost
+        // migration directory must fail, not pass empty); repositories exist in account, pos and reporting.
         const val MIN_MIGRATIONS = 9
         const val MIN_PERSISTENCE_CLASSES = 10
 

@@ -1,8 +1,13 @@
 package com.onemind.backend.architecture
 
+import com.onemind.archfixture.reporting.infra.persistence.CastsByClass
 import com.onemind.archfixture.reporting.infra.persistence.CastsToDate
+import com.onemind.archfixture.reporting.infra.persistence.CastsToText
+import com.onemind.archfixture.reporting.infra.persistence.CoercesByClass
 import com.onemind.archfixture.reporting.infra.persistence.ComparesInstants
+import com.onemind.archfixture.reporting.infra.persistence.DslCastsByClass
 import com.onemind.archfixture.reporting.infra.persistence.ExtractsHour
+import com.onemind.archfixture.reporting.infra.persistence.FormatsDate
 import com.onemind.archfixture.reporting.infra.persistence.ReadsTimeZone
 import com.onemind.archfixture.reporting.infra.persistence.TruncatesToDay
 import com.onemind.archfixture.reporting.infra.persistence.UsesDatabaseDate
@@ -25,6 +30,13 @@ class DateFunctionRulesTest {
         assertEquals(listOf("date_part"), DateFunctionRules.sqlText("select date_part('hour', paid_at) from pos.bill"))
         assertEquals(listOf("current_date"), DateFunctionRules.sqlText("insert into x (d) values (current_date)"))
         assertEquals(listOf("cast(… as date)"), DateFunctionRules.sqlText("select cast(paid_at as date) from pos.bill"))
+        assertEquals(listOf("timezone(…)"), DateFunctionRules.sqlText("select timezone('Europe/Prague', paid_at) from pos.bill"))
+        assertEquals(listOf("to_char(…)"), DateFunctionRules.sqlText("select to_char(paid_at, 'HH24') from pos.bill"))
+        assertEquals(listOf("date_bin(…)"), DateFunctionRules.sqlText("select date_bin('1 hour', paid_at, now()) from pos.bill"))
+        assertEquals(listOf("::timestamp / ::time"), DateFunctionRules.sqlText("select paid_at::timestamp from pos.bill"))
+        assertEquals(listOf("::timestamp / ::time"), DateFunctionRules.sqlText("select paid_at::time from pos.bill"))
+        assertEquals(listOf("cast(… as timestamp / time)"), DateFunctionRules.sqlText("select cast(paid_at as timestamp) from pos.bill"))
+        assertEquals(listOf("cast(… as timestamp / time)"), DateFunctionRules.sqlText("select cast(paid_at as time) from pos.bill"))
     }
 
     @Test
@@ -33,7 +45,8 @@ class DateFunctionRulesTest {
             """
             -- business_day is computed in Kotlin, never with date_trunc or at time zone
             /* a bill's ::date is not decided here */
-            create table reporting.x (business_day date not null, updated_at timestamptz not null default now());
+            create table reporting.x (business_day date not null, updated_at timestamptz not null default now(), opens time);
+            select '2026-01-01T00:00:00Z'::timestamptz;
             update reporting.x set updated_at = now();
             alter table pos.bill add column external_desk_id text;
             """.trimIndent()
@@ -43,12 +56,15 @@ class DateFunctionRulesTest {
     @Test
     fun `SQL in Kotlin string literals is caught, Kotlin code and comments are not`() {
         // jOOQ has no time-zone conversion of its own; it would come as plain SQL: DSL.field("{0} at time zone …").
-        val violating = "val local = DSL.field(\"{0} at time zone 'Europe/Prague'\", paidAt); val sql = \"select date_trunc('day', paid_at)\""
+        val violating =
+            "val local = DSL.field(\"{0} at time zone 'Europe/Prague'\", paidAt)\n" +
+                "val sql = \"select date_trunc('day', paid_at)\""
         val allowed =
             """
             // never date_trunc here
             fun update(date: LocalDate) = dsl.update(BILL).set(BILL.BUSINESS_DAY, date)
             val message = "The update failed"
+            val docs = "https://docs.api.storyous.com/bills"
             """.trimIndent()
         assertEquals(listOf("date_trunc", "at time zone"), DateFunctionRules.kotlinText(violating))
         assertEquals(emptyList(), DateFunctionRules.kotlinText(allowed))
@@ -62,6 +78,11 @@ class DateFunctionRulesTest {
         assertTrue(rule.violatedBy(ReadsTimeZone::class), "DSL.timezoneHour")
         assertTrue(rule.violatedBy(CastsToDate::class), "cast to SQLDataType.LOCALDATE")
         assertTrue(rule.violatedBy(UsesDatabaseDate::class), "DSL.currentLocalDate")
+        assertTrue(rule.violatedBy(FormatsDate::class), "DSL.toChar")
+        assertTrue(rule.violatedBy(CastsByClass::class), "Field.cast(LocalDate::class.java)")
+        assertTrue(rule.violatedBy(DslCastsByClass::class), "DSL.cast(field, LocalDateTime::class.java)")
+        assertTrue(rule.violatedBy(CoercesByClass::class), "Field.coerce(LocalDate::class.java)")
+        assertFalse(rule.violatedBy(CastsToText::class), "a cast to String is fine")
         assertFalse(rule.violatedBy(ComparesInstants::class))
     }
 }

@@ -139,8 +139,11 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
   hour or time of day (hourly charts) gets it from a `BusinessDayCalendar` helper (e.g. `localHour`),
   added with its first use; never relax the gate or add an exception for it. The same holds in SQL
   (`architecture/DateFunctionRules`, run by `ModuleBoundaryTests`): no `date_trunc`, `AT TIME ZONE`,
-  `::date`, `date(…)`, `extract(…)`, `date_part`, `current_date` or `cast(… as date)` in migrations or
-  in SQL strings in Kotlin, and no jOOQ date functions, `DatePart` or casts to date/time `SQLDataType`s.
+  `::date`, `date(…)`, `extract(…)`, `date_part`, `current_date`, `timezone(…)`, `to_char(…)`, `date_bin(…)`,
+  `::timestamp`/`::time` or `cast(… as date|timestamp|time)` in migrations or in SQL strings in Kotlin,
+  and no jOOQ date functions (incl. `toChar`), `DatePart`, or casts to date/time types by `SQLDataType` or
+  by a `java.time` class literal. Gap: a cast whose `java.time` class arrives through a variable or a
+  parameter (no literal in that method) isn't seen by the gate; reviewers watch for it.
 - **Tenancy:** every venue-scoped repository method takes a `VenueId`. Every venue-scoped use case
   first calls `account/api/VenueAccess.requireAccess(userId, venueId, role?)` with
   `CurrentUser.id()`: it loads the membership per request and throws `404 VENUE_NOT_FOUND` for a
