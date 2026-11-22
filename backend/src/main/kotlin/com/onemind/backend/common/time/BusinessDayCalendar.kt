@@ -40,6 +40,15 @@ object BusinessDayCalendar {
         businessDayStart: LocalTime,
     ): LocalDate = businessDate(clock.instant(), zone, businessDayStart)
 
+    /**
+     * The local clock hour (0–23) of an instant, for hourly buckets. The repeated hour of the autumn DST
+     * change is one bucket; the skipped spring hour has none.
+     */
+    fun localHour(
+        at: Instant,
+        zone: ZoneId,
+    ): Int = at.atZone(zone).hour
+
     /** The instants a business date covers, `[start, end)`. */
     fun range(
         date: LocalDate,

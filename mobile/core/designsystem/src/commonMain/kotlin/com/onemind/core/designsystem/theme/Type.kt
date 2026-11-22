@@ -47,6 +47,8 @@ data class OneMindTypography(
     val overline: TextStyle,
     /** Tab bar labels; active tab uses SemiBold. */
     val tabLabel: TextStyle,
+    /** Chart axis and value labels (bar values, heatmap hours). */
+    val chartLabel: TextStyle,
 )
 
 @Composable
@@ -97,5 +99,6 @@ internal fun oneMindTypography(
         caption = style(inter, 12, FontWeight.Normal, lineHeight = 1.4),
         overline = style(inter, 11, FontWeight.SemiBold, lineHeight = 1.3, letterSpacing = 0.08),
         tabLabel = style(inter, 11, FontWeight.Medium, lineHeight = 1.3),
+        chartLabel = style(inter, 10, FontWeight.Normal, lineHeight = 1.3),
     )
 }

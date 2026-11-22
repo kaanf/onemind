@@ -21,6 +21,21 @@ Items marked **(?)** need confirmation; see `../OPEN_QUESTIONS.md`.
   columns. SQL date functions (`date_trunc`, `AT TIME ZONE`, `::date`) never decide a business day or
   an hour bucket.
 
+## Where the figures are stored
+
+Business-day figures come from the `reporting` rollups (`architecture/DB_SCHEMA.md#reporting`), one row
+per venue × business day × hour / product / staff member / desk / discount type, computed once in
+`reporting/domain/RollupCalculator` from POS facts (`pos/api/PosReadModel`) and refreshed on
+`BillsSynced`. Deleted bills count only as deleted (`deleted_bills`, `deleted_minor`).
+`revenue_minor` is `paidRevenue` (payments without tips, so card + cash + other = revenue) and
+**includes refunded bills**: readers subtract `refunded_minor`. `revenue_without_tax_minor` sums only
+bills that have a net total; `bills_missing_net` counts the others, and a screen doesn't show the net
+figure while it is above 0 (M2 open). A bill whose payments don't add up (tips above the payments, or a
+total without any payment) is **left out** of revenue and the card/cash/other split, never clamped:
+`bills_payment_mismatch` counts it, and screens show it as a data gap with the others
+(`RollupReads.dataGaps`). Bills that
+couldn't be read are missing from them; screens show that gap (`RollupReads.dataGaps`, rule 2).
+
 ## Periods and comparisons
 
 | Period | Range                                   | Compared with                                  | Copy example                          |
@@ -36,15 +51,15 @@ Items marked **(?)** need confirmation; see `../OPEN_QUESTIONS.md`.
 
 | Metric           | Definition |
 |------------------|------------|
-| `paidRevenue` (*Paid so far*, *Revenue*) | Sum of payment amounts **excluding tips**, for bills paid in the period. Gross incl. VAT **(?)**. Refunds subtracted in the period of the refund. |
+| `paidRevenue` (*Paid so far*, *Revenue*) | Sum of payment amounts **excluding tips**, for bills paid in the period. Gross incl. VAT **(?)**. Refunds subtracted in the period of the refund; first release: in the bill's own paid business day, since Storyous has no refund time **(?, M13)**. |
 | `openTabsTotal`  | Sum of current totals of bills with status `OPEN`. Only for "now". |
 | `openTabsTables` | Number of distinct tables with an open bill. |
-| `cardRevenue`, `cashRevenue` | `paidRevenue` split by payment method. `cardPct = card / (card + cash)`, rounded to an integer; cash% = 100 − card%. Other methods: **(?)** |
+| `cardRevenue`, `cashRevenue` | `paidRevenue` split by payment method. `cardPct = card / (card + cash)`, rounded to an integer; cash% = 100 − card%. Other methods: **(?)** Payments include tips, so a bill's tips are taken off its card payments first, then cash, then other: an approximation for bills paid partly by card and partly in cash, since Storyous gives tips per bill only **(?, M14)**. |
 | `tips`           | Sum of bill `tips` for bills paid in the period. *Tips · card 69%* = card tips share. First release: the tips total is shown, the card share is not (Storyous gives tips per bill only; no inference from payments). |
-| `guests`         | Sum of `guestCount` on bills paid in the period ("since opening" for today). If the POS has no guest count for a bill, count 1 **(?)**. |
+| `guests`         | Sum of `guestCount` on bills paid in the period ("since opening" for today). If the POS has no guest count for a bill, count 1 **(?, M5)**. |
 | `averageBill`    | `paidRevenue / number of paid bills`. |
 | `revenuePerGuest`| `paidRevenue / guests`. |
-| Hourly chart (Today) | `paidRevenue` per clock hour from the venue's opening hour **(?)**: Storyous has no opening hours and `business_day_start` is the cut-off, not the opening (M12). Future hours = average of the same hour over the last 4 same weekdays (shown in a lighter colour). |
+| Hourly chart (Today) | `paidRevenue` per clock hour, over the hours that have sales at that venue (data-derived; owner decision 2026-11-22, M12 closed): Storyous has no opening hours and `business_day_start` is the cut-off, not the opening. Future hours = average of the same hour over the last 4 same weekdays (shown in a lighter colour). |
 
 ## Occupancy and tables
 
@@ -65,7 +80,7 @@ Items marked **(?)** need confirmation; see `../OPEN_QUESTIONS.md`.
 |--------|------------|
 | Product *sold* | Sum of `BillItem.qty` for the product in the business day, **excluding deleted items**. |
 | Product *gross* | Sum of `qty × unitPrice − discount` for those items. |
-| Product hourly | Bucketed by `orderedAt` hour. |
+| Product hourly | Bucketed by the hour the bill was opened (session start, else paid time): Storyous has no per-item order time (`product/MVP_SCOPE.md`). |
 | Peak hour | Hour with the max qty (first one wins on ties). |
 | Hourly patterns | For each weekday × hour: average guests over the **last 8 weeks** (bills bucketed by `openedAt` hour; guests counted in the hour the bill opened) **(?)**. |
 | Peak / Quietest window | Two-hour window with max / min average guests in opening hours. |
