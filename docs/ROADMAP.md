@@ -6,7 +6,7 @@ tick items here in the same PR that completes them. When several sessions run in
 orchestrator assigns the items and is the only one who ticks them here: see
 [PARALLEL_WORK.md](PARALLEL_WORK.md).
 
-Last updated: 2026-11-21.
+Last updated: 2026-11-22.
 
 ## Status
 
@@ -18,7 +18,9 @@ Last updated: 2026-11-21.
   email code, JWT + refresh rotation (#22), Apple/Google (#27), logout and `DELETE /me` (#28),
   auth rule tests + `VenueAccess` cross-venue check (#30), 426 min-version check (#36). App shell is
   done (#32). ADR 0013 audit (#40, #41), ArchUnit gates (#42), product-rule gates (#43) and the
-  Konsist guard module (#39) are in `dev`. Phase 4 runs on mock POS data (owner, 2026-11-21).
+  Konsist guard module (#39), gate follow-ups (#47, #48), the end-to-end auth smoke test (#49) and
+  JWT clock skew 0 s for own tokens (#50) are in `dev`. Phase 4 runs on mock POS data (owner,
+  2026-11-21).
 - **Blockers outside the code:** Storyous partnership / API credentials (P15, owner; not needed
   until the real client is connected); design
   additions for the first-release Stock tab landing and location form (owner, only needed in
@@ -105,14 +107,16 @@ real code in that job with a scope proven non-empty (owner, 2026-11-21).
 - [x] Product-rule gates: no `Float`/`Double` money (backend + spec lint), single `BusinessDay` entry
       point with midnight and Europe/Prague DST tests, POS client read-only (fixtures fail on non-GET)
       (#43)
-- [ ] Gate follow-ups from the #39/#43 reviews: mobile Konsist reads `docs/api/lint/money-words.json`
+- [x] Gate follow-ups from the #39/#43 reviews: mobile Konsist reads `docs/api/lint/money-words.json`
       instead of a copy, one plural rule for not-money suffixes in all three gates; spec lint survives
       self-referencing schemas; `billNumber`-style ids not flagged; unreflectable classes fail the rule;
       `mobile/AGENTS.md` documents the typealias-to-`Double` limit;
       `backend/AGENTS.md` names the hour helper in `BusinessDayCalendar`; `METRICS.md` says rollup
-      business dates come from `BusinessDayCalendar`, not SQL date functions
-- [ ] End-to-end auth smoke test: real backend (Testcontainers) driven by a client generated from
-      `openapi.yaml`: email code, refresh rotation, 401 refresh, 426
+      business dates come from `BusinessDayCalendar`, not SQL date functions (#47, #48)
+- [x] End-to-end auth smoke test: real backend (Testcontainers) driven by a client generated from
+      `openapi.yaml`: email code, refresh rotation, 401 refresh, 426 (#49)
+- [x] JWT clock skew: 0 s for own access tokens, 60 s for Apple/Google ID tokens (owner, 2026-11-22)
+      (#50)
 - [ ] Phase-end `REVIEW pr: audit`
 - [x] Tests for every auth rule; cross-venue access test helper
 - [x] Security `AuthenticationEntryPoint` / `AccessDeniedHandler` answer `401`/`403` as RFC 9457
@@ -129,12 +133,15 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
       (bills across midnight, Europe/Prague DST days, discounts, voids, open tabs), shaped like the
       Storyous API in `docs/integrations/STORYOUS.md`. Acceptance (rule 2): enabled only in the
       local/dev profile; prod startup fails if it is configured (test); mock venues are visibly
-      named as demo; no fixture data is packaged into the prod artifact
+      named as demo; no fixture data is packaged into the prod artifact; the `pos` scope anchor in
+      `ModuleBoundaryTests` becomes a real class (same for `reporting`/`stock` in their first code PR)
 - [ ] Interim onboarding: after verify, a new account picks mock places on A5 (dev/demo only), which
       creates the organization, venues and membership; update `docs/product/SCREENS.md`
 - [ ] Sync jobs (db-scheduler) fed by `PosProvider`: places → venues, menu, desks, bills
       (`modifiedSince`), initial 90-day import, `BillsSynced` event
-- [ ] Reporting rollups refreshed from `BillsSynced`; rebuild job
+- [ ] Reporting rollups refreshed from `BillsSynced`; rebuild job. Acceptance: a gate that fails when
+      SQL date functions (`date_trunc`, `AT TIME ZONE`, `::date`) decide a business day or hour
+      (`METRICS.md`)
 - [ ] Later (P15): read-only Storyous client behind `PosProvider` (client credentials, token cache,
       paging), built and tested against recorded fixtures that fail on any non-GET call; drop
       `allowEmptyShould(true)` from `ProductRules.posIsReadOnly` so the gate proves a non-empty
