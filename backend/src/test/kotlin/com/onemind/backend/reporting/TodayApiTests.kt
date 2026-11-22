@@ -116,6 +116,19 @@ class TodayApiTests {
     }
 
     @Test
+    fun `last week is cut at the local time of the last sync, not now`() {
+        val (owner, venue) = syncedOwner()
+        // Paid so far reaches 21:10 Prague (last bills sync); it is 21:40 now.
+        jdbc.update(
+            "update pos.sync_cursor set last_success_at = timestamptz '2026-11-20T20:10:00Z' where venue_id = ? and resource = 'BILLS'",
+            venue,
+        )
+
+        val previous = paid("venue_id = '$venue' and business_day = '2026-11-13' and paid_at < timestamptz '2026-11-13T20:10:00Z'")
+        assertEquals(previous, get(owner, venue)["comparison"]["previous"]["amountMinor"].asLong())
+    }
+
+    @Test
     fun `a venue still waiting for its first sync is pending, never counted as 0`() {
         val (owner, venue) = syncedOwner()
         val pending = newVenue(owner, "CZK")

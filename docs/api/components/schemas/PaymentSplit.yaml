@@ -1,0 +1,21 @@
+type: object
+description: |
+  Revenue by payment method, refunded bills taken off (card + cash + other = revenue). `cardPercent` =
+  card / (card + cash), a whole percent rounded half-up; other methods (vouchers, meal cards) are left out
+  of it (M4 open); cash percent = 100 − card percent. Null when there is no card or cash revenue.
+required:
+  - card
+  - cash
+  - other
+properties:
+  card:
+    $ref: ./Money.yaml
+  cash:
+    $ref: ./Money.yaml
+  other:
+    $ref: ./Money.yaml
+  cardPercent:
+    type: integer
+    minimum: 0
+    maximum: 100
+    nullable: true

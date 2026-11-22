@@ -1,0 +1,9 @@
+name: date
+in: query
+required: false
+description: |
+  A business day the period contains ("Choose dates"); default the venues' current business day. Not
+  after it; `HOUR` takes only today. Arbitrary from/to ranges are not in the first release.
+schema:
+  type: string
+  format: date

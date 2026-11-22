@@ -13,6 +13,7 @@ import com.onemind.db.reporting.tables.references.STAFF_DAILY_SALES
 import org.jooq.DSLContext
 import org.jooq.Query
 import org.jooq.impl.DSL.excluded
+import org.jooq.impl.DSL.min
 import org.jooq.impl.DSL.sum
 import org.springframework.stereotype.Repository
 import java.time.Instant
@@ -67,6 +68,7 @@ class RollupRepository(
                     .set(t.BILLS_MISSING_NET, r.billsMissingNet)
                     .set(t.BILLS_PAYMENT_MISMATCH, r.billsPaymentMismatch)
                     .set(t.BILLS, r.bills)
+                    .set(t.PAID_BILLS, r.paidBills)
                     .set(t.GUESTS, r.guests)
                     .set(t.TIPS_MINOR, r.tipsMinor)
                     .set(t.DISCOUNT_MINOR, r.discountMinor)
@@ -74,6 +76,9 @@ class RollupRepository(
                     .set(t.CASH_MINOR, r.cashMinor)
                     .set(t.OTHER_MINOR, r.otherMinor)
                     .set(t.REFUNDED_MINOR, r.refundedMinor)
+                    .set(t.REFUNDED_CARD_MINOR, r.refundedCardMinor)
+                    .set(t.REFUNDED_CASH_MINOR, r.refundedCashMinor)
+                    .set(t.REFUNDED_OTHER_MINOR, r.refundedOtherMinor)
                     .set(t.DELETED_BILLS, r.deletedBills)
                     .set(t.DELETED_MINOR, r.deletedMinor)
         }
@@ -189,6 +194,10 @@ class RollupRepository(
                     discountMinor = requireNotNull(r.discountMinor),
                     deletedMinor = requireNotNull(r.deletedMinor),
                     paymentMismatchBills = requireNotNull(r.billsPaymentMismatch),
+                    paidBills = requireNotNull(r.paidBills),
+                    paidCardMinor = requireNotNull(r.cardMinor) - requireNotNull(r.refundedCardMinor),
+                    paidCashMinor = requireNotNull(r.cashMinor) - requireNotNull(r.refundedCashMinor),
+                    paidOtherMinor = requireNotNull(r.otherMinor) - requireNotNull(r.refundedOtherMinor),
                 )
             }
     }
@@ -205,6 +214,30 @@ class RollupRepository(
             .fetch(ROLLUP_STATE.BUSINESS_DAY)
             .filterNotNull()
             .toSet()
+
+    /** The first business day of [venueId] that has rollups; null before any. */
+    fun firstDay(venueId: UUID): LocalDate? =
+        dsl
+            .select(min(ROLLUP_STATE.BUSINESS_DAY))
+            .from(ROLLUP_STATE)
+            .where(ROLLUP_STATE.VENUE_ID.eq(venueId))
+            .fetchOne(0, LocalDate::class.java)
+
+    /** Of [days], the ones whose stored rollups come from a calculation older than [version] (days without rollups aren't). */
+    fun outdatedDays(
+        venueId: UUID,
+        days: Collection<LocalDate>,
+        version: Int,
+    ): Set<LocalDate> {
+        val s = ROLLUP_STATE
+        return dsl
+            .select(s.BUSINESS_DAY)
+            .from(s)
+            .where(s.VENUE_ID.eq(venueId), s.BUSINESS_DAY.`in`(days), s.ROLLUP_VERSION.lt(version))
+            .fetch(s.BUSINESS_DAY)
+            .filterNotNull()
+            .toSet()
+    }
 
     /** Of [days], the ones with no rollups yet or rollups from a calculation older than [version]. */
     fun staleDays(
