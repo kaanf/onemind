@@ -4,6 +4,7 @@ import com.onemind.backend.common.error.InvalidRequestException
 import com.onemind.backend.pos.api.PosReadModel
 import com.onemind.backend.reporting.domain.LossCalculator
 import com.onemind.backend.reporting.domain.LossFigures
+import com.onemind.backend.reporting.domain.LossShare
 import com.onemind.backend.reporting.domain.RollupVersion
 import com.onemind.backend.reporting.domain.SalesPeriod
 import com.onemind.backend.reporting.domain.SalesRanges
@@ -29,8 +30,8 @@ data class LossComparisonView(
     val to: LocalDate,
     val upToSameTime: Boolean,
     val venueIds: List<UUID>,
-    val currentSharePercent: BigDecimal?,
-    val previousSharePercent: BigDecimal?,
+    val currentShare: LossShare?,
+    val previousShare: LossShare?,
     val changePoints: BigDecimal?,
 )
 
@@ -102,15 +103,15 @@ class GetLosses(
                     scope.ready.filter { it.venueId in compared }.flatMap { venue ->
                         comparedSpans.hours(venue.venueId, ranges, scope, today, now, requireNotNull(venue.dataAsOf))
                     }
-                val currentShare = LossCalculator.sharePercent(LossCalculator.loss(current).totalMinor, current.sumOf { it.paidMinor })
-                val previousShare = LossCalculator.sharePercent(LossCalculator.loss(previous).totalMinor, previous.sumOf { it.paidMinor })
+                val currentShare = LossCalculator.share(LossCalculator.loss(current).totalMinor, current.sumOf { it.paidMinor })
+                val previousShare = LossCalculator.share(LossCalculator.loss(previous).totalMinor, previous.sumOf { it.paidMinor })
                 LossComparisonView(
                     from = ranges.comparedFrom,
                     to = ranges.comparedTo,
                     upToSameTime = ranges.comparedCutDay != null,
                     venueIds = compared,
-                    currentSharePercent = currentShare,
-                    previousSharePercent = previousShare,
+                    currentShare = currentShare,
+                    previousShare = previousShare,
                     changePoints = LossCalculator.changePoints(currentShare, previousShare),
                 )
             }

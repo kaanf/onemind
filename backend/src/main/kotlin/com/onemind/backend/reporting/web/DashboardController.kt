@@ -38,8 +38,6 @@ import com.onemind.backend.reporting.domain.LossTotals
 import com.onemind.backend.reporting.domain.SalesPeriod
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
-import java.math.BigDecimal
-import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.Currency
@@ -97,7 +95,7 @@ class DashboardController(
                 ),
             dataGaps = gaps.toDto(discountMismatchDays = figures?.discountMismatches?.size),
             possibleLoss = figures?.loss?.toDto(currency),
-            sharePercent = figures?.sharePercent?.oneDecimal(),
+            sharePercent = figures?.share?.percent()?.toPlainString(),
             records = figures?.records,
             comparison =
                 comparison?.let {
@@ -106,8 +104,8 @@ class DashboardController(
                         compared = DaySpan(it.from, it.to),
                         upToSameTime = it.upToSameTime,
                         venueIds = it.venueIds,
-                        currentSharePercent = it.currentSharePercent?.oneDecimal(),
-                        previousSharePercent = it.previousSharePercent?.oneDecimal(),
+                        currentSharePercent = it.currentShare?.percent()?.toPlainString(),
+                        previousSharePercent = it.previousShare?.percent()?.toPlainString(),
                         changePoints = it.changePoints?.toPlainString(),
                     )
                 },
@@ -115,8 +113,6 @@ class DashboardController(
             deletedBills = figures?.deletedBills?.let { LossRecords(money(it.amountMinor), it.records) },
         )
     }
-
-    private fun BigDecimal.oneDecimal(): String = setScale(1, RoundingMode.HALF_UP).toPlainString()
 
     private fun SalesView.toDto(): SalesSummary {
         val code = currency.currencyCode

@@ -9,6 +9,7 @@ import com.onemind.backend.reporting.application.RebuildRollups
 import com.onemind.backend.reporting.application.RefreshRollups
 import com.onemind.backend.reporting.application.RollupReads
 import com.onemind.backend.reporting.domain.RollupVersion
+import com.onemind.backend.reporting.infra.persistence.RollupRepository
 import com.onemind.backend.testing.MutableClock
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -68,6 +69,9 @@ class ReportingRollupTests {
 
     @Autowired
     lateinit var rebuild: RebuildRollups
+
+    @Autowired
+    lateinit var rollups: RollupRepository
 
     @Autowired
     lateinit var reads: RollupReads
@@ -213,6 +217,18 @@ class ReportingRollupTests {
             assertTrue(runs <= days.size, "rebuild stuck after $runs runs")
         }
         assertEquals(before, snapshot(venue))
+    }
+
+    @Test
+    fun `stale days come newest first, so the rebuild brings the current week back first`() {
+        val venue = syncedVenue()
+        val days = days(venue)
+        jdbc.update("update reporting.rollup_state set rollup_version = ? where venue_id = ?", RollupVersion.CURRENT - 1, venue)
+
+        val stale = rollups.staleDays(venue, days, RollupVersion.CURRENT)
+
+        // RebuildRollups takes its budget from the front of this list.
+        assertEquals(days.sortedDescending(), stale)
     }
 
     @Test

@@ -265,7 +265,10 @@ class RollupRepository(
             .toSet()
     }
 
-    /** Of [days], the ones with no rollups yet or rollups from a calculation older than [version]. */
+    /**
+     * Of [days], the ones with no rollups yet or rollups from a calculation older than [version], newest
+     * first: after a version bump the days screens show most (this week, this month) come back first.
+     */
     fun staleDays(
         venueId: UUID,
         days: Collection<LocalDate>,
@@ -280,6 +283,6 @@ class RollupRepository(
                 .fetch(s.BUSINESS_DAY)
                 .filterNotNull()
                 .toSet()
-        return days.filterNot { it in current }.sorted()
+        return days.filterNot { it in current }.sortedDescending()
     }
 }

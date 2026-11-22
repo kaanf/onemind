@@ -4,6 +4,7 @@ import com.onemind.backend.reporting.domain.DiscountMismatch
 import com.onemind.backend.reporting.domain.DiscountTypeTotals
 import com.onemind.backend.reporting.domain.HourTotals
 import com.onemind.backend.reporting.domain.LossCalculator
+import com.onemind.backend.reporting.domain.LossShare
 import com.onemind.backend.reporting.domain.TypedDiscountDay
 import com.onemind.backend.reporting.domain.VenueLosses
 import org.junit.jupiter.api.Test
@@ -77,7 +78,7 @@ class LossCalculatorTest {
             )
 
         assertEquals(20_100, figures.loss.totalMinor)
-        assertEquals(BigDecimal("6.700000"), figures.sharePercent)
+        assertEquals(BigDecimal("6.7"), figures.share?.percent())
         assertEquals(10 + 1 + 2, figures.records)
         assertEquals(1, figures.refunds.records)
         assertEquals(2, figures.deletedBills.records)
@@ -139,9 +140,11 @@ class LossCalculatorTest {
 
     @Test
     fun `no revenue gives no share, and the change is in percentage points`() {
-        assertNull(LossCalculator.sharePercent(1_000, 0))
-        assertEquals(BigDecimal("0.8"), LossCalculator.changePoints(BigDecimal("6.700000"), BigDecimal("5.900000")))
-        assertEquals(BigDecimal("-1.3"), LossCalculator.changePoints(BigDecimal("5.000000"), BigDecimal("6.250000")))
-        assertNull(LossCalculator.changePoints(BigDecimal("5.0"), null))
+        assertNull(LossCalculator.share(1_000, 0))
+        assertEquals(BigDecimal("0.8"), LossCalculator.changePoints(LossShare(6_700, 100_000), LossShare(5_900, 100_000)))
+        assertEquals(BigDecimal("-1.3"), LossCalculator.changePoints(LossShare(5_000, 100_000), LossShare(6_250, 100_000)))
+        assertNull(LossCalculator.changePoints(LossShare(5_000, 100_000), null))
+        // Rounded once from the exact shares: 6.666…% − 6.62% = 0.046… → 0.0, while 6.7 − 6.6 would say 0.1.
+        assertEquals(BigDecimal("0.0"), LossCalculator.changePoints(LossShare(2, 30), LossShare(662, 10_000)))
     }
 }

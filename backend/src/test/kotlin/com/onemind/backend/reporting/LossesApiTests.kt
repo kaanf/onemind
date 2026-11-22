@@ -239,5 +239,5 @@ class LossesApiTests {
     private fun share(
         loss: Long,
         revenue: Long,
-    ): BigDecimal = BigDecimal.valueOf(loss).multiply(BigDecimal(100)).divide(BigDecimal.valueOf(revenue), 6, RoundingMode.HALF_UP)
+    ): BigDecimal = BigDecimal.valueOf(loss).multiply(BigDecimal(100)).divide(BigDecimal.valueOf(revenue), 20, RoundingMode.HALF_UP)
 }

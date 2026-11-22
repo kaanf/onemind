@@ -29,10 +29,24 @@ data class DiscountTypeTotals(
 )
 
 data class LossRecords(
-    /** Null while a day of the span is stored by an older calculation (rule 2). */
+    /** Refunds only: null while a day of the span is stored by an older calculation (rule 2). Deleted bills always count. */
     val records: Int?,
     val amountMinor: Long,
 )
+
+/** `possibleLoss / paidRevenue`, kept exact; rounded once where it is shown. */
+data class LossShare(
+    val lossMinor: Long,
+    val revenueMinor: Long,
+) {
+    init {
+        require(revenueMinor != 0L) { "no share without revenue" }
+    }
+
+    /** The share in percent, one decimal half-up ("6.7"), from the exact ratio. */
+    fun percent(): BigDecimal =
+        BigDecimal.valueOf(lossMinor).multiply(BigDecimal(100)).divide(BigDecimal.valueOf(revenueMinor), 1, RoundingMode.HALF_UP)
+}
 
 /** A venue's day whose typed item discounts are above its bill-level discounts (a data gap). */
 data class DiscountMismatch(
@@ -43,8 +57,8 @@ data class DiscountMismatch(
 data class LossFigures(
     val loss: LossTotals,
     val revenueMinor: Long,
-    /** `possibleLoss / paidRevenue × 100`, exact to 6 decimals; null without revenue. */
-    val sharePercent: BigDecimal?,
+    /** Null without revenue. */
+    val share: LossShare?,
     val discountsByType: List<DiscountTypeTotals>,
     val refunds: LossRecords,
     val deletedBills: LossRecords,
@@ -100,7 +114,7 @@ object LossCalculator {
         return LossFigures(
             loss = loss,
             revenueMinor = revenue,
-            sharePercent = sharePercent(loss.totalMinor, revenue),
+            share = share(loss.totalMinor, revenue),
             discountsByType = byType,
             refunds = LossRecords(if (upToDate) refundedBills else null, loss.refundsMinor),
             deletedBills = LossRecords(deletedBills, loss.deletedBillsMinor),
@@ -116,20 +130,28 @@ object LossCalculator {
             deletedBillsMinor = hours.sumOf { it.deletedMinor },
         )
 
-    /** `loss / revenue × 100`, 6 decimals half-up; null without revenue. */
-    fun sharePercent(
+    /** Null without revenue. */
+    fun share(
         lossMinor: Long,
         revenueMinor: Long,
-    ): BigDecimal? =
-        if (revenueMinor == 0L) {
-            null
-        } else {
-            BigDecimal.valueOf(lossMinor).multiply(BigDecimal(100)).divide(BigDecimal.valueOf(revenueMinor), 6, RoundingMode.HALF_UP)
-        }
+    ): LossShare? = if (revenueMinor == 0L) null else LossShare(lossMinor, revenueMinor)
 
-    /** The change of the loss share in percentage points, one decimal half-up; null when either share is missing. */
+    /**
+     * The change of the loss share in percentage points, rounded once (one decimal half-up) from the exact
+     * shares: `(l1·r2 − l2·r1) × 100 / (r1·r2)`. Null when either share is missing.
+     */
     fun changePoints(
-        current: BigDecimal?,
-        previous: BigDecimal?,
-    ): BigDecimal? = if (current == null || previous == null) null else current.subtract(previous).setScale(1, RoundingMode.HALF_UP)
+        current: LossShare?,
+        previous: LossShare?,
+    ): BigDecimal? {
+        if (current == null || previous == null) return null
+        val numerator =
+            BigDecimal
+                .valueOf(current.lossMinor)
+                .multiply(BigDecimal.valueOf(previous.revenueMinor))
+                .subtract(BigDecimal.valueOf(previous.lossMinor).multiply(BigDecimal.valueOf(current.revenueMinor)))
+                .multiply(BigDecimal(100))
+        val denominator = BigDecimal.valueOf(current.revenueMinor).multiply(BigDecimal.valueOf(previous.revenueMinor))
+        return numerator.divide(denominator, 1, RoundingMode.HALF_UP)
+    }
 }

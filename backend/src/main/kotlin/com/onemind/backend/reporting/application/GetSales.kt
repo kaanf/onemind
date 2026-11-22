@@ -3,7 +3,6 @@ package com.onemind.backend.reporting.application
 import com.onemind.backend.common.error.InvalidRequestException
 import com.onemind.backend.common.time.BusinessDayCalendar
 import com.onemind.backend.pos.api.PosReadModel
-import com.onemind.backend.reporting.domain.BillRevenue
 import com.onemind.backend.reporting.domain.HourTotals
 import com.onemind.backend.reporting.domain.RollupVersion
 import com.onemind.backend.reporting.domain.SalesCalculator
@@ -71,11 +70,10 @@ data class SalesView(
  * resolved like Today ([DashboardScopes]); figures sum the venues with data, the others are pending.
  *
  * Figures come from the stored hours of the period's days up to today (for `HOUR`: the current hour of
- * today). The comparison takes the compared span of the previous period ([SalesRanges], M3 default):
- * whole days from the stored hours, the cut day from that day's POS facts up to the same local time as
- * each venue's figures reach, its last bills sync (hourly rollups can't cut inside an hour), with the one revenue rule ([BillRevenue.paid]). Only venues
- * whose data starts by the compared span's first day count in it, in both figures, so a venue synced
- * since makes up no growth; none: no comparison.
+ * today). The comparison takes the compared span of the previous period ([SalesRanges], M3 default)
+ * from [ComparedSpans]: whole days from the stored hours, the cut day from its POS facts up to the same
+ * local time as each venue's last bills sync. Only venues whose data starts by the compared span's first
+ * day count in it, in both figures, so a venue synced since makes up no growth; none: no comparison.
  */
 @Service
 class GetSales(
