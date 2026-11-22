@@ -1,4 +1,5 @@
 import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
+import java.util.zip.ZipFile
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -231,4 +232,47 @@ configurations.matching { it.name.startsWith("ktlint") }.configureEach {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+// Dev/demo-only code and config (the mock POS, application-local.yml): on the bootRun and test
+// classpaths, never in the boot jar (product rule 2). `developmentOnly` is Spring Boot's
+// configuration that bootRun uses and bootJar leaves out.
+val mock by sourceSets.creating {
+    compileClasspath += sourceSets.main.get().output
+    runtimeClasspath += sourceSets.main.get().output
+}
+configurations["mockImplementation"].extendsFrom(configurations.implementation.get())
+configurations["mockRuntimeOnly"].extendsFrom(configurations.runtimeOnly.get())
+
+dependencies {
+    developmentOnly(mock.output)
+    testImplementation(mock.output)
+}
+
+// `./gradlew bootRun` without a profile runs as `local`.
+tasks.bootRun {
+    systemProperty("spring.profiles.default", "local")
+}
+
+val verifyBootJarExcludesMock by tasks.registering {
+    description = "Fails if the boot jar contains dev/demo mock code or config."
+    val jar = tasks.bootJar.flatMap { it.archiveFile }
+    inputs.file(jar)
+    doLast {
+        val found =
+            ZipFile(jar.get().asFile).use { zip ->
+                zip
+                    .entries()
+                    .asSequence()
+                    .map { it.name }
+                    .filterNot { it.endsWith("/") }
+                    .filter { "/mock/" in it || it.endsWith("application-local.yml") }
+                    .toList()
+            }
+        check(found.isEmpty()) { "The boot jar must not contain dev/demo code or config: $found" }
+    }
+}
+
+tasks.check {
+    dependsOn(verifyBootJarExcludesMock)
 }

@@ -136,8 +136,6 @@ object ProductRules {
             .doNotHaveSimpleName("package-info")
             .should(notSendMutatingHttp())
             .because("the POS is read-only: we never write to Storyous (AGENTS.md rule 1)")
-            // pos has no code yet (PosProvider lands in phase 4); drop this once it has.
-            .allowEmptyShould(true)
 
     /** Splits `getTotalPrice`, `amount_minor` or `Payment$Companion` into lower-case words; drops a mangled `-<hash>`. */
     fun tokens(name: String): List<String> =
