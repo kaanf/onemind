@@ -3,6 +3,7 @@ package com.onemind.backend.pos.infra.client
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
 import org.springframework.core.env.Profiles
+import java.util.UUID
 
 /**
  * Which [PosProvider] runs, from `onemind.pos.provider`: empty (none; the sync is skipped), `mock`
@@ -14,9 +15,16 @@ import org.springframework.core.env.Profiles
 class PosProviderConfig(
     environment: Environment,
 ) {
+    /** Whether the demo POS is configured: the one reading of the property, also behind the prod guard. */
+    val isMock: Boolean =
+        environment
+            .getProperty(PROPERTY)
+            .orEmpty()
+            .trim()
+            .equals(MOCK, ignoreCase = true)
+
     init {
-        val provider = environment.getProperty(PROPERTY).orEmpty().trim()
-        check(!(provider.equals(MOCK, ignoreCase = true) && environment.acceptsProfiles(Profiles.of("prod")))) {
+        check(!(isMock && environment.acceptsProfiles(Profiles.of("prod")))) {
             "$PROPERTY=$MOCK is not allowed in prod: the mock POS is dev/demo data only"
         }
     }
@@ -24,5 +32,13 @@ class PosProviderConfig(
     companion object {
         const val PROPERTY = "onemind.pos.provider"
         const val MOCK = "mock"
+
+        /**
+         * The demo POS merchant. A demo connection uses `demo-merchant/<organizationId>` (unique per
+         * organization); the demo POS answers every such ID with the same demo places.
+         */
+        const val DEMO_MERCHANT_ID = "demo-merchant"
+
+        fun demoMerchantFor(organizationId: UUID) = "$DEMO_MERCHANT_ID/$organizationId"
     }
 }

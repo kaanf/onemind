@@ -93,6 +93,13 @@ abstract class UpgradeRequiredException(
     params: Map<String, Any> = emptyMap(),
 ) : DomainException(code, detail, params)
 
+/** `503`: a system we depend on (the POS, for example) couldn't be reached; the client may retry later. */
+abstract class ServiceUnavailableException(
+    code: String,
+    detail: String,
+    params: Map<String, Any> = emptyMap(),
+) : DomainException(code, detail, params)
+
 /** A rate limit without a more specific code. */
 class RateLimitedException(
     retryAfter: Duration,

@@ -48,6 +48,44 @@ class PosConnectionRepository(
             }
     }
 
+    /** A new connection of [organizationId]; `PENDING` until its first sync. */
+    fun insert(
+        organizationId: UUID,
+        provider: String,
+        externalMerchantId: String,
+    ): PosConnectionRow {
+        val c = POS_CONNECTION
+        val id =
+            dsl
+                .insertInto(c)
+                .set(c.ORGANIZATION_ID, organizationId)
+                .set(c.PROVIDER, provider)
+                .set(c.EXTERNAL_MERCHANT_ID, externalMerchantId)
+                .returning(c.ID)
+                .fetchOne(c.ID)
+                ?: error("insert returned no id")
+        return PosConnectionRow(id, organizationId, provider, externalMerchantId)
+    }
+
+    fun forOrganization(organizationId: UUID): PosConnectionRow? {
+        val c = POS_CONNECTION
+        return dsl
+            .select(c.ID, c.ORGANIZATION_ID, c.PROVIDER, c.EXTERNAL_MERCHANT_ID)
+            .from(c)
+            .where(c.ORGANIZATION_ID.eq(organizationId))
+            .orderBy(c.ID)
+            .limit(1)
+            .fetchOne()
+            ?.let { r ->
+                PosConnectionRow(
+                    r.required(c.ID),
+                    r.required(c.ORGANIZATION_ID),
+                    r.required(c.PROVIDER),
+                    r.required(c.EXTERNAL_MERCHANT_ID),
+                )
+            }
+    }
+
     fun markSynced(
         connectionId: UUID,
         now: Instant,

@@ -1,0 +1,12 @@
+type: object
+description: The demo POS merchant and its places (dev/demo only, product rule 2).
+required:
+  - merchantName
+  - places
+properties:
+  merchantName:
+    type: string
+  places:
+    type: array
+    items:
+      $ref: ./DemoPlace.yaml
