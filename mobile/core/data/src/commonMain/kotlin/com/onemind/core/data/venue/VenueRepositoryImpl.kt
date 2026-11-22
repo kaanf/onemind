@@ -37,8 +37,9 @@ class VenueRepositoryImpl(
                 if (venues == null) {
                     fail(DataError.Network.SERIALIZATION)
                 } else {
-                    state.value = VenueList.Loaded(venues)
+                    // The scope first, so no screen sees the new list with a scope that isn't valid in it.
                     keepScopeValid(venues)
+                    state.value = VenueList.Loaded(venues)
                     Result.Success(Unit)
                 }
             }

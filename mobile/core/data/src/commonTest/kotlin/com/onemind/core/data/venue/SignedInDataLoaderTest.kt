@@ -8,6 +8,9 @@ import com.onemind.core.domain.session.SessionRepository
 import com.onemind.core.domain.session.SessionState
 import com.onemind.core.domain.venue.VenueList
 import com.onemind.core.domain.venue.VenueScope
+import io.ktor.client.engine.mock.respondError
+import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.plus
@@ -61,5 +64,43 @@ class SignedInDataLoaderTest {
             sessions.state.value = SessionState.SignedOut
             eventually { venues.venues.value == VenueList.Loading && profile.profile.value == null }
             assertNull(scope.selected.value)
+        }
+
+    @Test
+    fun aSlowProfileOfTheLastAccountNeverShowsAfterSignOut() =
+        runTest {
+            val accountA = CompletableDeferred<Unit>()
+            var meCalls = 0
+            val api =
+                TestApi(backgroundScope, session("a1")) { request ->
+                    if (request.url.encodedPath.endsWith("/me")) {
+                        if (meCalls++ == 0) {
+                            // Account A's /me answers only after A signed out and B signed in.
+                            accountA.await()
+                            respondJson("""{"id":"uA","email":"a@b.cz","displayName":"Anna Adams","memberships":[]}""")
+                        } else {
+                            respondError(HttpStatusCode.ServiceUnavailable)
+                        }
+                    } else {
+                        respondJson("""{"venues":[]}""")
+                    }
+                }.start()
+            val sessions = FakeSessions()
+            val venues = VenueRepositoryImpl(api.client, InMemoryVenueScopeRepository())
+            val profile = ProfileRepositoryImpl(api.client)
+            SignedInDataLoader(sessions, venues, profile, backgroundScope + Dispatchers.Default).start()
+
+            sessions.state.value = SessionState.SignedIn
+            eventually { meCalls == 1 }
+            sessions.state.value = SessionState.SignedOut
+            eventually { venues.venues.value == VenueList.Loading }
+            sessions.state.value = SessionState.SignedIn
+            eventually { meCalls == 2 && venues.venues.value is VenueList.Loaded }
+
+            accountA.complete(Unit)
+            withContext(Dispatchers.Default) { kotlinx.coroutines.delay(200) }
+
+            // B's /me failed: no profile, and certainly not A's.
+            assertNull(profile.profile.value)
         }
 }

@@ -153,7 +153,10 @@ Live overview of the current business day for the selected venue (or all venues)
     the default. *All venues* means the **followed** venues; **when none is followed it is every venue
     the user may open** (the user has venues, so an empty screen would be wrong). An account without
     venues shows *No venues yet*. If the venue list fails to load and none is known, the error shows
-    with *Try again*, which loads the list again.
+    with *Try again*, which loads the list again. The default *All venues* over venues with different
+    currencies or business days gets `422 CURRENCIES_DIFFER` / `BUSINESS_DAYS_DIFFER`, shown as the
+    existing "These venues can't be shown together. Choose one venue." (the switcher, P7, is how to
+    choose one).
   - Header: the venue button shows the scope's name (*Demo · Main bar*, or *All venues*). It has no
     chevron and no click until the switcher sheet exists (P7). The account button shows the initials of
     `GET /me` `displayName` (first and last word); without a name it is not drawn (no invented

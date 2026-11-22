@@ -13,6 +13,12 @@ class ProfileTest {
     }
 
     @Test
+    fun aCharacterOutsideTheBmpIsNotCutInHalf() {
+        assertEquals("\uD83C\uDF7AK", Profile("\uD83C\uDF7A Kaan").initials)
+        assertEquals("\uD835\uDC00", Profile("\uD835\uDC00lpha").initials)
+    }
+
+    @Test
     fun noNameMeansNoInitials() {
         assertNull(Profile(null).initials)
         assertNull(Profile("   ").initials)

@@ -8,8 +8,9 @@ data class Profile(
     val displayName: String?,
 ) {
     /**
-     * Account-button initials from [displayName]: the first letter of the first and the last word,
-     * upper case (*Kaan Fırat* → *KF*, *Kaan* → *K*); `null` without a name.
+     * Account-button initials from [displayName]: the first character (code point, so an emoji or a
+     * character outside the BMP stays whole) of the first and the last word, upper case (*Kaan Fırat* →
+     * *KF*, *Kaan* → *K*); `null` without a name.
      */
     val initials: String?
         get() {
@@ -21,9 +22,12 @@ data class Profile(
                     .orEmpty()
             if (words.isEmpty()) return null
             val letters = if (words.size == 1) listOf(words.first()) else listOf(words.first(), words.last())
-            return letters.joinToString("") { it.first().uppercase() }
+            return letters.joinToString("") { it.firstCodePoint().uppercase() }
         }
 }
+
+/** The first code point of a non-empty string: two chars for a surrogate pair. */
+private fun String.firstCodePoint(): String = if (first().isHighSurrogate() && length > 1 && this[1].isLowSurrogate()) take(2) else take(1)
 
 interface ProfileRepository {
     /** `null` until loaded (and after sign-out). */
