@@ -95,13 +95,26 @@ real code in that job with a scope proven non-empty (owner, 2026-11-21).
       (nightly/manual iOS runs start once `main` has the workflow, i.e. after the first release)
 - [x] `:core:konsist` guard module: ADR 0011 module rules, no `Float`/`Double` money, one clock seam
       (Konsist 0.18.1). No mobile feature screen starts before this merges. (#39)
-- [ ] Phase-end `REVIEW pr: audit`
+- [x] Phase-end `REVIEW pr: audit` (2026-11-22: 0 blockers, follow-ups below)
+- [ ] Audit follow-up: 44×44 touch targets: `OneMindFilterChip` hit area via
+      `minimumInteractiveComponentSize()`; heatmap cells either larger hit areas or a documented
+      exception in `DESIGN_SYSTEM.md` with another way to reach each value (mobile)
+- [ ] Audit follow-up: `core:domain` `Money` (minor units + currency) / `Quantity` and the
+      `core:presentation` money formatter (expect/actual, venue currency, tests incl. negative and
+      large values); before the first dashboard screen. `Result`/`DataError`, `UiText`,
+      `ObserveAsEvents` come with mobile auth (mobile)
+- [ ] Audit follow-up: Konsist rule for feature presentation sources: no `Color(0x…)`, no literal
+      `.sp`, no literal `Text("…")` outside `@Preview`, with fixtures (guard file; mobile)
+- [ ] Audit nits: chart-label type token instead of `10.sp` in `BarChart`, KDoc on `Bar.value`
+      (drawing only), ADR 0011 bundle-ID line cross-references ADR 0012 §2 (mobile)
 
 ## Phase 3 — Auth (first vertical slice)
 
 - [x] Backend: email code (start/verify), Apple, Google, JWT access + rotating refresh, logout,
       `DELETE /me` (ADR 0004)
 - [ ] Mobile: A1 sign in, A2 email code, secure token storage, refresh on 401, update screen on 426
+- [ ] Mobile: Sign in with Apple / Google (A1): native SDKs + client IDs; buttons hidden behind the
+      `SignInProviders` seam until then (deferred from mobile auth, 2026-11-22)
 - [x] Backend: minimum app version (`X-App-Version` / `X-Platform`) → `426 Upgrade Required` (#36)
 - [x] ADR 0013 "Backend module internal structure" (replaces ADR 0009) (#34)
 - [x] Audit existing backend code against ADR 0013 and fix deviations (before the gates, no baseline)
