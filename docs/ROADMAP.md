@@ -140,8 +140,9 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
 - [ ] Sync jobs (db-scheduler) fed by `PosProvider`: places → venues, menu, desks, bills
       (`modifiedSince`), initial 90-day import, `BillsSynced` event
 - [ ] Reporting rollups refreshed from `BillsSynced`; rebuild job. Acceptance: a gate that fails when
-      SQL date functions (`date_trunc`, `AT TIME ZONE`, `::date`) decide a business day or hour
-      (`METRICS.md`)
+      date functions decide a business day or hour (`METRICS.md`), scanning both Flyway/raw SQL
+      (`date_trunc`, `AT TIME ZONE`, `::date`) and the jOOQ DSL equivalents (`DSL.trunc`, casts to
+      `SQLDataType.DATE`, `atTimeZone`)
 - [ ] Later (P15): read-only Storyous client behind `PosProvider` (client credentials, token cache,
       paging), built and tested against recorded fixtures that fail on any non-GET call; drop
       `allowEmptyShould(true)` from `ProductRules.posIsReadOnly` so the gate proves a non-empty
