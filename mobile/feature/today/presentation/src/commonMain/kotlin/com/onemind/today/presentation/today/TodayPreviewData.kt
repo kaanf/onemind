@@ -8,6 +8,8 @@ import kotlinx.datetime.LocalDate
 
 /** Sample figures for the `@Preview`s only (the canvas values); never used by the app. */
 internal object TodayPreviewData {
+    val header = TodayHeader(scopeName = ScopeName.Venue("Main bar"), initials = "KF")
+
     private val heights = listOf(18, 24, 31, 42, 55, 70, 82, 90, 84, 66, 40)
 
     val ready =

@@ -128,7 +128,12 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
   Hosts call `initKoin` once (`OneMindApplication` on Android, `iOSApp.init` on iOS).
   `KoinGraphTest` (`composeApp/src/androidHostTest`) verifies the graph; keep it green.
 - The selected venue / *All venues* is `VenueScopeRepository` (`core:domain`), a single instance
-  (in memory for now; persisted with the venue switcher, P7).
+  (in memory for now; persisted with the venue switcher, P7). The venue list is `VenueRepository`
+  (`GET /venues`; each load keeps the scope valid with `defaultVenueScope`), the profile
+  `ProfileRepository` (`GET /me`, initials). `SignedInDataLoader` (core:data, started once by
+  `initKoin`, not by Koin itself, so `KoinGraphTest` needs no Android context) loads both on sign-in and
+  clears them and the scope on sign-out. Dashboards turn a scope into `venueIds` with
+  `VenueScope.venueIds(venues)` (*All venues* = followed, else every venue).
 
 ## UI rules
 

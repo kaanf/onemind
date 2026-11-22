@@ -2,13 +2,18 @@ package com.onemind.core.data.di
 
 import com.onemind.core.data.config.ApiConfig
 import com.onemind.core.data.network.HttpClientFactory
+import com.onemind.core.data.profile.ProfileRepositoryImpl
 import com.onemind.core.data.session.SessionManager
 import com.onemind.core.data.session.SessionRefresher
 import com.onemind.core.data.session.SessionRepositoryImpl
 import com.onemind.core.data.update.InMemoryAppUpdateRepository
 import com.onemind.core.data.venue.InMemoryVenueScopeRepository
+import com.onemind.core.data.venue.SignedInDataLoader
+import com.onemind.core.data.venue.VenueRepositoryImpl
+import com.onemind.core.domain.profile.ProfileRepository
 import com.onemind.core.domain.session.AppUpdateRepository
 import com.onemind.core.domain.session.SessionRepository
+import com.onemind.core.domain.venue.VenueRepository
 import com.onemind.core.domain.venue.VenueScopeRepository
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
@@ -39,4 +44,8 @@ val coreDataModule =
         single { InMemoryAppUpdateRepository() } bind AppUpdateRepository::class
         single<HttpClient> { HttpClientFactory(get(), get(), get(), get()).create(get()) }
         single { SessionRepositoryImpl(sessions = get(), client = get(), scope = get(AppScope)) } bind SessionRepository::class
+        single { VenueRepositoryImpl(client = get(), venueScope = get()) } bind VenueRepository::class
+        single { ProfileRepositoryImpl(client = get()) } bind ProfileRepository::class
+        // Started once by initKoin (composeApp): loads the venues and the profile on sign-in, forgets them on sign-out.
+        single { SignedInDataLoader(sessions = get(), venues = get(), profile = get(), scope = get(AppScope)) }
     }

@@ -6,14 +6,31 @@ data class TodayState(
     val content: TodayContent = TodayContent.Loading,
     /** A pull-to-refresh request is running. */
     val isRefreshing: Boolean = false,
+    val header: TodayHeader = TodayHeader(),
 ) {
     val canRefresh: Boolean get() = content is TodayContent.Ready || content is TodayContent.Failed
+}
+
+/** The row above the date: the scope's name (switcher button) and the account initials. */
+data class TodayHeader(
+    /** `null` while the venue list loads: the button isn't drawn. */
+    val scopeName: ScopeName? = null,
+    /** From `GET /me`; `null` hides the account button (no invented initials, rule 2). */
+    val initials: String? = null,
+)
+
+sealed interface ScopeName {
+    data class Venue(
+        val name: String,
+    ) : ScopeName
+
+    data object AllVenues : ScopeName
 }
 
 sealed interface TodayContent {
     data object Loading : TodayContent
 
-    /** No venue is selected: the account has no venues yet, or the venue list hasn't loaded. */
+    /** The account has no venues yet. */
     data object NoVenue : TodayContent
 
     /** The first load failed: nothing to show yet. */

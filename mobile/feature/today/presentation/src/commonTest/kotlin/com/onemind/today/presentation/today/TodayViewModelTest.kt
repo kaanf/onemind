@@ -1,8 +1,16 @@
 package com.onemind.today.presentation.today
 
+import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.test
+import com.onemind.core.domain.money.Currency
+import com.onemind.core.domain.profile.Profile
+import com.onemind.core.domain.profile.ProfileRepository
 import com.onemind.core.domain.util.DataError
+import com.onemind.core.domain.util.EmptyResult
 import com.onemind.core.domain.util.Result
+import com.onemind.core.domain.venue.Venue
+import com.onemind.core.domain.venue.VenueList
+import com.onemind.core.domain.venue.VenueRepository
 import com.onemind.core.domain.venue.VenueScope
 import com.onemind.core.domain.venue.VenueScopeRepository
 import com.onemind.core.presentation.util.UiText
@@ -11,6 +19,7 @@ import com.onemind.today.domain.TodayRepository
 import com.onemind.today.domain.TodaySummary
 import com.onemind.today.presentation.TodayFixtures
 import com.onemind.today.presentation.TodayFixtures.VENUE_A
+import com.onemind.today.presentation.TodayFixtures.VENUE_B
 import com.onemind.today.presentation.generated.resources.Res
 import com.onemind.today.presentation.generated.resources.today_error_venues_differ
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +38,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
@@ -54,7 +64,38 @@ class TodayViewModelTest {
         override fun select(scope: VenueScope) {
             state.value = scope
         }
+
+        override fun clear() {
+            state.value = null
+        }
     }
+
+    private class FakeVenues(
+        initial: VenueList,
+    ) : VenueRepository {
+        val state = MutableStateFlow(initial)
+        override val venues: StateFlow<VenueList> = state
+        var refreshes = 0
+        var onRefresh: () -> VenueList = { state.value }
+
+        override suspend fun refresh(): EmptyResult<DataError> {
+            refreshes++
+            state.value = onRefresh()
+            return Result.Success(Unit)
+        }
+    }
+
+    private class FakeProfile(
+        initial: Profile? = null,
+    ) : ProfileRepository {
+        override val profile = MutableStateFlow(initial)
+
+        override suspend fun refresh() = Unit
+    }
+
+    private val barA = Venue(VENUE_A, "Main bar", Currency.CZK, followed = true)
+    private val barB = Venue(VENUE_B, "Garden", Currency.CZK, followed = false)
+    private val bothVenues = VenueList.Loaded(listOf(barA, barB))
 
     private class FakeRepository : TodayRepository {
         val calls = mutableListOf<List<String>>()
@@ -76,14 +117,17 @@ class TodayViewModelTest {
     private fun TestScope.viewModel(
         repository: TodayRepository,
         scope: VenueScope? = VenueScope.Venue(VENUE_A),
-    ) = TodayViewModel(repository, FakeVenueScope(scope), clock(), TodayPollInterval.Default)
+        venues: VenueRepository = FakeVenues(bothVenues),
+        profile: ProfileRepository = FakeProfile(),
+        pollInterval: TodayPollInterval = TodayPollInterval.Default,
+    ) = TodayViewModel(repository, FakeVenueScope(scope), venues, profile, clock(), pollInterval)
 
     @Test
-    fun withoutAVenueThereIsNothingToLoad() =
+    fun anAccountWithoutVenuesHasNothingToLoad() =
         runTest(dispatcher) {
             val repository = FakeRepository()
 
-            viewModel(repository, scope = null).state.test {
+            viewModel(repository, scope = null, venues = FakeVenues(VenueList.Loaded(emptyList()))).state.test {
                 assertEquals(TodayContent.Loading, awaitItem().content)
                 assertEquals(TodayContent.NoVenue, awaitItem().content)
             }
@@ -91,15 +135,74 @@ class TodayViewModelTest {
         }
 
     @Test
-    fun allVenuesWaitsForTheVenueList() =
+    fun itWaitsForTheVenueListBeforeLoading() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val venues = FakeVenues(VenueList.Loading)
+
+            viewModel(repository, venues = venues).state.test {
+                assertEquals(TodayContent.Loading, awaitItem().content)
+                runCurrent()
+                assertTrue(repository.calls.isEmpty())
+
+                venues.state.value = bothVenues
+                assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                cancelAndIgnoreRemainingEvents()
+            }
+            assertEquals(listOf(listOf(VENUE_A)), repository.calls)
+        }
+
+    @Test
+    fun allVenuesLoadsTheFollowedVenues() =
         runTest(dispatcher) {
             val repository = FakeRepository()
 
             viewModel(repository, scope = VenueScope.All).state.test {
-                skipItems(1)
-                assertEquals(TodayContent.NoVenue, awaitItem().content)
+                assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                cancelAndIgnoreRemainingEvents()
             }
-            assertTrue(repository.calls.isEmpty())
+            assertEquals(listOf(listOf(VENUE_A)), repository.calls)
+        }
+
+    @Test
+    fun aFailedVenueListShowsTheErrorAndRefreshLoadsItAgain() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val venues = FakeVenues(VenueList.Failed(DataError.Network.NO_INTERNET))
+            venues.onRefresh = { bothVenues }
+            val viewModel = viewModel(repository, venues = venues)
+
+            viewModel.state.test {
+                assertIs<TodayContent.Failed>(awaitNonLoading().content)
+
+                viewModel.onAction(TodayAction.Refresh)
+                runCurrent()
+                assertEquals(1, venues.refreshes)
+                assertIs<TodayContent.Ready>(expectMostRecentItem().content)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun theHeaderNamesTheScopeAndShowsTheInitials() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+
+            viewModel(repository, profile = FakeProfile(Profile("Kaan Fırat"))).state.test {
+                runCurrent()
+                val header = expectMostRecentItem().header
+                assertEquals(ScopeName.Venue("Main bar"), header.scopeName)
+                assertEquals("KF", header.initials)
+                cancelAndIgnoreRemainingEvents()
+            }
+            viewModel(repository, scope = VenueScope.All, profile = FakeProfile(Profile(null))).state.test {
+                runCurrent()
+                val header = expectMostRecentItem().header
+                assertEquals(ScopeName.AllVenues, header.scopeName)
+                // No name given: no invented initials.
+                assertNull(header.initials)
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 
     @Test
@@ -109,7 +212,7 @@ class TodayViewModelTest {
 
             viewModel(repository).state.test {
                 assertEquals(TodayContent.Loading, awaitItem().content)
-                val ready = assertIs<TodayContent.Ready>(awaitItem().content)
+                val ready = assertIs<TodayContent.Ready>(awaitNonLoading().content)
                 assertEquals(TodayFixtures.shown("48·320_Kč"), ready.today.paidSoFar)
                 assertEquals("21:40", ready.today.clockTime)
                 cancelAndIgnoreRemainingEvents()
@@ -159,11 +262,10 @@ class TodayViewModelTest {
     fun theClockMovesEachMinuteBetweenPolls() =
         runTest(dispatcher) {
             val repository = FakeRepository()
-            val viewModel = TodayViewModel(repository, FakeVenueScope(VenueScope.Venue(VENUE_A)), clock()) { 5.minutes() }
+            val viewModel = viewModel(repository, pollInterval = { 5.minutes() })
 
             viewModel.state.test {
-                skipItems(1)
-                assertEquals("21:40", assertIs<TodayContent.Ready>(awaitItem().content).today.clockTime)
+                assertEquals("21:40", assertIs<TodayContent.Ready>(awaitNonLoading().content).today.clockTime)
                 advanceTimeBy(60.seconds)
                 assertEquals("21:41", assertIs<TodayContent.Ready>(awaitItem().content).today.clockTime)
                 assertEquals(1, repository.calls.size)
@@ -179,8 +281,7 @@ class TodayViewModelTest {
             val viewModel = viewModel(repository)
 
             viewModel.state.test {
-                skipItems(1)
-                assertIs<TodayContent.Failed>(awaitItem().content)
+                assertIs<TodayContent.Failed>(awaitNonLoading().content)
 
                 viewModel.onAction(TodayAction.Refresh)
                 assertTrue(awaitItem().isRefreshing)
@@ -201,8 +302,7 @@ class TodayViewModelTest {
             val viewModel = viewModel(repository)
 
             viewModel.state.test {
-                skipItems(1)
-                assertIs<TodayContent.Ready>(awaitItem().content)
+                assertIs<TodayContent.Ready>(awaitNonLoading().content)
                 advanceTimeBy(30.seconds)
                 val stale = assertIs<TodayContent.Ready>(awaitItem().content)
                 assertEquals(TodayFixtures.shown("48·320_Kč"), stale.today.paidSoFar)
@@ -218,8 +318,7 @@ class TodayViewModelTest {
             repository.fallback = Result.Failure(DataError.Api(422, TodayErrorCodes.BUSINESS_DAYS_DIFFER))
 
             viewModel(repository).state.test {
-                skipItems(1)
-                val failed = assertIs<TodayContent.Failed>(awaitItem().content)
+                val failed = assertIs<TodayContent.Failed>(awaitNonLoading().content)
                 assertEquals(UiText.Resource(Res.string.today_error_venues_differ), failed.message)
                 cancelAndIgnoreRemainingEvents()
             }
@@ -232,11 +331,18 @@ class TodayViewModelTest {
             repository.fallback = Result.Success(TodayFixtures.noDataYet)
 
             viewModel(repository).state.test {
-                skipItems(1)
-                assertTrue(assertIs<TodayContent.Ready>(awaitItem().content).today.waitingForFirstSync)
+                assertTrue(assertIs<TodayContent.Ready>(awaitNonLoading().content).today.waitingForFirstSync)
                 cancelAndIgnoreRemainingEvents()
             }
         }
 
     private fun Int.minutes() = (this * 60).seconds
+
+    /** The next state past loading (the header can change while Today still loads). */
+    private suspend fun ReceiveTurbine<TodayState>.awaitNonLoading(): TodayState {
+        while (true) {
+            val state = awaitItem()
+            if (state.content != TodayContent.Loading) return state
+        }
+    }
 }
