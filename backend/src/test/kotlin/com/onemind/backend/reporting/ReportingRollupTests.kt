@@ -25,6 +25,9 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CountDownLatch
+import kotlin.concurrent.thread
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -83,13 +86,18 @@ class ReportingRollupTests {
         val expected =
             jdbc.queryForList(
                 """
+                with b as (
+                    select bill.*,
+                           greatest(coalesce((select sum(p.amount_minor) from pos.payment p where p.bill_id = bill.id), 0) - tips_minor, 0) as paid
+                    from pos.bill where venue_id = ?
+                )
                 select business_day, extract(hour from paid_at at time zone 'Europe/Prague')::int as hour,
-                       sum(total_minor) filter (where not deleted) as revenue,
+                       coalesce(sum(paid) filter (where not deleted), 0) as revenue,
                        count(*) filter (where not deleted) as bills,
-                       coalesce(sum(total_minor) filter (where refunded and not deleted), 0) as refunded,
+                       coalesce(sum(paid) filter (where refunded and not deleted), 0) as refunded,
                        count(*) filter (where deleted) as deleted_bills,
                        coalesce(sum(total_minor) filter (where deleted), 0) as deleted
-                from pos.bill where venue_id = ? group by 1, 2 order by 1, 2
+                from b group by 1, 2 order by 1, 2
                 """.trimIndent(),
                 venue,
             )
@@ -203,11 +211,52 @@ class ReportingRollupTests {
             "update pos.bill set items_unreadable = true where id = (select id from pos.bill where venue_id = ? order by id limit 1)",
             venue,
         )
+        // A stored bill whose newer version couldn't be read at all.
+        jdbc.update(
+            """
+            insert into pos.bill_quarantine (venue_id, external_id, reason, first_seen_at, last_attempt_at)
+            select venue_id, external_id, 'BAD_CURRENCY', now(), now() from pos.bill
+            where venue_id = ? and not items_unreadable order by id desc limit 1
+            """.trimIndent(),
+            venue,
+        )
 
         val gaps = reads.dataGaps(venue)
 
         assertEquals(1, gaps.quarantinedBills)
         assertEquals(1, gaps.billsWithoutLines)
+        assertEquals(1, gaps.outdatedBills)
+    }
+
+    @Test
+    fun `concurrent refreshes of the same day don't clash and end with the newest facts`() {
+        val venue = syncedVenue()
+        val day = days(venue).last()
+        repeat(5) { round ->
+            // New facts before every round: one payment grows by a crown.
+            jdbc.update(
+                """
+                update pos.payment set amount_minor = amount_minor + 100 where id = (
+                    select p.id from pos.payment p join pos.bill b on b.id = p.bill_id
+                    where b.venue_id = ? and b.business_day = ? and not b.deleted order by p.id limit 1)
+                """.trimIndent(),
+                venue,
+                day,
+            )
+            val failures = ConcurrentLinkedQueue<Throwable>()
+            val start = CountDownLatch(1)
+            val threads =
+                (1..2).map {
+                    thread {
+                        start.await()
+                        runCatching { refresh.refresh(venue, listOf(day)) }.onFailure { failures += it }
+                    }
+                }
+            start.countDown()
+            threads.forEach { it.join() }
+            assertEquals(emptyList(), failures.toList(), "round $round")
+            assertEquals(expectedRevenue(venue, day), revenue(venue, day), "round $round")
+        }
     }
 
     /** A fresh connection synced through the demo POS, with its rollups refreshed by the events. */
@@ -269,6 +318,21 @@ class ReportingRollupTests {
                 LocalDate::class.java,
                 venue,
             ).filterNotNull()
+
+    private fun expectedRevenue(
+        venue: UUID,
+        day: LocalDate,
+    ): Long =
+        requireNotNull(
+            jdbc.queryForObject<Long>(
+                """
+                select coalesce(sum(greatest(coalesce((select sum(p.amount_minor) from pos.payment p where p.bill_id = b.id), 0) - b.tips_minor, 0)), 0)
+                from pos.bill b where b.venue_id = ? and b.business_day = ? and not b.deleted
+                """.trimIndent(),
+                venue,
+                day,
+            ),
+        )
 
     private fun revenue(
         venue: UUID,

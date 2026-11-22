@@ -20,7 +20,7 @@ import java.util.UUID
 
 /**
  * Recomputes a venue's rollups for given business days from the POS facts (ADR 0013 §5): one
- * transaction per day replaces that day's rows. Idempotent: the same facts give the same rows, so a
+ * transaction per day, under a lock on that (venue, day), reads the facts and replaces the day's rows. Idempotent: the same facts give the same rows, so a
  * duplicate event or a rebuild changes nothing. A day whose last bill moved away ends up empty.
  */
 @Service
@@ -38,11 +38,13 @@ class RefreshRollups(
     ) {
         val settings = venueRegistry.businessDay(venueId) ?: return
         days.distinct().sorted().forEach { day ->
-            val bills = allPages { after -> pos.bills(venueId, listOf(day), after).let { it.items to it.next } }
-            val lines = allPages { after -> pos.billLines(venueId, listOf(day), after).let { it.items to it.next } }
-            val range = BusinessDayCalendar.range(day, settings.zone, settings.businessDayStart)
-            val computed = RollupCalculator.compute(bills.map { it.toRollup() }, lines.map { it.toRollup() }, range, settings.zone)
+            // Locked first, read inside the lock: the last of two concurrent refreshes writes the newest facts.
             transactions.executeWithoutResult {
+                rollups.lockDay(venueId, day)
+                val bills = allPages { after -> pos.bills(venueId, listOf(day), after).let { it.items to it.next } }
+                val lines = allPages { after -> pos.billLines(venueId, listOf(day), after).let { it.items to it.next } }
+                val range = BusinessDayCalendar.range(day, settings.zone, settings.businessDayStart)
+                val computed = RollupCalculator.compute(bills.map { it.toRollup() }, lines.map { it.toRollup() }, range, settings.zone)
                 rollups.replaceDay(venueId, day, computed, bills.maxOfOrNull { it.modifiedAt }, RollupVersion.CURRENT, clock.instant())
             }
         }

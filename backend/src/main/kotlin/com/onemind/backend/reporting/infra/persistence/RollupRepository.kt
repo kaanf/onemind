@@ -24,6 +24,17 @@ import java.util.UUID
 class RollupRepository(
     private val dsl: DSLContext,
 ) {
+    /**
+     * Serialises refreshes of one (venue, day) until the transaction ends, so the last writer has read the
+     * newest facts and two refreshes never interleave their deletes and inserts.
+     */
+    fun lockDay(
+        venueId: UUID,
+        day: LocalDate,
+    ) {
+        dsl.execute("select pg_advisory_xact_lock(hashtextextended(?, 0))", "rollup:$venueId:$day")
+    }
+
     fun replaceDay(
         venueId: UUID,
         day: LocalDate,
@@ -52,6 +63,7 @@ class RollupRepository(
                     .set(t.HOUR, r.hour.toShort())
                     .set(t.REVENUE_MINOR, r.revenueMinor)
                     .set(t.REVENUE_WITHOUT_TAX_MINOR, r.revenueWithoutTaxMinor)
+                    .set(t.BILLS_MISSING_NET, r.billsMissingNet)
                     .set(t.BILLS, r.bills)
                     .set(t.GUESTS, r.guests)
                     .set(t.TIPS_MINOR, r.tipsMinor)

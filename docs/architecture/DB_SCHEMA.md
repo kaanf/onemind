@@ -119,7 +119,7 @@ fall-back night the repeated hour is merged into one row.
 
 | Table | Grain (PK) | Columns | Basis |
 |-------|-----------|---------|-------|
-| `hourly_sales` | `venue_id, business_day, hour` | `revenue_minor`, `revenue_without_tax_minor`, `bills`, `guests`, `tips_minor`, `discount_minor`, `card_minor`, `cash_minor`, `other_minor`, `refunded_minor`, `deleted_bills`, `deleted_minor` (V010) | Local hour of `paid_at` |
+| `hourly_sales` | `venue_id, business_day, hour` | `revenue_minor`, `revenue_without_tax_minor`, `bills`, `guests`, `tips_minor`, `discount_minor`, `card_minor`, `cash_minor`, `other_minor`, `refunded_minor`, `deleted_bills`, `deleted_minor`, `bills_missing_net` (V010) | Local hour of `paid_at`. `revenue_minor` = payments without tips, refunded bills included; the net figure is incomplete while `bills_missing_net` > 0 |
 | `hourly_activity` | `venue_id, business_day, hour` | `sessions`, `guests` | Local hour of `session_started_at` (hourly patterns, 02b) |
 | `product_hourly_sales` | `venue_id, business_day, hour, product_id` | `quantity`, `gross_minor`, `discount_minor` | Session hour (no per-item order time) |
 | `staff_daily_sales` | `venue_id, business_day, staff_id` | `bills`, `revenue_minor`, `guests`, `discount_minor`, `deleted_bills` (by `created_by`); `tips_minor` (by `paid_by`) | Sales to the person who **opened** the bill, tips to the person who **closed** it (answers M6). Both IDs stay on `pos.bill`, so a per-venue setting can be added later. |

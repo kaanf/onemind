@@ -14,6 +14,7 @@ import java.time.ZoneId
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 /** One definition per test (`docs/domain/METRICS.md`), on Europe/Prague days with the 05:00 cut-off. */
 class RollupCalculatorTest {
@@ -38,12 +39,13 @@ class RollupCalculatorTest {
         createdBy: UUID? = staffA,
         paidBy: UUID? = staffA,
         deskId: UUID? = desk,
+        net: Long? = total * 100 / 121,
     ) = RollupBill(
         billId = UUID.randomUUID(),
         paidAt = Instant.parse(paidAt),
         sessionStartedAt = opened?.let(Instant::parse),
         totalMinor = total,
-        totalWithoutTaxMinor = total * 100 / 121,
+        totalWithoutTaxMinor = net,
         discountMinor = 0,
         tipsMinor = tips,
         refunded = refunded,
@@ -186,5 +188,36 @@ class RollupCalculatorTest {
         assertEquals(2, rows.getValue("HAPPY_HOUR").records)
         assertEquals(2_070, rows.getValue("HAPPY_HOUR").amountMinor)
         assertEquals(3_450, rows.getValue("UNSPECIFIED").amountMinor)
+    }
+
+    @Test
+    fun `revenue is payments without tips, so card plus cash plus other is revenue`() {
+        // The bill total says 9 900, but the payments (without the 500 tip) are 10 000: revenue follows the payments.
+        val paid = bill("2026-11-20T20:00:00Z", total = 9_900, tips = 500, payments = listOf(RollupPayment("CARD", 10_500)))
+
+        val row = RollupCalculator.compute(listOf(paid), emptyList(), day("2026-11-20"), zone).hourlySales.single()
+
+        assertEquals(10_000, row.revenueMinor)
+        assertEquals(row.revenueMinor, row.cardMinor + row.cashMinor + row.otherMinor)
+    }
+
+    @Test
+    fun `the net revenue leaves out bills without a net total and counts them, never as 0`() {
+        val withNet = bill("2026-11-20T20:00:00Z", total = 12_100, net = 10_000)
+        val withoutNet = bill("2026-11-20T20:05:00Z", total = 5_000, net = null)
+
+        val row = RollupCalculator.compute(listOf(withNet, withoutNet), emptyList(), day("2026-11-20"), zone).hourlySales.single()
+
+        assertEquals(10_000, row.revenueWithoutTaxMinor)
+        assertEquals(1, row.billsMissingNet)
+        assertEquals(17_100, row.revenueMinor)
+    }
+
+    @Test
+    fun `a stored discount without an amount fails the day instead of counting 0`() {
+        val b = bill("2026-11-20T20:00:00Z")
+        val lines = listOf(RollupLine(b.billId, product, BigDecimal.ONE, 0, 6_900, listOf(RollupDiscount("HAPPY_HOUR", null))))
+
+        assertFailsWith<IllegalStateException> { RollupCalculator.compute(listOf(b), lines, day("2026-11-20"), zone) }
     }
 }

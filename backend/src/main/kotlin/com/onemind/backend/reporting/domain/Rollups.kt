@@ -61,6 +61,8 @@ data class HourlySalesRow(
     val hour: Int,
     val revenueMinor: Long,
     val revenueWithoutTaxMinor: Long,
+    /** Bills without a net total from the POS: [revenueWithoutTaxMinor] leaves them out (rule 2). */
+    val billsMissingNet: Int,
     val bills: Int,
     val guests: Int,
     val tipsMinor: Long,
@@ -124,10 +126,14 @@ data class DayRollups(
  * The rollups of one venue and business day from its bills and lines (`docs/domain/METRICS.md`). Pure:
  * the same facts always give the same rows, so a refresh can replace a day whenever its facts change.
  *
- * - Revenue counts paid bills that aren't deleted, in the hour of `paidAt`. A refunded bill stays in its
- *   paid business day and also counts as refunded there (M13: Storyous has no refund time).
- * - Card / cash / other are the payments per kind without tips: tips come off card when the bill has a
- *   card payment, else off cash, then other (M14; an approximation for mixed payments).
+ * - Revenue (`paidRevenue`) = the bill's payments without its tips, for paid bills that aren't deleted,
+ *   in the hour of `paidAt`; so card + cash + other = revenue. Refunded bills are included: they also
+ *   count as refunded in their paid business day (M13: Storyous has no refund time), and readers
+ *   subtract `refundedMinor`. Tips come off card when the bill has a card payment, else off cash, then
+ *   other (M14; an approximation for mixed payments).
+ * - The net (without tax) revenue sums only bills that have a net total; the others are counted, so a
+ *   reader knows the figure is incomplete (rule 2, M2 open). A discount without an amount fails the day:
+ *   such bills are quarantined by the sync, so one here is a bug, never a 0.
  * - Guests: the POS count, else 1 per bill (M5).
  * - Products and opened-bill activity use the hour the bill was opened (session start, else paid time):
  *   Storyous has no per-item time (MVP_SCOPE). Deleted bills count only as deleted.
@@ -172,7 +178,7 @@ object RollupCalculator {
                         DeskDailyRow(
                             deskId = deskId,
                             bills = onDesk.size,
-                            revenueMinor = onDesk.sumOf { it.totalMinor },
+                            revenueMinor = onDesk.sumOf { it.revenue() },
                             guests = onDesk.sumOf { it.guests() },
                             occupiedMinutes = onDesk.sumOf { occupiedMinutes(it, day) },
                         )
@@ -182,7 +188,7 @@ object RollupCalculator {
                     .filter { it.billId in keptIds }
                     .flatMap { it.discounts }
                     .groupBy { it.type ?: UNSPECIFIED }
-                    .map { (type, records) -> DiscountDailyRow(type, records.size, records.sumOf { it.amountMinor ?: 0 }) }
+                    .map { (type, records) -> DiscountDailyRow(type, records.size, records.sumOf { it.requiredAmount() }) }
                     .sortedBy { it.discountType },
         )
     }
@@ -198,8 +204,9 @@ object RollupCalculator {
                 val byKind = kept.map { paymentsWithoutTips(it) }
                 HourlySalesRow(
                     hour = hour,
-                    revenueMinor = kept.sumOf { it.totalMinor },
-                    revenueWithoutTaxMinor = kept.sumOf { it.totalWithoutTaxMinor ?: 0 },
+                    revenueMinor = byKind.sumOf { it.values.sum() },
+                    revenueWithoutTaxMinor = kept.mapNotNull { it.totalWithoutTaxMinor }.sum(),
+                    billsMissingNet = kept.count { it.totalWithoutTaxMinor == null },
                     bills = kept.size,
                     guests = kept.sumOf { it.guests() },
                     tipsMinor = kept.sumOf { it.tipsMinor },
@@ -207,7 +214,7 @@ object RollupCalculator {
                     cardMinor = byKind.sumOf { it.getValue(CARD) },
                     cashMinor = byKind.sumOf { it.getValue(CASH) },
                     otherMinor = byKind.sumOf { it.getValue(OTHER) },
-                    refundedMinor = kept.filter { it.refunded }.sumOf { it.totalMinor },
+                    refundedMinor = kept.filter { it.refunded }.sumOf { it.revenue() },
                     deletedBills = inHour.count { it.deleted },
                     deletedMinor = inHour.filter { it.deleted }.sumOf { it.totalMinor },
                 )
@@ -224,7 +231,7 @@ object RollupCalculator {
                 StaffDailyRow(
                     staffId = staffId,
                     bills = ownKept.size,
-                    revenueMinor = ownKept.sumOf { it.totalMinor },
+                    revenueMinor = ownKept.sumOf { it.revenue() },
                     guests = ownKept.sumOf { it.guests() },
                     discountMinor = ownKept.sumOf { it.discountMinor },
                     deletedBills = own.count { it.deleted },
@@ -254,6 +261,12 @@ object RollupCalculator {
         val paid = minOf(bill.paidAt, day.end)
         return if (paid.isAfter(opened)) Duration.between(opened, paid).toMinutes().toInt() else 0
     }
+
+    /** `paidRevenue` of one bill: its payments without its tips. */
+    private fun RollupBill.revenue(): Long = paymentsWithoutTips(this).values.sum()
+
+    private fun RollupDiscount.requiredAmount(): Long =
+        amountMinor ?: error("A stored discount without an amount (type ${type ?: UNSPECIFIED}): the sync quarantines those")
 
     // M5: a bill without a guest count counts as one guest.
     private fun RollupBill.guests(): Int = guestCount ?: 1

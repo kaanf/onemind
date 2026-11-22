@@ -13,6 +13,7 @@ import com.onemind.db.pos.tables.references.VENUE_LINK
 import org.jooq.DSLContext
 import org.jooq.Field
 import org.jooq.Record
+import org.jooq.impl.DSL.exists
 import org.jooq.impl.DSL.notExists
 import org.jooq.impl.DSL.selectOne
 import org.springframework.stereotype.Repository
@@ -163,6 +164,24 @@ class PosReadRepository(
             q.VENUE_ID
                 .eq(venueId)
                 .and(notExists(selectOne().from(BILL).where(BILL.VENUE_ID.eq(q.VENUE_ID), BILL.EXTERNAL_ID.eq(q.EXTERNAL_ID)))),
+        )
+    }
+
+    /**
+     * Bills stored in an older version whose newer version couldn't be read at all: the stored figures
+     * may be out of date (a later refund or deletion may be missing).
+     */
+    fun outdatedBills(venueId: UUID): Int {
+        val q = BILL_QUARANTINE
+        return dsl.fetchCount(
+            q,
+            q.VENUE_ID.eq(venueId).and(
+                exists(
+                    selectOne()
+                        .from(BILL)
+                        .where(BILL.VENUE_ID.eq(q.VENUE_ID), BILL.EXTERNAL_ID.eq(q.EXTERNAL_ID), BILL.ITEMS_UNREADABLE.isFalse),
+                ),
+            ),
         )
     }
 

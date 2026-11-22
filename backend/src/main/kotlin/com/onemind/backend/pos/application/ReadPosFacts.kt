@@ -11,6 +11,7 @@ import java.util.UUID
 data class PosDataGaps(
     val quarantinedBills: Int,
     val billsWithoutLines: Int,
+    val outdatedBills: Int,
 )
 
 /**
@@ -39,7 +40,8 @@ class ReadPosFacts(
 
     fun businessDays(venueId: UUID): List<LocalDate> = reads.businessDays(venueId)
 
-    fun dataGaps(venueId: UUID): PosDataGaps = PosDataGaps(reads.quarantinedBills(venueId), reads.billsWithoutLines(venueId))
+    fun dataGaps(venueId: UUID): PosDataGaps =
+        PosDataGaps(reads.quarantinedBills(venueId), reads.billsWithoutLines(venueId), reads.outdatedBills(venueId))
 
     companion object {
         const val MAX_PAGE = 1000

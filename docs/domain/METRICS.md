@@ -26,7 +26,11 @@ Items marked **(?)** need confirmation; see `../OPEN_QUESTIONS.md`.
 Business-day figures come from the `reporting` rollups (`architecture/DB_SCHEMA.md#reporting`), one row
 per venue × business day × hour / product / staff member / desk / discount type, computed once in
 `reporting/domain/RollupCalculator` from POS facts (`pos/api/PosReadModel`) and refreshed on
-`BillsSynced`. Deleted bills count only as deleted (`deleted_bills`, `deleted_minor`). Bills that
+`BillsSynced`. Deleted bills count only as deleted (`deleted_bills`, `deleted_minor`).
+`revenue_minor` is `paidRevenue` (payments without tips, so card + cash + other = revenue) and
+**includes refunded bills**: readers subtract `refunded_minor`. `revenue_without_tax_minor` sums only
+bills that have a net total; `bills_missing_net` counts the others, and a screen doesn't show the net
+figure while it is above 0 (M2 open). Bills that
 couldn't be read are missing from them; screens show that gap (`RollupReads.dataGaps`, rule 2).
 
 ## Periods and comparisons

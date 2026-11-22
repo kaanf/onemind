@@ -64,6 +64,8 @@ data class DataGaps(
     val quarantinedBills: Int,
     /** Bills stored without their lines: in bill figures, missing from product and discount figures. */
     val billsWithoutLines: Int,
+    /** Bills whose newer version couldn't be read: their stored figures may be out of date. */
+    val outdatedBills: Int,
 )
 
 /**
@@ -144,7 +146,8 @@ class PosReadModel(
     fun businessDays(venueId: UUID): List<LocalDate> = facts.businessDays(venueId)
 
     /** What the venue's figures are missing, so a screen can say so (rule 2). */
-    fun dataGaps(venueId: UUID): DataGaps = facts.dataGaps(venueId).let { DataGaps(it.quarantinedBills, it.billsWithoutLines) }
+    fun dataGaps(venueId: UUID): DataGaps =
+        facts.dataGaps(venueId).let { DataGaps(it.quarantinedBills, it.billsWithoutLines, it.outdatedBills) }
 
     companion object {
         const val DEFAULT_PAGE = 500

@@ -231,6 +231,9 @@ ADR 0013 §3 (product rules: root `AGENTS.md`) instead of working around it. Wha
   `BillsSynced` listener (`RollupListener`) and the hourly `reporting-rebuild` job (`RebuildRollups`:
   missing days and days below `RollupVersion.CURRENT`, a few per run). **Bump `RollupVersion.CURRENT`
   whenever a calculation changes** so stored days are recomputed. Screens add `RollupReads.dataGaps`.
+  A refresh locks its (venue, day) and reads the facts inside the lock. `revenue_minor` = payments
+  without tips and includes refunded bills (subtract `refunded_minor`); don't show the net revenue
+  while `bills_missing_net` > 0. Never substitute 0 for a value the POS didn't send.
 
 - Implement each metric in `docs/domain/METRICS.md` exactly once, in the `reporting`
   module, with a unit test per definition using fixture bills (include a midnight-crossing
