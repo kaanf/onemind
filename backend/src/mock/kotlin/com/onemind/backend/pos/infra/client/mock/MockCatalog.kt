@@ -14,6 +14,7 @@ import com.onemind.backend.pos.infra.client.PosProduct
 import com.onemind.backend.pos.infra.client.PosProviderConfig
 import com.onemind.backend.pos.infra.client.PosSection
 import java.time.DayOfWeek
+import java.time.LocalTime
 import java.time.ZoneId
 import java.util.Currency
 
@@ -30,13 +31,48 @@ internal object MockCatalog {
     val ZONE: ZoneId = ZoneId.of("Europe/Prague")
     val CURRENCY: Currency = Currency.getInstance("CZK")
 
-    /** A place with what the generator needs; [billPrefix] starts its bill IDs, [traffic] scales its bills. */
+    /**
+     * A place with what the generator needs; [billPrefix] starts its bill IDs, [traffic] scales its bills,
+     * [hours] says when its guests come.
+     */
     class Place(
         val place: PosPlace,
         val billPrefix: String,
         val traffic: Double,
         val deskView: PosDeskView,
+        val hours: Hours,
     )
+
+    /**
+     * When a place opens sessions: in one of [periods], picked by weight (the minute inside a period peaks
+     * in its middle). Sessions in the first [happyHourMinutes] of the first period are happy hour;
+     * [nightCap] adds the fixed 02:30 bill to every night (it covers the DST nights).
+     */
+    class Hours(
+        val periods: List<Period>,
+        val happyHourMinutes: Int = 0,
+        val nightCap: Boolean = false,
+    )
+
+    /** Sessions open from [opens] for [minutes]; [weight] is its share of the night's bills. */
+    class Period(
+        val opens: LocalTime,
+        val minutes: Int,
+        val weight: Int = 1,
+    )
+
+    /** A bar: sessions 16:00–02:30, happy hour until 18:00, the 02:30 bill every night. */
+    val BAR_HOURS = Hours(listOf(Period(LocalTime.of(16, 0), 630)), happyHourMinutes = 120, nightCap = true)
+
+    /** A bistro: breakfast 07:00–10:00, lunch 11:30–14:00, dinner 17:30–22:00; paid by 00:30 at the latest. */
+    val BISTRO_HOURS =
+        Hours(
+            listOf(
+                Period(LocalTime.of(7, 0), 180, weight = 2),
+                Period(LocalTime.of(11, 30), 150, weight = 4),
+                Period(LocalTime.of(17, 30), 270, weight = 4),
+            ),
+        )
 
     class Product(
         val product: PosProduct,
@@ -113,18 +149,21 @@ internal object MockCatalog {
                 billPrefix = "LT",
                 traffic = 1.0,
                 deskView = desks("letna"),
+                hours = BAR_HOURS,
             ),
             Place(
                 PosPlace("demo-karlin", "Demo · Bistro Karlín", PosPlaceState.ACTIVE, PosAddress("Demo 2", "Praha", "186 00", "CZ")),
                 billPrefix = "KR",
                 traffic = 0.7,
                 deskView = desks("karlin"),
+                hours = BISTRO_HOURS,
             ),
             Place(
                 PosPlace("demo-oldtown", "Demo · Old Town (closed)", PosPlaceState.DISABLED, PosAddress("Demo 3", "Praha", "110 00", "CZ")),
                 billPrefix = "OT",
                 traffic = 0.0,
                 deskView = desks("oldtown"),
+                hours = BAR_HOURS,
             ),
         )
 
