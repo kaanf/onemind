@@ -24,6 +24,7 @@ class MockPosProviderTests {
     private val clock = MutableClock(now)
     private val provider = MockPosProvider(clock)
     private val letna = PosPlaceRef("demo-merchant", "demo-letna")
+    private val karlin = PosPlaceRef("demo-merchant", "demo-karlin")
     private val czk = Currency.getInstance("CZK")
 
     private fun all(
@@ -92,6 +93,33 @@ class MockPosProviderTests {
         val spring = assertNotNull(inApril.billDetail(letna, "LT20260328900")).bill.paidAt
         assertEquals(LocalTime.of(3, 30), spring.toLocalTime())
         assertNull(inApril.billDetail(letna, "LT20260328901"), "no second offset in spring")
+    }
+
+    @Test
+    fun `the bistro takes breakfast, lunch and dinner from 07_00 and is paid up before the business day ends`() {
+        val bills = all(lastMonth, place = karlin)
+        val sessions = bills.map { it.sessionCreated!!.toLocalTime() }
+        val breakfast = LocalTime.of(7, 0)..LocalTime.of(10, 0)
+        val lunch = LocalTime.of(11, 30)..LocalTime.of(14, 0)
+        val dinner = LocalTime.of(17, 30)..LocalTime.of(22, 0)
+
+        assertTrue(bills.size > 30 * 20)
+        assertTrue(sessions.all { it in breakfast || it in lunch || it in dinner })
+        assertTrue(listOf(breakfast, lunch, dinner).all { period -> sessions.count { it in period } > 100 })
+        assertTrue(bills.all { it.sessionCreated!!.toLocalDate() == it.paidAt.minusHours(5).toLocalDate() })
+        assertTrue(bills.none { it.billId.endsWith("900") || it.billId.endsWith("901") }, "no 02:30 bill")
+        val items = bills.flatMap { provider.billDetail(karlin, it.billId)!!.items }
+        assertTrue(items.flatMap { it.discounts }.none { it.discountType == "HAPPY_HOUR" })
+    }
+
+    @Test
+    fun `in the morning the bistro already has today's bills and the bar has none`() {
+        val morning = Instant.parse("2026-11-20T09:30:00Z") // 10:30 in Prague
+        val today = PosBillQuery(from = Instant.parse("2026-11-20T04:00:00Z")) // the business day from 05:00
+        val atMorning = MockPosProvider(MutableClock(morning))
+
+        assertTrue(all(today, on = atMorning, place = karlin).isNotEmpty())
+        assertTrue(all(today, on = atMorning, place = letna).isEmpty())
     }
 
     @Test

@@ -18,18 +18,16 @@ import java.time.format.DateTimeFormatter
 import java.util.SplittableRandom
 
 /**
- * The bills of one place and night, from 16:00 until before 05:00 (Europe/Prague), seeded by place and
+ * The bills of one place and night, in the place's [MockCatalog.Hours] (a bar from 16:00, a bistro from
+ * 07:00) and paid before 05:00 (Europe/Prague), seeded by place and
  * date: the same night always gives the same bills, whatever was asked before. Times are built from
  * local times (DST gaps move forward, overlaps get both offsets); refunds and deletions happen after
  * payment and only show once the clock has passed them ([GeneratedBill.asOf]).
  */
 internal object MockBillGenerator {
-    private val OPENING = LocalTime.of(16, 0)
-    private const val LAST_SESSION_MINUTE = 630 // 02:30
     private val LAST_PAYMENT = LocalTime.of(4, 55)
     private val FIXED_SESSION = LocalTime.of(1, 45)
     private val FIXED_PAYMENT = LocalTime.of(2, 30)
-    private const val HAPPY_HOUR_MINUTES = 120 // 16:00–18:00
     private val BILL_DATE = DateTimeFormatter.BASIC_ISO_DATE
 
     /** A bill as it ends up; [asOf] gives what the POS shows at a given instant. */
@@ -61,14 +59,18 @@ internal object MockBillGenerator {
         val base = MockCatalog.BILLS_PER_NIGHT.getValue(date.dayOfWeek) * place.traffic
         val count = (base * (0.85 + random.nextDouble() * 0.3)).toInt()
         val lastPayment = date.plusDays(1).atTime(LAST_PAYMENT).atZone(MockCatalog.ZONE)
+        val hours = place.hours
 
         val bills =
             (1..count).map { seq ->
-                val sessionMinute = (random.nextInt(LAST_SESSION_MINUTE + 1) + random.nextInt(LAST_SESSION_MINUTE + 1)) / 2
-                val session = date.atTime(OPENING).plusMinutes(sessionMinute.toLong()).atZone(MockCatalog.ZONE)
+                val period = period(hours, random)
+                val sessionMinute = (random.nextInt(period.minutes + 1) + random.nextInt(period.minutes + 1)) / 2
+                val session = date.atTime(period.opens).plusMinutes(sessionMinute.toLong()).atZone(MockCatalog.ZONE)
                 val paid = minOf(session.plusMinutes(random.nextLong(15, 151)), lastPayment)
-                bill(place, billId(place, date, seq), session, paid, sessionMinute < HAPPY_HOUR_MINUTES, random)
+                val happyHour = period === hours.periods.first() && sessionMinute < hours.happyHourMinutes
+                bill(place, billId(place, date, seq), session, paid, happyHour, random)
             }
+        if (!hours.nightCap) return bills
         // One bill paid at 02:30 every night: on the autumn DST night once per offset, in spring at 03:30.
         val fixedSession = LocalDateTime.of(date.plusDays(1), FIXED_SESSION).atZone(MockCatalog.ZONE)
         val fixedPaid = LocalDateTime.of(date.plusDays(1), FIXED_PAYMENT).atZone(MockCatalog.ZONE)
@@ -77,6 +79,20 @@ internal object MockBillGenerator {
                 bill(place, billId(place, date, 900 + i), fixedSession, paid, happyHour = false, random = random)
             }
         return bills + fixed
+    }
+
+    // A single period draws nothing, so a bar's nights stay what they were before places had hours.
+    private fun period(
+        hours: MockCatalog.Hours,
+        random: SplittableRandom,
+    ): MockCatalog.Period {
+        if (hours.periods.size == 1) return hours.periods.single()
+        var pick = random.nextInt(hours.periods.sumOf { it.weight })
+        for (period in hours.periods) {
+            if (pick < period.weight) return period
+            pick -= period.weight
+        }
+        return hours.periods.last()
     }
 
     fun billId(
