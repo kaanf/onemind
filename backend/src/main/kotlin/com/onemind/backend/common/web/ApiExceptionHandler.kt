@@ -130,7 +130,11 @@ class ApiExceptionHandler(
         statusCode: HttpStatusCode,
         request: WebRequest,
     ): ResponseEntity<Any> {
-        if (body is ProblemDetail) problems.enrich(body)
+        if (body is ProblemDetail) {
+            problems.enrich(body)
+            // Like a DomainException: status and code only (406, 405, unreadable body, …).
+            log.info("Request failed with {} {}", statusCode.value(), body.properties?.get(Problems.CODE))
+        }
         return super.createResponseEntity(body, headers, statusCode, request)
     }
 

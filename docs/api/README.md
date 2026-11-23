@@ -136,6 +136,12 @@ RFC 9457 Problem Details with extension members:
   of or that is disabled, `VENUE_NOT_FOUND`, and resources in it, so they're not revealed),
   `409` conflict (version, state), `422` business rule violation, `426` app too old,
   `429` rate limited.
+- Content types: success bodies are `application/json`, problems `application/problem+json` (a
+  client that accepts only `application/json` may get them labelled so; read both as JSON). Every operation answers a client that
+  sends `Accept: application/json`, also one whose success has no body (`202`/`204`, for example
+  `POST /auth/email/start`, `POST /auth/logout`, `DELETE /me`); the backend drops the generated
+  problem-only `produces` for those (`common/web/BodylessResponseMappingConfig`). `406
+  NOT_ACCEPTABLE` only for an `Accept` that excludes JSON.
 
 ## Updates, concurrency, idempotency
 
