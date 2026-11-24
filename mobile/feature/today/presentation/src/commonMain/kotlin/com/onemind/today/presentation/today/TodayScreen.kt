@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.onemind.core.designsystem.components.AccountButton
@@ -42,6 +43,7 @@ import com.onemind.core.designsystem.components.OneMindListCard
 import com.onemind.core.designsystem.components.OutlineButton
 import com.onemind.core.designsystem.components.PlaceholderScreen
 import com.onemind.core.designsystem.components.StatTile
+import com.onemind.core.designsystem.components.StatTileStyle
 import com.onemind.core.designsystem.components.VenueButton
 import com.onemind.core.designsystem.components.WarningCard
 import com.onemind.core.designsystem.icons.OneMindIcons
@@ -64,9 +66,6 @@ import com.onemind.today.presentation.generated.resources.today_guests
 import com.onemind.today.presentation.generated.resources.today_hourly_description
 import com.onemind.today.presentation.generated.resources.today_hourly_description_no_peak
 import com.onemind.today.presentation.generated.resources.today_loading
-import com.onemind.today.presentation.generated.resources.today_loss_includes
-import com.onemind.today.presentation.generated.resources.today_loss_includes_and_other
-import com.onemind.today.presentation.generated.resources.today_loss_includes_other_only
 import com.onemind.today.presentation.generated.resources.today_no_venue
 import com.onemind.today.presentation.generated.resources.today_not_available_from_pos
 import com.onemind.today.presentation.generated.resources.today_occupancy
@@ -88,15 +87,19 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun TodayRoot(viewModel: TodayViewModel = koinViewModel()) {
+fun TodayRoot(
+    onOpenLosses: () -> Unit,
+    viewModel: TodayViewModel = koinViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    TodayScreen(state = state, onAction = viewModel::onAction)
+    TodayScreen(state = state, onAction = viewModel::onAction, onOpenLosses = onOpenLosses)
 }
 
 @Composable
 fun TodayScreen(
     state: TodayState,
     onAction: (TodayAction) -> Unit,
+    onOpenLosses: () -> Unit = {},
 ) {
     val title = stringResource(Res.string.today_title)
     when (val content = state.content) {
@@ -129,7 +132,13 @@ fun TodayScreen(
         is TodayContent.Ready -> {
             Refreshable(state, onAction) {
                 HeaderRow(state.header)
-                TodayContentColumn(title = title, today = content.today, refreshError = content.refreshError, cached = content.cached)
+                TodayContentColumn(
+                    title = title,
+                    today = content.today,
+                    refreshError = content.refreshError,
+                    cached = content.cached,
+                    onOpenLosses = onOpenLosses,
+                )
             }
         }
     }
@@ -167,6 +176,7 @@ private fun TodayContentColumn(
     today: TodayUi,
     refreshError: UiText?,
     cached: CachedMarker?,
+    onOpenLosses: () -> Unit,
 ) {
     val colors = OneMindTheme.colors
     val type = OneMindTheme.typography
@@ -190,7 +200,7 @@ private fun TodayContentColumn(
     }
     RevenueCard(today)
     LiveFigures(today)
-    PossibleLossRow(today)
+    PossibleLossRow(today, onOpenLosses)
     if (today.dataGaps.isNotEmpty()) {
         WarningCard(
             lead = stringResource(Res.string.today_data_gaps_lead),
@@ -378,10 +388,10 @@ private fun LiveFigures(today: TodayUi) {
             }
         }
         FigureTile(modifier = Modifier.weight(1f)) {
-            StatTile(label = stringResource(Res.string.today_guests), value = today.guests ?: empty)
+            StatTile(label = stringResource(Res.string.today_guests), value = today.guests ?: empty, style = StatTileStyle.Tile)
         }
         FigureTile(modifier = Modifier.weight(1f)) {
-            StatTile(label = stringResource(Res.string.today_per_guest), value = today.perGuest ?: empty)
+            StatTile(label = stringResource(Res.string.today_per_guest), value = today.perGuest ?: empty, style = StatTileStyle.Tile)
         }
     }
 }
@@ -398,35 +408,22 @@ private fun FigureTile(
             modifier
                 .background(OneMindTheme.colors.surface, shape)
                 .border(OneMindTheme.spacing.borderWidth, OneMindTheme.colors.border, shape)
-                .padding(OneMindTheme.spacing.rowGap),
+                .padding(horizontal = OneMindTheme.spacing.pillPadding, vertical = OneMindTheme.spacing.rowGap),
     ) {
         content()
     }
 }
 
 @Composable
-private fun PossibleLossRow(today: TodayUi) {
+private fun PossibleLossRow(
+    today: TodayUi,
+    onOpenLosses: () -> Unit,
+) {
     val colors = OneMindTheme.colors
     val loss = today.possibleLoss
-    val named =
-        loss
-            ?.includes
-            ?.map { stringResource(it.nameRes()) }
-            ?.joinToString(", ")
-            .orEmpty()
-    val meta =
-        when {
-            loss == null -> null
-            loss.includesOther && named.isEmpty() -> stringResource(Res.string.today_loss_includes_other_only)
-            loss.includesOther -> stringResource(Res.string.today_loss_includes_and_other, named)
-            named.isNotEmpty() -> stringResource(Res.string.today_loss_includes, named)
-            else -> null
-        }
-    // 02c Discounts & losses opens from here once it is built.
     OneMindListCard {
         ListRow(
             title = stringResource(Res.string.today_possible_loss),
-            meta = meta,
             leading = {
                 Box(
                     contentAlignment = Alignment.Center,
@@ -445,7 +442,10 @@ private fun PossibleLossRow(today: TodayUi) {
             },
             trailingValue = loss?.total ?: stringResource(Res.string.today_value_empty),
             trailingValueColor = if (loss != null) colors.negativeText else colors.textSecondary,
+            trailingValueWeight = FontWeight.SemiBold,
+            showChevron = true,
             showDivider = false,
+            onClick = onOpenLosses,
         )
     }
 }

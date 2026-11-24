@@ -8,6 +8,7 @@ import com.onemind.sales.domain.SalesPeriod
 import com.onemind.sales.presentation.sales.SalesFixtures.czk
 import com.onemind.sales.presentation.sales.SalesFixtures.shown
 import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.Month
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -19,7 +20,7 @@ class SalesUiTest {
         val ui = SalesFixtures.week.toUi()
 
         assertEquals(shown("312·480_Kč"), ui.revenue)
-        assertEquals(SalesComparisonUi("+8.1%", BadgeTone.Positive, SalesPeriod.WEEK, DayOfWeek.MONDAY), ui.comparison)
+        assertEquals(SalesComparisonUi("+8.1%", BadgeTone.Positive, SalesPeriod.WEEK, DayOfWeek.MONDAY, Month.OCTOBER), ui.comparison)
         assertEquals(shown("1·846"), ui.guests)
         assertEquals(shown("412_Kč"), ui.averageBill)
         assertEquals(shown("169_Kč"), ui.perGuest)
