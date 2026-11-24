@@ -319,6 +319,7 @@ must contain both `node` and `npx`.
 ./gradlew :core:konsist:test                               # architecture, money and clock guards
 ./gradlew :core:api:openApiGenerate                        # regenerate API models after a spec change
 ./gradlew :androidApp:assembleDebug                        # Android dev debug APK (com.onemind.app.dev)
+./gradlew :androidApp:assembleDevDemo                      # release-like dev APK (R8, not debuggable, debug-signed) for demos and frame timing; adb install -r androidApp/build/outputs/apk/dev/demo/androidApp-dev-demo.apk
 ./gradlew -Ponemind.environment=prod :androidApp:assembleRelease  # Android prod release (R8); unsigned without ONEMIND_* signing values
 ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64  # iOS framework (shared code compiles for iOS)
 

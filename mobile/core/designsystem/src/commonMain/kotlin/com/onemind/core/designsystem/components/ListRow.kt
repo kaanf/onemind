@@ -37,6 +37,8 @@ fun ListRow(
     trailingMeta: String? = null,
     trailingValueColor: Color = OneMindTheme.colors.textPrimary,
     trailingValueWeight: FontWeight = FontWeight.Medium,
+    /** Drawn in place of [trailingValue] (a skeleton while loading). */
+    trailingContent: (@Composable () -> Unit)? = null,
     showChevron: Boolean = false,
     showDivider: Boolean = true,
     minHeight: Dp = 56.dp,
@@ -67,6 +69,7 @@ fun ListRow(
                 )
                 if (meta != null) Text(text = meta, style = type.caption, color = colors.textSecondary)
             }
+            trailingContent?.invoke()
             if (trailingValue != null) {
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
