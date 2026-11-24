@@ -12,6 +12,7 @@ import com.onemind.core.domain.venue.VenueScopeRepository
 import com.onemind.core.domain.venue.venueIds
 import com.onemind.core.presentation.format.formatClockTime
 import com.onemind.core.presentation.util.UiText
+import com.onemind.core.presentation.util.awaitWithCachedFallback
 import com.onemind.core.presentation.util.toUiText
 import com.onemind.today.domain.CachedToday
 import com.onemind.today.domain.TodayErrorCodes
@@ -108,13 +109,21 @@ class TodayViewModel(
     private fun poll(venueIds: List<String>): Flow<TodayContent> =
         flow {
             emit(TodayContent.Loading)
-            // ADR 0006: the figures saved on the device show at once, always with their age.
+            // ADR 0006 §1: skeletons until the first answer; the figures saved on the device (always with
+            // their age) only when it fails, or when it takes longer than CachedFallbackDelay.
             val cached = repository.cachedToday(venueIds)
-            if (cached != null) emit(cached.content(offline = false, error = null))
             var summary: TodaySummary? = null
+            var first = true
             while (true) {
                 var failure: DataError? = null
-                when (val result = repository.getToday(venueIds)) {
+                val result =
+                    if (first && cached != null) {
+                        awaitWithCachedFallback({ repository.getToday(venueIds) }) { emit(cached.content(offline = false, error = null)) }
+                    } else {
+                        repository.getToday(venueIds)
+                    }
+                first = false
+                when (result) {
                     is Result.Success -> summary = result.data
                     is Result.Failure -> failure = result.error
                 }

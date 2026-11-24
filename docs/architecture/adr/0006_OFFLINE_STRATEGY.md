@@ -1,6 +1,6 @@
 # 0006 · Read-only offline cache, offline stock counting
 
-- **Status:** Accepted (local storage amended by [ADR 0011](0011_MOBILE_ARCHITECTURE.md))
+- **Status:** Accepted (local storage amended by [ADR 0011](0011_MOBILE_ARCHITECTURE.md); §1 loading amended 2026-11-24)
 - **Date:** 2026-11-20
 - **Deciders:** Kaan
 
@@ -17,8 +17,14 @@ invoice, sending an order, chatting) need the server anyway.
 
 - The last successful response of each screen is stored locally, keyed by venue + endpoint +
   parameters.
-- On launch or without a network, the screen shows cached data at once, with a
-  *"Last updated 21:40 · offline"* banner, and refreshes when online.
+- When a screen opens (or its venue scope or period changes), it shows its loaded layout with
+  skeletons in the value slots and asks the server. Cached data is shown only when that request fails
+  (*"Last updated 21:40 · offline"* after a network failure), or when it has not answered within
+  **5 seconds** (`CachedFallbackDelay`, *"Last updated 21:40"*); the request keeps going and its
+  answer replaces the cached data. Without cached data the skeletons stay until the answer or the error.
+  *Amended 2026-11-24 (owner):* this replaces "shows cached data at once, then refreshes", because old
+  figures jumping to new ones on every open read as wrong numbers.
+- Background polls and pull-to-refresh keep the figures on screen while they run (no skeletons).
 - Cached data is never edited locally. The server is always the truth.
 - The cache is cleared on logout and when switching accounts.
 

@@ -11,6 +11,7 @@ import com.onemind.core.domain.venue.VenueScopeRepository
 import com.onemind.core.domain.venue.venueIds
 import com.onemind.core.presentation.format.formatClockTime
 import com.onemind.core.presentation.util.UiText
+import com.onemind.core.presentation.util.awaitWithCachedFallback
 import com.onemind.core.presentation.util.toUiText
 import com.onemind.sales.domain.CachedSales
 import com.onemind.sales.domain.SalesErrorCodes
@@ -39,7 +40,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * 02 Sales. Polls `GET /dashboard/sales` for the selected venue scope and period only while the screen
  * collects [state] (visible and in the foreground, ADR 0005), every [SalesPollInterval]. Changing the
  * period starts a new poll. A failed poll keeps the last figures with a note; cached figures (ADR 0006)
- * show at once with their age; a failed first load without them shows the error.
+ * show with their age when the first load fails or is slow; a failed first load without them shows the error.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SalesViewModel(
@@ -111,12 +112,22 @@ class SalesViewModel(
     ): Flow<SalesContent> =
         flow {
             emit(SalesContent.Loading)
+            // ADR 0006 §1: skeletons until the first answer; cached figures only after a failure or a slow answer.
             val cached = repository.cachedSales(venueIds, period)
-            if (cached != null) emit(cached.content(offline = false, error = null))
             var summary: SalesSummary? = null
+            var first = true
             while (true) {
                 var failure: DataError? = null
-                when (val result = repository.getSales(venueIds, period)) {
+                val result =
+                    if (first && cached != null) {
+                        awaitWithCachedFallback(
+                            { repository.getSales(venueIds, period) },
+                        ) { emit(cached.content(offline = false, error = null)) }
+                    } else {
+                        repository.getSales(venueIds, period)
+                    }
+                first = false
+                when (result) {
                     is Result.Success -> summary = result.data
                     is Result.Failure -> failure = result.error
                 }

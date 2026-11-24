@@ -25,7 +25,8 @@ import com.onemind.core.designsystem.theme.OneMindTheme
 
 /**
  * Detail screen top bar: 56 high, 44 × 44 back button, title 17/600 and optional subtitle 12.
- * [backContentDescription] names the destination (*Back to Sales*).
+ * [backContentDescription] names the destination (*Back to Sales*). [subtitleLoading] shimmers the
+ * subtitle's line while its value loads, so the title doesn't move when it arrives.
  */
 @Composable
 fun DetailTopBar(
@@ -34,6 +35,7 @@ fun DetailTopBar(
     backContentDescription: String,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    subtitleLoading: Boolean = false,
 ) {
     val colors = OneMindTheme.colors
     Row(
@@ -55,9 +57,14 @@ fun DetailTopBar(
         }
         Column {
             Text(text = title, style = OneMindTheme.typography.headline, color = colors.textPrimary, maxLines = 1)
-            if (subtitle != null) {
+            if (subtitleLoading) {
+                OneMindSkeletonText(OneMindTheme.typography.caption, width = SUBTITLE_SKELETON)
+            } else if (subtitle != null) {
                 Text(text = subtitle, style = OneMindTheme.typography.caption, color = colors.textSecondary, maxLines = 1)
             }
         }
     }
 }
+
+/** About a date range's width (*2 to 8 Nov*). */
+private val SUBTITLE_SKELETON = 72.dp

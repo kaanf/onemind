@@ -11,6 +11,7 @@ import com.onemind.core.domain.venue.VenueList
 import com.onemind.core.domain.venue.VenueRepository
 import com.onemind.core.domain.venue.VenueScope
 import com.onemind.core.domain.venue.VenueScopeRepository
+import com.onemind.core.presentation.util.CachedFallbackDelay
 import com.onemind.core.presentation.util.UiText
 import com.onemind.sales.domain.CachedSales
 import com.onemind.sales.domain.SalesErrorCodes
@@ -23,6 +24,7 @@ import com.onemind.sales.presentation.sales.SalesFixtures.VENUE_A
 import com.onemind.sales.presentation.sales.SalesFixtures.VENUE_B
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -38,6 +40,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -80,12 +83,14 @@ class SalesViewModelTest {
         val results = ArrayDeque<Result<SalesSummary, DataError>>()
         var fallback: Result<SalesSummary, DataError> = Result.Success(SalesFixtures.week)
         var cached: CachedSales? = null
+        var answerDelay: Duration = Duration.ZERO
 
         override suspend fun getSales(
             venueIds: List<String>,
             period: SalesPeriod,
         ): Result<SalesSummary, DataError> {
             calls += venueIds to period
+            delay(answerDelay)
             return results.removeFirstOrNull() ?: fallback
         }
 
@@ -214,7 +219,7 @@ class SalesViewModelTest {
         }
 
     @Test
-    fun cachedFiguresShowWithTheirAgeAndOfflineAfterANetworkFailure() =
+    fun offlineTheCachedFiguresShowWithTheirAgeMarkedOffline() =
         runTest(dispatcher) {
             val repository =
                 FakeRepository().apply {
@@ -223,11 +228,59 @@ class SalesViewModelTest {
                 }
 
             viewModel(repository).state.test {
-                val first = assertIs<SalesContent.Ready>(awaitReady().content)
-                assertEquals(SalesCachedMarker(time = "21:40", offline = false), first.cached)
-                val second = assertIs<SalesContent.Ready>(awaitReady().content)
-                assertEquals(SalesCachedMarker(time = "21:40", offline = true), second.cached)
-                assertNull(second.refreshError)
+                // Skeletons until the request fails, then the cached figures: never shown as if fresh.
+                val offline = assertIs<SalesContent.Ready>(awaitReady().content)
+                assertEquals(SalesCachedMarker(time = "21:40", offline = true), offline.cached)
+                assertNull(offline.refreshError)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun withCachedFiguresAFastAnswerShowsOnlyTheFreshOnes() =
+        runTest(dispatcher) {
+            val repository =
+                FakeRepository().apply {
+                    cached = CachedSales(SalesFixtures.week, Instant.parse("2026-11-06T20:40:00Z"))
+                    answerDelay = CachedFallbackDelay - 1.seconds
+                }
+
+            viewModel(repository).state.test {
+                assertNull(assertIs<SalesContent.Ready>(awaitReady().content).cached)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun aSlowAnswerShowsTheCachedFiguresAfterTheDelayThenTheFreshOnes() =
+        runTest(dispatcher) {
+            val repository =
+                FakeRepository().apply {
+                    cached = CachedSales(SalesFixtures.week, Instant.parse("2026-11-06T20:40:00Z"))
+                    answerDelay = 8.seconds
+                }
+
+            viewModel(repository).state.test {
+                val cached = assertIs<SalesContent.Ready>(awaitReady().content)
+                assertEquals(CachedFallbackDelay.inWholeMilliseconds, testScheduler.currentTime)
+                assertEquals(SalesCachedMarker(time = "21:40", offline = false), cached.cached)
+
+                val fresh = assertIs<SalesContent.Ready>(awaitReady().content)
+                assertEquals(8.seconds.inWholeMilliseconds, testScheduler.currentTime)
+                assertNull(fresh.cached)
+                assertEquals(1, repository.calls.size)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun aSlowAnswerWithoutCachedFiguresKeepsTheSkeletons() =
+        runTest(dispatcher) {
+            val repository = FakeRepository().apply { answerDelay = 8.seconds }
+
+            viewModel(repository).state.test {
+                awaitReady()
+                assertEquals(8.seconds.inWholeMilliseconds, testScheduler.currentTime)
                 cancelAndIgnoreRemainingEvents()
             }
         }

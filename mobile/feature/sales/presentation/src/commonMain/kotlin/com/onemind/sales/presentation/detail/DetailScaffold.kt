@@ -48,6 +48,7 @@ import org.jetbrains.compose.resources.stringResource
 internal fun DetailScaffold(
     title: String,
     subtitle: String?,
+    subtitleLoading: Boolean = false,
     onBack: () -> Unit,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
@@ -58,6 +59,7 @@ internal fun DetailScaffold(
         DetailTopBar(
             title = title,
             subtitle = subtitle,
+            subtitleLoading = subtitleLoading,
             onBack = onBack,
             backContentDescription = stringResource(Res.string.sales_detail_back),
         )
@@ -89,6 +91,7 @@ internal fun DetailScaffold(
 internal fun DetailLazyScaffold(
     title: String,
     subtitle: String?,
+    subtitleLoading: Boolean = false,
     onBack: () -> Unit,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
@@ -99,6 +102,7 @@ internal fun DetailLazyScaffold(
         DetailTopBar(
             title = title,
             subtitle = subtitle,
+            subtitleLoading = subtitleLoading,
             onBack = onBack,
             backContentDescription = stringResource(Res.string.sales_detail_back),
         )

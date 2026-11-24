@@ -17,7 +17,7 @@ import com.onemind.core.designsystem.components.OneMindSkeleton
 import com.onemind.core.designsystem.theme.OneMindTheme
 
 /**
- * One skeleton block of the loading layout (no figure, no 0: rule 2), the shared pulsing
+ * One skeleton block of the loading layout (no figure, no 0: rule 2), the shared shimmering
  * [OneMindSkeleton]; sized by the caller, mostly as shares of a slot.
  */
 @Composable

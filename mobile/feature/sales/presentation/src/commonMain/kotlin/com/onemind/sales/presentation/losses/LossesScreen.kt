@@ -17,14 +17,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -42,9 +46,13 @@ import com.onemind.sales.domain.losses.LossesPeriod
 import com.onemind.sales.domain.losses.UnavailableLossComponent
 import com.onemind.sales.presentation.detail.DetailMessage
 import com.onemind.sales.presentation.detail.DetailScaffold
+import com.onemind.sales.presentation.detail.SkeletonBlock
+import com.onemind.sales.presentation.detail.SkeletonLine
 import com.onemind.sales.presentation.detail.dateRange
+import com.onemind.sales.presentation.detail.lineHeightDp
 import com.onemind.sales.presentation.generated.resources.Res
 import com.onemind.sales.presentation.generated.resources.sales_detail_data_gaps
+import com.onemind.sales.presentation.generated.resources.sales_detail_loading
 import com.onemind.sales.presentation.generated.resources.sales_detail_no_data_yet
 import com.onemind.sales.presentation.generated.resources.sales_detail_no_venue
 import com.onemind.sales.presentation.generated.resources.sales_detail_venues_syncing
@@ -71,6 +79,7 @@ import com.onemind.sales.presentation.generated.resources.sales_losses_unavailab
 import com.onemind.sales.presentation.generated.resources.sales_losses_unavailable_lead
 import com.onemind.sales.presentation.generated.resources.sales_losses_unavailable_stock_corrections
 import com.onemind.sales.presentation.generated.resources.sales_losses_unavailable_unpaid_closed
+import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -94,22 +103,38 @@ fun LossesScreen(
     DetailScaffold(
         title = stringResource(Res.string.sales_losses_title),
         subtitle = ready?.losses?.let { dateRange(it.from, it.to) },
+        subtitleLoading = state.content == LossesContent.Loading,
         onBack = onBack,
         isRefreshing = state.isRefreshing,
         onRefresh = { onAction(LossesAction.Refresh) },
     ) {
         // The canvas has no period control: 02c shows the week (*2 to 8 Nov*), the ViewModel's default.
-        // Skeleton → content (and back) crossfades in place; a refresh of the same state doesn't animate.
+        // Loading and figures are one layout: the cards stay and only their value slots shimmer, so nothing
+        // moves when the answer arrives. Messages crossfade in place; a refresh of the same state doesn't animate.
         AnimatedContent(
             targetState = state.content,
             transitionSpec = { (fadeIn(OneMindMotion.medium()) togetherWith fadeOut(OneMindMotion.medium())).using(null) },
-            contentKey = { it::class },
+            contentKey = { if (it is LossesContent.Loading || it is LossesContent.Ready) LossesContent.Ready::class else it::class },
             label = "losses",
         ) { content ->
-            Column(verticalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.sectionGapTight)) {
+            val loadingDescription = stringResource(Res.string.sales_detail_loading)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.sectionGapTight),
+                modifier =
+                    if (content ==
+                        LossesContent.Loading
+                    ) {
+                        Modifier.semantics { contentDescription = loadingDescription }
+                    } else {
+                        Modifier
+                    },
+            ) {
                 when (content) {
-                    LossesContent.Loading -> {
-                        LossesSkeleton()
+                    LossesContent.Loading, is LossesContent.Ready -> {
+                        val ready = content as? LossesContent.Ready
+                        CompositionLocalProvider(LocalLoading provides (ready == null)) {
+                            LossesContentColumn(ready ?: LossesContent.Ready(LoadingLosses))
+                        }
                     }
 
                     LossesContent.NoVenue -> {
@@ -122,10 +147,6 @@ fun LossesScreen(
                             isError = true,
                             onRetry = { onAction(LossesAction.Refresh) },
                         )
-                    }
-
-                    is LossesContent.Ready -> {
-                        LossesContentColumn(content)
                     }
                 }
             }
@@ -180,7 +201,17 @@ private fun Hero(losses: LossesUi) {
         Column(verticalArrangement = Arrangement.spacedBy(spacing.sectionGapTight)) {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.heroGap)) {
                 Text(text = stringResource(Res.string.sales_losses_possible_loss), style = type.overline, color = colors.textSecondary)
-                losses.possibleLoss?.let {
+                if (LocalLoading.current) {
+                    SkeletonLine(type.display, widthFraction = SKELETON_HERO_FIGURE)
+                    // The change badge (a caption line plus DeltaBadge's 3 above and below, heroGap = 6) beside the records line.
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.textGap), verticalAlignment = Alignment.CenterVertically) {
+                        SkeletonBlock(Modifier.weight(SKELETON_BADGE).height(type.caption.lineHeightDp() + spacing.heroGap))
+                        Box(
+                            modifier = Modifier.weight(1f - SKELETON_BADGE),
+                        ) { SkeletonLine(type.caption, widthFraction = SKELETON_RECORDS_LINE) }
+                    }
+                }
+                losses.possibleLoss?.takeUnless { LocalLoading.current }?.let {
                     Text(text = it, style = type.display, color = colors.textPrimary, modifier = Modifier.semantics { heading() })
                 }
                 val meta =
@@ -188,7 +219,7 @@ private fun Hero(losses: LossesUi) {
                         losses.records?.let { pluralStringResource(Res.plurals.sales_losses_records, it, it.toString()) },
                         losses.sharePercent?.let { stringResource(Res.string.sales_losses_share, it) },
                     ).joinToString(" · ")
-                if (losses.change != null || meta.isNotEmpty()) {
+                if (!LocalLoading.current && (losses.change != null || meta.isNotEmpty())) {
                     // One row as on the canvas; on a narrow screen the records line moves under the badge whole.
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(spacing.textGap),
@@ -237,9 +268,13 @@ private fun ChangeBadge(
 /** One segment per component, as wide as its share of the possible loss, in the by-type colours. */
 @Composable
 private fun ShareBar(rows: List<LossRow>) {
+    val shape = RoundedCornerShape(OneMindTheme.radius.shareBar)
+    if (LocalLoading.current) {
+        SkeletonBlock(Modifier.fillMaxWidth().height(OneMindTheme.spacing.shareBarHeight), shape)
+        return
+    }
     val segments = rows.mapNotNull { row -> row.shareFraction?.takeIf { it > 0f }?.let { row.kind to it } }
     if (segments.isEmpty()) return
-    val shape = RoundedCornerShape(OneMindTheme.radius.shareBar)
     Row(
         horizontalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.shareBarGap),
         modifier = Modifier.fillMaxWidth().height(OneMindTheme.spacing.shareBarHeight),
@@ -334,9 +369,16 @@ private fun LossTypeRow(
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.hairlineGap)) {
                 Text(text = name, style = type.body.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary)
-                meta?.let { Text(text = it, style = type.caption, color = colors.textSecondary) }
+                when {
+                    LocalLoading.current -> SkeletonLine(type.caption, widthFraction = SKELETON_ROW_META)
+                    meta != null -> Text(text = meta, style = type.caption, color = colors.textSecondary)
+                }
             }
-            Text(text = amount, style = type.body.copy(fontWeight = FontWeight.Medium), color = colors.textPrimary)
+            if (LocalLoading.current) {
+                Box(modifier = Modifier.width(spacing.rowHeightTall)) { SkeletonLine(type.body, widthFraction = 1f) }
+            } else {
+                Text(text = amount, style = type.body.copy(fontWeight = FontWeight.Medium), color = colors.textPrimary)
+            }
         }
         if (showDivider) {
             HorizontalDivider(
@@ -372,6 +414,33 @@ private fun UnavailableLossComponent.text(): String =
             UnavailableLossComponent.STOCK_CORRECTIONS -> Res.string.sales_losses_unavailable_stock_corrections
         },
     )
+
+/** Set while 02c loads: the cards draw skeletons in their value slots (no figure, no 0: rule 2). */
+private val LocalLoading = staticCompositionLocalOf { false }
+
+/** The layout 02c loads into: the three by-type rows with their real names; its values are never drawn. */
+private val LoadingLosses =
+    LossesUi(
+        period = LossesPeriod.WEEK,
+        from = LocalDate(1970, 1, 1),
+        to = LocalDate(1970, 1, 1),
+        hasData = true,
+        pendingVenueCount = 0,
+        possibleLoss = "",
+        change = null,
+        records = null,
+        sharePercent = null,
+        rows = LossRowKind.entries.map { LossRow(it, records = null, amount = "") },
+        discountTypes = emptyList(),
+        unavailable = emptyList(),
+        hasDataGaps = false,
+    )
+
+// Skeleton widths as shares of their slot; drawing only.
+private const val SKELETON_HERO_FIGURE = 0.5f
+private const val SKELETON_BADGE = 0.45f
+private const val SKELETON_RECORDS_LINE = 0.6f
+private const val SKELETON_ROW_META = 0.7f
 
 @Preview
 @Composable

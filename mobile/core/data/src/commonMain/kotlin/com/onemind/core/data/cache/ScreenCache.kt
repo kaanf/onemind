@@ -4,7 +4,7 @@ import kotlin.time.Instant
 
 /**
  * The read cache of ADR 0006: the last successful answer of each screen, so a screen can show its
- * figures at once on launch or offline, always with their age. It holds API bodies as sent (raw JSON),
+ * figures when its first request fails or is slow (offline), always with their age. It holds API bodies as sent (raw JSON),
  * never edited locally; the server stays the truth. Account data: cleared on sign-out.
  */
 interface ScreenCache {
