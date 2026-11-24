@@ -1,23 +1,33 @@
 package com.onemind.sales.presentation.losses
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.onemind.core.designsystem.components.BadgeTone
 import com.onemind.core.designsystem.components.DeltaBadge
-import com.onemind.core.designsystem.components.ListRow
 import com.onemind.core.designsystem.components.OneMindCard
 import com.onemind.core.designsystem.components.OneMindListCard
-import com.onemind.core.designsystem.components.SegmentedTabs
 import com.onemind.core.designsystem.components.WarningCard
 import com.onemind.core.designsystem.theme.OneMindTheme
 import com.onemind.core.presentation.util.UiText
@@ -32,7 +42,6 @@ import com.onemind.sales.presentation.generated.resources.sales_detail_data_gaps
 import com.onemind.sales.presentation.generated.resources.sales_detail_no_data_yet
 import com.onemind.sales.presentation.generated.resources.sales_detail_no_venue
 import com.onemind.sales.presentation.generated.resources.sales_detail_venues_syncing
-import com.onemind.sales.presentation.generated.resources.sales_losses_by_type
 import com.onemind.sales.presentation.generated.resources.sales_losses_change_vs_day
 import com.onemind.sales.presentation.generated.resources.sales_losses_change_vs_month
 import com.onemind.sales.presentation.generated.resources.sales_losses_change_vs_week
@@ -45,9 +54,6 @@ import com.onemind.sales.presentation.generated.resources.sales_losses_discounts
 import com.onemind.sales.presentation.generated.resources.sales_losses_discounts_meta
 import com.onemind.sales.presentation.generated.resources.sales_losses_empty
 import com.onemind.sales.presentation.generated.resources.sales_losses_meta_count
-import com.onemind.sales.presentation.generated.resources.sales_losses_period_day
-import com.onemind.sales.presentation.generated.resources.sales_losses_period_month
-import com.onemind.sales.presentation.generated.resources.sales_losses_period_week
 import com.onemind.sales.presentation.generated.resources.sales_losses_possible_loss
 import com.onemind.sales.presentation.generated.resources.sales_losses_records
 import com.onemind.sales.presentation.generated.resources.sales_losses_refunds
@@ -86,7 +92,7 @@ fun LossesScreen(
         isRefreshing = state.isRefreshing,
         onRefresh = { onAction(LossesAction.Refresh) },
     ) {
-        PeriodTabs(state.period) { onAction(LossesAction.SelectPeriod(it)) }
+        // The canvas has no period control: 02c shows the week (*2 to 8 Nov*), the ViewModel's default.
         when (val content = state.content) {
             LossesContent.Loading -> {
                 DetailLoading()
@@ -109,26 +115,6 @@ fun LossesScreen(
             }
         }
     }
-}
-
-@Composable
-private fun PeriodTabs(
-    selected: LossesPeriod,
-    onSelect: (LossesPeriod) -> Unit,
-) {
-    val periods = LossesPeriod.entries
-    SegmentedTabs(
-        options =
-            periods.map {
-                when (it) {
-                    LossesPeriod.DAY -> stringResource(Res.string.sales_losses_period_day)
-                    LossesPeriod.WEEK -> stringResource(Res.string.sales_losses_period_week)
-                    LossesPeriod.MONTH -> stringResource(Res.string.sales_losses_period_month)
-                }
-            },
-        selectedIndex = periods.indexOf(selected),
-        onSelect = { onSelect(periods[it]) },
-    )
 }
 
 @Composable
@@ -167,46 +153,80 @@ private fun LossesContentColumn(content: LossesContent.Ready) {
     }
 }
 
+/** POSSIBLE LOSS card: overline, 36 figure, change badge beside the records line, then the stacked share bar. */
 @Composable
 private fun Hero(losses: LossesUi) {
     val colors = OneMindTheme.colors
     val type = OneMindTheme.typography
-    OneMindCard {
-        Column(verticalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.textGap)) {
-            Text(text = stringResource(Res.string.sales_losses_possible_loss), style = type.overline, color = colors.textSecondary)
-            losses.possibleLoss?.let {
-                Text(text = it, style = type.displayLarge, color = colors.textPrimary, modifier = Modifier.semantics { heading() })
-            }
-            losses.change?.let { change ->
-                val text =
-                    when (losses.period) {
-                        LossesPeriod.DAY -> stringResource(Res.string.sales_losses_change_vs_day, change.points)
-                        LossesPeriod.WEEK -> stringResource(Res.string.sales_losses_change_vs_week, change.points)
-                        LossesPeriod.MONTH -> stringResource(Res.string.sales_losses_change_vs_month, change.points)
+    val spacing = OneMindTheme.spacing
+    OneMindCard(modifier = Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.sectionGapTight)) {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.heroGap)) {
+                Text(text = stringResource(Res.string.sales_losses_possible_loss), style = type.overline, color = colors.textSecondary)
+                losses.possibleLoss?.let {
+                    Text(text = it, style = type.display, color = colors.textPrimary, modifier = Modifier.semantics { heading() })
+                }
+                val meta =
+                    listOfNotNull(
+                        losses.records?.let { pluralStringResource(Res.plurals.sales_losses_records, it, it.toString()) },
+                        losses.sharePercent?.let { stringResource(Res.string.sales_losses_share, it) },
+                    ).joinToString(" · ")
+                if (losses.change != null || meta.isNotEmpty()) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(spacing.textGap),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        losses.change?.let { ChangeBadge(losses.period, it) }
+                        if (meta.isNotEmpty()) Text(text = meta, style = type.caption, color = colors.textSecondary)
                     }
-                // A higher loss share is bad news.
-                val tone =
-                    when (change.direction) {
-                        LossChange.Direction.UP -> BadgeTone.Negative
-                        LossChange.Direction.DOWN -> BadgeTone.Positive
-                        LossChange.Direction.FLAT -> BadgeTone.Neutral
-                    }
-                DeltaBadge(text = text, tone = tone)
+                }
             }
-            val meta =
-                listOfNotNull(
-                    losses.records?.let { pluralStringResource(Res.plurals.sales_losses_records, it, it.toString()) },
-                    losses.sharePercent?.let { stringResource(Res.string.sales_losses_share, it) },
-                ).joinToString(" · ")
-            if (meta.isNotEmpty()) Text(text = meta, style = type.caption, color = colors.textSecondary)
+            ShareBar(losses.rows)
         }
     }
 }
 
 @Composable
+private fun ChangeBadge(
+    period: LossesPeriod,
+    change: LossChange,
+) {
+    val text =
+        when (period) {
+            LossesPeriod.DAY -> stringResource(Res.string.sales_losses_change_vs_day, change.points)
+            LossesPeriod.WEEK -> stringResource(Res.string.sales_losses_change_vs_week, change.points)
+            LossesPeriod.MONTH -> stringResource(Res.string.sales_losses_change_vs_month, change.points)
+        }
+    // A higher loss share is bad news.
+    val tone =
+        when (change.direction) {
+            LossChange.Direction.UP -> BadgeTone.Negative
+            LossChange.Direction.DOWN -> BadgeTone.Positive
+            LossChange.Direction.FLAT -> BadgeTone.Neutral
+        }
+    DeltaBadge(text = text, tone = tone)
+}
+
+/** One segment per component, as wide as its share of the possible loss, in the by-type colours. */
+@Composable
+private fun ShareBar(rows: List<LossRow>) {
+    val segments = rows.mapNotNull { row -> row.shareFraction?.takeIf { it > 0f }?.let { row.kind to it } }
+    if (segments.isEmpty()) return
+    val shape = RoundedCornerShape(OneMindTheme.radius.shareBar)
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.shareBarGap),
+        modifier = Modifier.fillMaxWidth().height(OneMindTheme.spacing.shareBarHeight),
+    ) {
+        segments.forEach { (kind, fraction) ->
+            Box(modifier = Modifier.weight(fraction).fillMaxHeight().background(kind.color(), shape))
+        }
+    }
+}
+
+/** By type: swatch, name, meta with count, amount (no section title, as on the canvas). */
+@Composable
 private fun ByType(rows: List<LossRow>) {
     if (rows.isEmpty()) return
-    SectionTitle(stringResource(Res.string.sales_losses_by_type))
     OneMindListCard {
         rows.forEachIndexed { index, row ->
             val (title, meta) =
@@ -215,21 +235,29 @@ private fun ByType(rows: List<LossRow>) {
                     LossRowKind.DELETED_BILLS -> Res.string.sales_losses_deleted_bills to Res.string.sales_losses_deleted_bills_meta
                     LossRowKind.REFUNDS -> Res.string.sales_losses_refunds to Res.string.sales_losses_refunds_meta
                 }
-            ListRow(
-                title = stringResource(title),
+            LossTypeRow(
+                swatch = row.kind.color(),
+                name = stringResource(title),
                 meta = withCount(stringResource(meta), row.records),
-                trailingValue = row.amount,
+                amount = row.amount,
                 showDivider = index < rows.lastIndex,
             )
         }
     }
 }
 
+/** Discounts by POS type, in the canvas's titled-card style (header 15/600, rows like By type). */
 @Composable
 private fun DiscountTypes(rows: List<DiscountRow>) {
     if (rows.isEmpty()) return
-    SectionTitle(stringResource(Res.string.sales_losses_discount_types))
+    val colors = OneMindTheme.colors
     OneMindListCard {
+        Text(
+            text = stringResource(Res.string.sales_losses_discount_types),
+            style = OneMindTheme.typography.body.copy(fontWeight = FontWeight.SemiBold),
+            color = colors.textPrimary,
+            modifier = Modifier.padding(top = OneMindTheme.spacing.cardPaddingCompact).semantics { heading() },
+        )
         rows.forEachIndexed { index, row ->
             val name =
                 when (val n = row.name) {
@@ -237,36 +265,62 @@ private fun DiscountTypes(rows: List<DiscountRow>) {
                     DiscountName.Unspecified -> stringResource(Res.string.sales_losses_discount_unspecified)
                     is DiscountName.Pos -> n.name
                 }
-            ListRow(
-                title = name,
+            LossTypeRow(
+                swatch = null,
+                name = name,
                 meta = row.records?.let { pluralStringResource(Res.plurals.sales_losses_records, it, it.toString()) },
-                trailingValue = row.amount,
+                amount = row.amount,
                 showDivider = index < rows.lastIndex,
             )
         }
     }
 }
 
+/** A by-type row: 60 high, 10 × 10 swatch, name 15/600 over meta 12, amount 15/500, divider. */
+@Composable
+private fun LossTypeRow(
+    swatch: Color?,
+    name: String,
+    meta: String?,
+    amount: String,
+    showDivider: Boolean,
+) {
+    val colors = OneMindTheme.colors
+    val type = OneMindTheme.typography
+    val spacing = OneMindTheme.spacing
+    Column {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(spacing.rowGap),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().heightIn(min = spacing.rowHeightTall),
+        ) {
+            if (swatch != null) {
+                Box(modifier = Modifier.size(spacing.swatch).background(swatch, RoundedCornerShape(OneMindTheme.radius.swatch)))
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.hairlineGap)) {
+                Text(text = name, style = type.body.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary)
+                meta?.let { Text(text = it, style = type.caption, color = colors.textSecondary) }
+            }
+            Text(text = amount, style = type.body.copy(fontWeight = FontWeight.Medium), color = colors.textPrimary)
+        }
+        if (showDivider) HorizontalDivider(thickness = spacing.borderWidth, color = colors.divider)
+    }
+}
+
+/** Swatch colours of the canvas: discounts accent, deleted dark, refunds grey (unpaid red is not in the API yet). */
+@Composable
+private fun LossRowKind.color(): Color =
+    when (this) {
+        LossRowKind.DISCOUNTS -> OneMindTheme.colors.accent
+        LossRowKind.DELETED_BILLS -> OneMindTheme.colors.textPrimary
+        LossRowKind.REFUNDS -> OneMindTheme.colors.iconMuted
+    }
+
 @Composable
 private fun withCount(
     meta: String,
     records: Int?,
 ): String = records?.let { stringResource(Res.string.sales_losses_meta_count, meta, it.toString()) } ?: meta
-
-@Composable
-private fun SectionTitle(text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = text,
-            style = OneMindTheme.typography.headline,
-            color = OneMindTheme.colors.textPrimary,
-            modifier =
-                Modifier.semantics {
-                    heading()
-                },
-        )
-    }
-}
 
 @Composable
 private fun UnavailableLossComponent.text(): String =

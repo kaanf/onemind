@@ -1,5 +1,6 @@
 package com.onemind.sales.presentation.products
 
+import com.onemind.sales.domain.products.ProductCategory
 import com.onemind.sales.presentation.VENUE_A
 import com.onemind.sales.presentation.VENUE_B
 import com.onemind.sales.presentation.products.ProductsFixtures.ready
@@ -16,10 +17,10 @@ class ProductsUiTest {
     fun chipsAreTopLevelCategoriesWithProducts() {
         val ui = ready.toUi(names)
 
-        assertEquals(listOf(CategoryChip("beer", "Beer"), CategoryChip("cocktails", "Cocktails")), ui.chips)
-        assertEquals("beer", ui.products[0].rootCategoryId)
+        assertEquals(listOf(CategoryChip("Beer", "Beer"), CategoryChip("Cocktails", "Cocktails")), ui.chips)
+        assertEquals("Beer", ui.products[0].rootCategory)
         assertEquals("Lager", ui.products[0].categoryName)
-        assertNull(ui.products[2].rootCategoryId)
+        assertNull(ui.products[2].rootCategory)
     }
 
     @Test
@@ -41,10 +42,24 @@ class ProductsUiTest {
     }
 
     @Test
+    fun theSameCategoryNameInTwoVenuesIsOneChip() {
+        val summary =
+            twoVenues.copy(
+                categories = twoVenues.categories + ProductCategory("beer-b", "Beer", null) + ProductCategory("lager-b", "Lager", "beer-b"),
+                products = listOf(ProductsFixtures.pilsner, ProductsFixtures.pilsner.copy(venueId = VENUE_B, categoryId = "lager-b")),
+            )
+
+        val ui = summary.toUi(names)
+
+        assertEquals(listOf(CategoryChip("Beer", "Beer")), ui.chips)
+        assertEquals(2, ui.visibleProducts("Beer").size)
+    }
+
+    @Test
     fun aChipFiltersOnTheDevice() {
         val ui = ready.toUi(names)
 
-        assertEquals(listOf("Pilsner"), ui.visibleProducts("beer").map { it.name })
+        assertEquals(listOf("Pilsner"), ui.visibleProducts("Beer").map { it.name })
         assertEquals(3, ui.visibleProducts(null).size)
     }
 

@@ -29,10 +29,25 @@ class LossesUiTest {
         val rows = ready.toUi().rows
 
         assertEquals(listOf(LossRowKind.DISCOUNTS, LossRowKind.DELETED_BILLS, LossRowKind.REFUNDS), rows.map { it.kind })
-        assertEquals(shown("−18·640_Kč"), rows[0].amount)
+        assertEquals(shown("−18·640"), rows[0].amount)
         assertNull(rows[0].records)
         assertEquals(2, rows[1].records)
-        assertEquals(shown("−890_Kč"), rows[2].amount)
+        assertEquals(shown("−890"), rows[2].amount)
+    }
+
+    @Test
+    fun theShareBarSplitsThePossibleLoss() {
+        val rows = ready.copy(possibleLoss = LossesFixtures.czk(20_000), discounts = LossesFixtures.czk(15_000)).toUi().rows
+
+        assertEquals(listOf(0.75f, 0.144f, 0.0445f), rows.map { it.shareFraction })
+        assertNull(
+            ready
+                .copy(possibleLoss = LossesFixtures.czk(0))
+                .toUi()
+                .rows
+                .first()
+                .shareFraction,
+        )
     }
 
     @Test

@@ -109,6 +109,14 @@
     </plurals>
     <string name="sales_detail_data_gaps">Some bills couldn\'t be read or are being updated, so these figures may be incomplete.</string>
     <string name="sales_detail_date">%1$d %2$s</string>
+    <string name="sales_detail_weekday_date">%1$s, %2$s</string>
+    <string name="sales_detail_weekday_1">Mon</string>
+    <string name="sales_detail_weekday_2">Tue</string>
+    <string name="sales_detail_weekday_3">Wed</string>
+    <string name="sales_detail_weekday_4">Thu</string>
+    <string name="sales_detail_weekday_5">Fri</string>
+    <string name="sales_detail_weekday_6">Sat</string>
+    <string name="sales_detail_weekday_7">Sun</string>
     <string name="sales_detail_range">%1$s to %2$s</string>
     <string name="sales_detail_month_1">Jan</string>
     <string name="sales_detail_month_2">Feb</string>
@@ -125,9 +133,6 @@
 
     <!-- 02c Discounts & losses -->
     <string name="sales_losses_title">Discounts &amp; losses</string>
-    <string name="sales_losses_period_day">Day</string>
-    <string name="sales_losses_period_week">Week</string>
-    <string name="sales_losses_period_month">Month</string>
     <string name="sales_losses_possible_loss">POSSIBLE LOSS</string>
     <string name="sales_losses_change_vs_day">%1$s pts vs previous day</string>
     <string name="sales_losses_change_vs_week">%1$s pts vs last week</string>
@@ -137,7 +142,6 @@
         <item quantity="other">%1$s records</item>
     </plurals>
     <string name="sales_losses_share">%1$s% of revenue</string>
-    <string name="sales_losses_by_type">By type</string>
     <string name="sales_losses_discounts">Discounts</string>
     <string name="sales_losses_discounts_meta">Happy Hour, staff, comps, loyalty</string>
     <string name="sales_losses_deleted_bills">Deleted bills</string>

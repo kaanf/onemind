@@ -42,6 +42,14 @@ import com.onemind.sales.presentation.generated.resources.sales_detail_month_8
 import com.onemind.sales.presentation.generated.resources.sales_detail_month_9
 import com.onemind.sales.presentation.generated.resources.sales_detail_range
 import com.onemind.sales.presentation.generated.resources.sales_detail_retry
+import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_1
+import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_2
+import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_3
+import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_4
+import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_5
+import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_6
+import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_7
+import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_date
 import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.stringResource
 
@@ -66,12 +74,17 @@ internal fun DetailScaffold(
         )
         PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(spacing.sectionGap),
+                verticalArrangement = Arrangement.spacedBy(spacing.sectionGapTight),
                 modifier =
                     Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = spacing.screenHorizontal, vertical = spacing.rowGap),
+                        .padding(
+                            start = spacing.screenHorizontal,
+                            end = spacing.screenHorizontal,
+                            top = spacing.textGap,
+                            bottom = spacing.sectionGap,
+                        ),
                 content = content,
             )
         }
@@ -105,12 +118,28 @@ internal fun DetailMessage(
 internal fun shortDate(date: LocalDate): String =
     stringResource(Res.string.sales_detail_date, date.day, stringResource(monthNames[date.month.ordinal]))
 
+/** "Thu, 5 Nov". */
+@Composable
+internal fun weekdayDate(date: LocalDate): String =
+    stringResource(Res.string.sales_detail_weekday_date, stringResource(weekdayNames[date.dayOfWeek.ordinal]), shortDate(date))
+
 /** "2 to 8 Nov" style range, or one date for a single day. */
 @Composable
 internal fun dateRange(
     from: LocalDate,
     to: LocalDate,
 ): String = if (from == to) shortDate(from) else stringResource(Res.string.sales_detail_range, shortDate(from), shortDate(to))
+
+private val weekdayNames =
+    listOf(
+        Res.string.sales_detail_weekday_1,
+        Res.string.sales_detail_weekday_2,
+        Res.string.sales_detail_weekday_3,
+        Res.string.sales_detail_weekday_4,
+        Res.string.sales_detail_weekday_5,
+        Res.string.sales_detail_weekday_6,
+        Res.string.sales_detail_weekday_7,
+    )
 
 private val monthNames =
     listOf(

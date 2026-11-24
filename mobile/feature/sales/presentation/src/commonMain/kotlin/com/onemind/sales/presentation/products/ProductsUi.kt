@@ -14,13 +14,17 @@ data class ProductsUi(
     val pendingVenueCount: Int,
     /** The day's hours with sales, in business-day order: the chart's slots. */
     val hours: List<Int>,
-    /** Top-level menu categories that have products today ("Beer", "Cocktails"…), in menu order of first sale. */
+    /**
+     * Top-level menu categories that have products today ("Beer", "Cocktails"…), by name: venues have their
+     * own category ids, so *All venues* shows "Food" once, not once per venue. In order of first sale.
+     */
     val chips: List<CategoryChip>,
     /** Largest gross first, as sent. */
     val products: List<ProductRow>,
     val hasDataGaps: Boolean,
 )
 
+/** A chip; [id] is the category name (the same name in several venues is one chip). */
 data class CategoryChip(
     val id: String,
     val name: String,
@@ -32,8 +36,8 @@ data class ProductRow(
     val name: String,
     /** The product's own category name, if any. */
     val categoryName: String?,
-    /** Top-level category, for the chips; `null` without a category. */
-    val rootCategoryId: String?,
+    /** Top-level category name, the chip it belongs to; `null` without a category. */
+    val rootCategory: String?,
     /** Shown only when the day lists products of several venues (never merged by name). */
     val venueName: String?,
     /** Quantity sold, as sent ("12", "1.5"). */
@@ -63,7 +67,7 @@ internal fun ProductsSummary.toUi(venueNames: Map<String, String>): ProductsUi {
                 key = "${product.venueId}/${product.productId}",
                 name = product.name,
                 categoryName = product.categoryId?.let { byId[it]?.name },
-                rootCategoryId = product.categoryId?.let { root(it, byId)?.id },
+                rootCategory = product.categoryId?.let { root(it, byId)?.name },
                 venueName = if (severalVenues) venueNames[product.venueId] else null,
                 sold = product.sold.toString(),
                 gross = formatMoney(product.gross, locale),
@@ -76,7 +80,7 @@ internal fun ProductsSummary.toUi(venueNames: Map<String, String>): ProductsUi {
         hasData = hasData,
         pendingVenueCount = pendingVenueCount,
         hours = hours,
-        chips = rows.mapNotNull { it.rootCategoryId }.distinct().mapNotNull { id -> byId[id]?.let { CategoryChip(it.id, it.name) } },
+        chips = rows.mapNotNull { it.rootCategory }.distinct().map { CategoryChip(it, it) },
         products = rows,
         hasDataGaps = !dataGaps.isEmpty,
     )
@@ -98,7 +102,7 @@ private fun root(
 
 /** The products under [categoryId] (`null` = all). */
 internal fun ProductsUi.visibleProducts(categoryId: String?): List<ProductRow> =
-    if (categoryId == null) products else products.filter { it.rootCategoryId == categoryId }
+    if (categoryId == null) products else products.filter { it.rootCategory == categoryId }
 
 /** Bars for [product] over the day's hours; the height is a drawing value only, never shown as a figure. */
 internal fun ProductsUi.bars(product: ProductRow): List<HourBar> {
