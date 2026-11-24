@@ -5,11 +5,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -27,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -67,7 +71,7 @@ import com.onemind.today.presentation.generated.resources.today_hourly_descripti
 import com.onemind.today.presentation.generated.resources.today_hourly_description_no_peak
 import com.onemind.today.presentation.generated.resources.today_loading
 import com.onemind.today.presentation.generated.resources.today_no_venue
-import com.onemind.today.presentation.generated.resources.today_not_available_from_pos
+import com.onemind.today.presentation.generated.resources.today_not_available
 import com.onemind.today.presentation.generated.resources.today_occupancy
 import com.onemind.today.presentation.generated.resources.today_open_tabs
 import com.onemind.today.presentation.generated.resources.today_paid_so_far
@@ -76,6 +80,7 @@ import com.onemind.today.presentation.generated.resources.today_possible_loss
 import com.onemind.today.presentation.generated.resources.today_retry
 import com.onemind.today.presentation.generated.resources.today_tips
 import com.onemind.today.presentation.generated.resources.today_title
+import com.onemind.today.presentation.generated.resources.today_unavailable_description
 import com.onemind.today.presentation.generated.resources.today_updated_at
 import com.onemind.today.presentation.generated.resources.today_value_empty
 import com.onemind.today.presentation.generated.resources.today_venue_description
@@ -215,7 +220,6 @@ private fun TodayContentColumn(
 /** Venue button (inert until the switcher, P7) and account initials; each is drawn only when known. */
 @Composable
 private fun HeaderRow(header: TodayHeader) {
-    if (header.scopeName == null && header.initials == null) return
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         header.scopeName?.let { scope ->
             val name =
@@ -223,10 +227,10 @@ private fun HeaderRow(header: TodayHeader) {
                     is ScopeName.Venue -> scope.name
                     ScopeName.AllVenues -> stringResource(Res.string.today_all_venues)
                 }
-            VenueButton(name = name, contentDescription = stringResource(Res.string.today_venue_description, name))
+            VenueButton(name = name, contentDescription = stringResource(Res.string.today_venue_description, name), showChevron = true)
         }
         Spacer(Modifier.weight(1f))
-        header.initials?.let { AccountButton(initials = it, contentDescription = stringResource(Res.string.today_account_description)) }
+        AccountButton(initials = header.initials, contentDescription = stringResource(Res.string.today_account_description))
     }
 }
 
@@ -334,10 +338,16 @@ private fun CardFigure(
 ) {
     val colors = OneMindTheme.colors
     val type = OneMindTheme.typography
-    Column(modifier = modifier) {
+    val unavailable = stringResource(Res.string.today_unavailable_description, label)
+    Column(modifier = if (value == null) modifier.clearAndSetSemantics { contentDescription = unavailable } else modifier) {
         Text(text = label, style = type.caption, color = colors.textSecondary)
         if (value == null) {
-            Text(text = stringResource(Res.string.today_not_available_from_pos), style = type.bodySmall, color = colors.textSecondary)
+            Text(
+                text = stringResource(Res.string.today_not_available),
+                style = type.headline.copy(fontSize = type.caption.fontSize, fontWeight = FontWeight.Normal),
+                color = colors.textSecondary,
+                maxLines = 1,
+            )
         } else {
             Text(text = value, style = type.headline, color = colors.textPrimary)
         }
@@ -371,19 +381,19 @@ internal fun HourlyUi.chartBars(colors: OneMindColors): List<Bar> =
 private fun LiveFigures(today: TodayUi) {
     val spacing = OneMindTheme.spacing
     val empty = stringResource(Res.string.today_value_empty)
-    Row(horizontalArrangement = Arrangement.spacedBy(spacing.tileGap)) {
+    // Same height for every tile (canvas: label 12 + value 18), the empty one included.
+    Row(horizontalArrangement = Arrangement.spacedBy(spacing.tileGap), modifier = Modifier.height(IntrinsicSize.Min)) {
         if (today.occupancyUnavailable) {
             // 01a Tables (This week) opens from here once it is built.
-            FigureTile(modifier = Modifier.weight(1f)) {
+            val label = stringResource(Res.string.today_occupancy)
+            val unavailable = stringResource(Res.string.today_unavailable_description, label)
+            FigureTile(modifier = Modifier.weight(1f).clearAndSetSemantics { contentDescription = unavailable }) {
+                Text(text = label, style = OneMindTheme.typography.caption, color = OneMindTheme.colors.textSecondary, maxLines = 1)
                 Text(
-                    text = stringResource(Res.string.today_occupancy),
+                    text = stringResource(Res.string.today_not_available),
                     style = OneMindTheme.typography.caption,
                     color = OneMindTheme.colors.textSecondary,
-                )
-                Text(
-                    text = stringResource(Res.string.today_not_available_from_pos),
-                    style = OneMindTheme.typography.caption,
-                    color = OneMindTheme.colors.textSecondary,
+                    maxLines = 1,
                 )
             }
         }
@@ -406,6 +416,7 @@ private fun FigureTile(
     Column(
         modifier =
             modifier
+                .fillMaxHeight()
                 .background(OneMindTheme.colors.surface, shape)
                 .border(OneMindTheme.spacing.borderWidth, OneMindTheme.colors.border, shape)
                 .padding(horizontal = OneMindTheme.spacing.pillPadding, vertical = OneMindTheme.spacing.rowGap),
