@@ -1,23 +1,19 @@
 package com.onemind.core.designsystem.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.onemind.core.designsystem.theme.OneMindTheme
@@ -36,8 +32,10 @@ data class Bar(
 )
 
 /**
- * Rounded bars (3 px) scaled to the largest value, optional value labels above. The chart is one
- * accessibility node: [contentDescription] says what it shows (*Revenue by hour, peak 22:00*).
+ * Rounded bars (3 px) scaled to the largest value, optional value labels above. One [Canvas]: no layout
+ * node per bar, the labels measured once per bar list (remembered) and drawn with [drawText], so a change
+ * of bars redraws without re-laying out, and a frame allocates nothing. The chart is one accessibility
+ * node: [contentDescription] says what it shows (*Revenue by hour, peak 22:00*).
  */
 @Composable
 fun BarChart(
@@ -47,44 +45,56 @@ fun BarChart(
     height: Dp = 52.dp,
     gap: Dp = 4.dp,
 ) {
-    val fractions = drawnFractions(bars)
+    val fractions = remember(bars) { drawnFractions(bars) }
     val labelColor = OneMindTheme.colors.textSecondary
-    val labelSpace = if (bars.any { it.valueLabel != null }) 16.dp else 0.dp
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(gap),
-        verticalAlignment = Alignment.Bottom,
-        modifier = modifier.fillMaxWidth().height(height).semantics { this.contentDescription = contentDescription },
+    val labelStyle = OneMindTheme.typography.chartLabel
+    val measurer = rememberTextMeasurer()
+    val labels =
+        remember(bars, labelStyle, measurer) {
+            bars.map { bar -> bar.valueLabel?.let { measurer.measure(it, labelStyle, maxLines = 1) } }
+        }
+    val hasLabels = labels.any { it != null }
+    val radius = OneMindTheme.radius.bar
+    Canvas(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(height)
+                .semantics { this.contentDescription = contentDescription },
     ) {
+        if (bars.isEmpty()) return@Canvas
+        val gapPx = gap.toPx()
+        val barWidth = (size.width - gapPx * (bars.size - 1)) / bars.size
+        val labelSpace = if (hasLabels) LABEL_SPACE.toPx() else 0f
+        val minBar = MIN_BAR.toPx()
+        val labelGap = LABEL_GAP.toPx()
+        val corner = CornerRadius(radius.toPx())
         bars.forEachIndexed { index, bar ->
-            val fraction = fractions[index]
-            BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                if (fraction == null) return@BoxWithConstraints
-                val barHeight = (maxHeight - labelSpace) * fraction
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Bottom),
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    if (bar.valueLabel != null) {
-                        Text(
-                            text = bar.valueLabel,
-                            style = OneMindTheme.typography.chartLabel,
-                            color = labelColor,
-                            maxLines = 1,
-                        )
-                    }
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(barHeight.coerceAtLeast(2.dp))
-                                .background(bar.color, RoundedCornerShape(OneMindTheme.radius.bar)),
-                    )
-                }
+            // null: an empty slot, nothing drawn, not even the minimum stub of a 0 (rule 2).
+            val fraction = fractions[index] ?: return@forEachIndexed
+            val barHeight = maxOf((size.height - labelSpace) * fraction, minBar)
+            val left = index * (barWidth + gapPx)
+            val top = size.height - barHeight
+            drawRoundRect(color = bar.color, topLeft = Offset(left, top), size = Size(barWidth, barHeight), cornerRadius = corner)
+            labels[index]?.let { label ->
+                drawText(
+                    textLayoutResult = label,
+                    color = labelColor,
+                    topLeft = Offset(left + (barWidth - label.size.width) / 2f, top - labelGap - label.size.height),
+                )
             }
         }
     }
 }
+
+/** Room above the bars for the value labels, when there are any. */
+private val LABEL_SPACE = 16.dp
+
+/** Between a label and its bar. */
+private val LABEL_GAP = 4.dp
+
+/** A 0 still shows as a stub (an empty slot is `null`, not 0). */
+private val MIN_BAR = 2.dp
 
 /**
  * What [BarChart] draws for each bar: its height as a share of the tallest, or `null` for an empty slot

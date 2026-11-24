@@ -1,5 +1,6 @@
 package com.onemind.sales.presentation.losses
 
+import androidx.compose.runtime.Immutable
 import com.onemind.core.domain.money.Money
 import com.onemind.core.domain.quantity.DecimalValue
 import com.onemind.core.presentation.format.VenueLocale
@@ -12,6 +13,7 @@ import com.onemind.sales.domain.losses.UnavailableLossComponent
 import kotlinx.datetime.LocalDate
 
 /** 02c ready to draw: amounts formatted in the venue's currency, nothing computed but signs and order. */
+@Immutable
 data class LossesUi(
     val period: LossesPeriod,
     val from: LocalDate,
@@ -33,6 +35,7 @@ data class LossesUi(
 )
 
 /** Change of the loss share in points against the previous period. A higher share is bad news. */
+@Immutable
 data class LossChange(
     /** "+0.8", "−1.2", "0.0" as sent with a sign. */
     val points: String,
@@ -41,6 +44,7 @@ data class LossChange(
     enum class Direction { UP, DOWN, FLAT }
 }
 
+@Immutable
 data class LossRow(
     val kind: LossRowKind,
     val records: Int?,
@@ -52,6 +56,7 @@ data class LossRow(
 
 enum class LossRowKind { DISCOUNTS, DELETED_BILLS, REFUNDS }
 
+@Immutable
 data class DiscountRow(
     val name: DiscountName,
     val records: Int?,

@@ -1,5 +1,9 @@
 package com.onemind.sales.presentation.losses
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,11 +35,11 @@ import com.onemind.core.designsystem.components.DeltaBadge
 import com.onemind.core.designsystem.components.OneMindCard
 import com.onemind.core.designsystem.components.OneMindListCard
 import com.onemind.core.designsystem.components.WarningCard
+import com.onemind.core.designsystem.theme.OneMindMotion
 import com.onemind.core.designsystem.theme.OneMindTheme
 import com.onemind.core.presentation.util.UiText
 import com.onemind.sales.domain.losses.LossesPeriod
 import com.onemind.sales.domain.losses.UnavailableLossComponent
-import com.onemind.sales.presentation.detail.DetailLoading
 import com.onemind.sales.presentation.detail.DetailMessage
 import com.onemind.sales.presentation.detail.DetailScaffold
 import com.onemind.sales.presentation.detail.dateRange
@@ -95,25 +99,35 @@ fun LossesScreen(
         onRefresh = { onAction(LossesAction.Refresh) },
     ) {
         // The canvas has no period control: 02c shows the week (*2 to 8 Nov*), the ViewModel's default.
-        when (val content = state.content) {
-            LossesContent.Loading -> {
-                DetailLoading()
-            }
+        // Skeleton → content (and back) crossfades in place; a refresh of the same state doesn't animate.
+        AnimatedContent(
+            targetState = state.content,
+            transitionSpec = { (fadeIn(OneMindMotion.medium()) togetherWith fadeOut(OneMindMotion.medium())).using(null) },
+            contentKey = { it::class },
+            label = "losses",
+        ) { content ->
+            Column(verticalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.sectionGapTight)) {
+                when (content) {
+                    LossesContent.Loading -> {
+                        LossesSkeleton()
+                    }
 
-            LossesContent.NoVenue -> {
-                DetailMessage(stringResource(Res.string.sales_detail_no_venue), isError = false)
-            }
+                    LossesContent.NoVenue -> {
+                        DetailMessage(stringResource(Res.string.sales_detail_no_venue), isError = false)
+                    }
 
-            is LossesContent.Failed -> {
-                DetailMessage(
-                    content.message.asString(),
-                    isError = true,
-                    onRetry = { onAction(LossesAction.Refresh) },
-                )
-            }
+                    is LossesContent.Failed -> {
+                        DetailMessage(
+                            content.message.asString(),
+                            isError = true,
+                            onRetry = { onAction(LossesAction.Refresh) },
+                        )
+                    }
 
-            is LossesContent.Ready -> {
-                LossesContentColumn(content)
+                    is LossesContent.Ready -> {
+                        LossesContentColumn(content)
+                    }
+                }
             }
         }
     }
@@ -269,7 +283,11 @@ private fun DiscountTypes(rows: List<DiscountRow>) {
             text = stringResource(Res.string.sales_losses_discount_types),
             style = OneMindTheme.typography.body.copy(fontWeight = FontWeight.SemiBold),
             color = colors.textPrimary,
-            modifier = Modifier.padding(top = OneMindTheme.spacing.cardPaddingCompact).semantics { heading() },
+            modifier =
+                Modifier
+                    .padding(top = OneMindTheme.spacing.cardPaddingCompact)
+                    .padding(horizontal = OneMindTheme.spacing.cardPaddingCompact)
+                    .semantics { heading() },
         )
         rows.forEachIndexed { index, row ->
             val name =
@@ -305,7 +323,11 @@ private fun LossTypeRow(
         Row(
             horizontalArrangement = Arrangement.spacedBy(spacing.rowGap),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().heightIn(min = spacing.rowHeightTall),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = spacing.rowHeightTall)
+                    .padding(horizontal = spacing.cardPaddingCompact),
         ) {
             if (swatch != null) {
                 Box(modifier = Modifier.size(spacing.swatch).background(swatch, RoundedCornerShape(OneMindTheme.radius.swatch)))
@@ -316,7 +338,13 @@ private fun LossTypeRow(
             }
             Text(text = amount, style = type.body.copy(fontWeight = FontWeight.Medium), color = colors.textPrimary)
         }
-        if (showDivider) HorizontalDivider(thickness = spacing.borderWidth, color = colors.divider)
+        if (showDivider) {
+            HorizontalDivider(
+                thickness = spacing.borderWidth,
+                color = colors.divider,
+                modifier = Modifier.padding(horizontal = spacing.cardPaddingCompact),
+            )
+        }
     }
 }
 
