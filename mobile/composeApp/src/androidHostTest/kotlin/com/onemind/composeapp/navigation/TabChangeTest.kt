@@ -17,7 +17,7 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** Which moves crossfade (tab changes) and which slide (detail screens), push and back alike. */
+/** Which moves crossfade (tab changes) and which slide (detail screens); a back gesture always slides. */
 class TabChangeTest {
     private val graph: NavGraph =
         NavigatorProvider()
@@ -53,7 +53,7 @@ class TabChangeTest {
     }
 
     @Test
-    fun backFromATabsFirstScreenToThePreviousTabCrossfades() {
+    fun backByButtonFromATabsFirstScreenToThePreviousTabCrossfades() {
         assertTrue(isTabChange(upper = sales, under = today))
     }
 

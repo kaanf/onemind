@@ -20,7 +20,7 @@ import com.onemind.core.designsystem.theme.OneMindMotion
 /**
  * The app's only NavHost setup, so the auth gate and the tabs move the same way. A push slides in from
  * the right; every back (top-bar arrow, system back button, back gesture, iOS swipe) slides the screen
- * back out. A tab switch, and back from a tab's first screen to the previous tab, only crossfade.
+ * back out. A tab switch, and back by button from a tab's first screen to the previous tab, only crossfade.
  *
  * The predictive transitions must be set too: NavHost uses them while a back gesture is in progress,
  * and their defaults are a scale-and-fade on Android and an edge-dependent slide on iOS.
@@ -60,32 +60,33 @@ fun OneMindNavHost(
 
 /*
  * Back mirrors the push: the screen on top slides out to the right and the one underneath comes back
- * from a quarter left. A gesture from the right edge (Android) moves the other way, with the finger.
- * A button pop slides on the enter curve and fades only at the end (exit curve). A gesture slide follows the
- * finger linearly and never fades, so the screen underneath never shows through the one being dragged; back
- * from a tab's first screen by gesture fades the upper screen on the exit curve, opaque until late, over the
- * one underneath.
+ * from a quarter left. A button pop slides on the enter curve and fades only at the end (exit curve); back
+ * from a tab's first screen by button crossfades, like the tab switch. A back gesture always slides, also
+ * from a tab's first screen: it follows the finger linearly and never fades, so the screen underneath never
+ * shows through the one being dragged. A gesture from the right edge (Android) moves the other way.
  */
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.popEnter(
     fromRightEdge: Boolean,
     gesture: Boolean,
 ): EnterTransition =
-    if (crossfades(upper = initialState, under = targetState)) {
-        if (gesture) EnterTransition.None else fadeIn(OneMindMotion.short())
-    } else {
+    if (gesture) {
         val direction = if (fromRightEdge) 1 else -1
-        slideInHorizontally(if (gesture) OneMindMotion.gesture() else OneMindMotion.enter()) { direction * it / PARALLAX }
+        slideInHorizontally(OneMindMotion.gesture()) { direction * it / PARALLAX }
+    } else if (crossfades(upper = initialState, under = targetState)) {
+        fadeIn(OneMindMotion.short())
+    } else {
+        slideInHorizontally(OneMindMotion.enter()) { -it / PARALLAX }
     }
 
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.popExit(
     fromRightEdge: Boolean,
     gesture: Boolean,
 ): ExitTransition =
-    if (crossfades(upper = initialState, under = targetState)) {
-        fadeOut(if (gesture) OneMindMotion.exit() else OneMindMotion.short())
-    } else if (gesture) {
+    if (gesture) {
         val direction = if (fromRightEdge) -1 else 1
         slideOutHorizontally(OneMindMotion.gesture()) { direction * it }
+    } else if (crossfades(upper = initialState, under = targetState)) {
+        fadeOut(OneMindMotion.short())
     } else {
         slideOutHorizontally(OneMindMotion.enter()) { it } + fadeOut(OneMindMotion.exit())
     }
@@ -97,8 +98,8 @@ private fun crossfades(
 
 /**
  * True when moving between [upper] (the screen pushed, or the one being popped) and [under] changes
- * tabs at a tab's first screen: a tab-bar switch, or back from a tab's first screen to the previous
- * tab. Opening or closing a detail screen, even one in another tab (Today → Discounts & losses), slides.
+ * tabs at a tab's first screen: a tab-bar switch, or back by button from a tab's first screen to the
+ * previous tab (a back gesture always slides). Opening or closing a detail screen, even one in another tab (Today → Discounts & losses), slides.
  */
 internal fun isTabChange(
     upper: NavDestination,
