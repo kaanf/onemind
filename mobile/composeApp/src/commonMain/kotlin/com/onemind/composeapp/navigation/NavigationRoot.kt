@@ -42,8 +42,11 @@ fun NavigationRoot(navController: NavHostController) {
         NavHost(
             navController = navController,
             startDestination = TopLevelDestination.Today.graph,
-            // Pushes slide in from the right and pops slide back out (predictive back follows the pop
-            // transitions); a tab switch only crossfades.
+            // Pushes slide in from the right; every back (top-bar arrow, system button, back gesture,
+            // iOS swipe) slides the screen back out to the right. A tab switch, and back from a tab's
+            // first screen to the previous tab, only crossfade. The predictive transitions must be set
+            // too: NavHost uses them during a back gesture, and their defaults are a scale-and-fade on
+            // Android and an edge-dependent slide on iOS.
             enterTransition = {
                 if (isTabSwitch()) {
                     fadeIn(OneMindMotion.short())
@@ -54,8 +57,22 @@ fun NavigationRoot(navController: NavHostController) {
             exitTransition = {
                 if (isTabSwitch()) fadeOut(OneMindMotion.short()) else slideOutHorizontally(OneMindMotion.enter()) { -it / PARALLAX }
             },
-            popEnterTransition = { slideInHorizontally(OneMindMotion.enter()) { -it / PARALLAX } },
-            popExitTransition = { slideOutHorizontally(OneMindMotion.exit()) { it } + fadeOut(OneMindMotion.exit()) },
+            popEnterTransition = {
+                if (isTabPop()) fadeIn(OneMindMotion.short()) else slideInHorizontally(OneMindMotion.enter()) { -it / PARALLAX }
+            },
+            popExitTransition = {
+                if (isTabPop()) {
+                    fadeOut(OneMindMotion.short())
+                } else {
+                    slideOutHorizontally(OneMindMotion.enter()) { it } + fadeOut(OneMindMotion.exit())
+                }
+            },
+            predictivePopEnterTransition = {
+                if (isTabPop()) fadeIn(OneMindMotion.gesture()) else slideInHorizontally(OneMindMotion.gesture()) { -it / PARALLAX }
+            },
+            predictivePopExitTransition = {
+                if (isTabPop()) fadeOut(OneMindMotion.gesture()) else slideOutHorizontally(OneMindMotion.gesture()) { it }
+            },
             modifier = Modifier.weight(1f),
         ) {
             todayGraph(onOpenLosses = { navController.navigate(SalesGraphRoutes.Losses) })
@@ -80,6 +97,13 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.isTabSwitch(): Boo
     val target = targetState.destination
     val isTabRoot = target.parent?.startDestinationId == target.id
     return isTabRoot && initialState.destination.topLevelDestination() != target.topLevelDestination()
+}
+
+/** Back from a tab's first screen to another tab (the reverse of a tab switch), as opposed to closing a detail screen. */
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.isTabPop(): Boolean {
+    val initial = initialState.destination
+    val isTabRoot = initial.parent?.startDestinationId == initial.id
+    return isTabRoot && initial.topLevelDestination() != targetState.destination.topLevelDestination()
 }
 
 /** The screen underneath moves a quarter of the width while a detail screen slides over it. */
