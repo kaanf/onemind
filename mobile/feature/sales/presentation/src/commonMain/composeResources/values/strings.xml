@@ -13,17 +13,18 @@
     <string name="sales_period_day">Day</string>
     <string name="sales_period_week">Week</string>
     <string name="sales_period_month">Month</string>
-    <!-- Range labels: "21:00 to 22:00", "5 Nov", "2 to 8 Nov", "28 Oct to 3 Nov", "November 2026". -->
+    <!-- Range labels: "21:00 to 22:00", "5 Nov", "2 to 8 Nov", "28 Oct to 3 Nov", "November"; Day is "Today". -->
+    <string name="sales_range_today">Today</string>
     <string name="sales_range_hour">%1$s to %2$s</string>
     <string name="sales_range_day">%1$d %2$s</string>
     <string name="sales_range_same_month">%1$d to %2$d %3$s</string>
     <string name="sales_range_two_months">%1$d %2$s to %3$d %4$s</string>
-    <string name="sales_range_month">%1$s %2$d</string>
+    <string name="sales_range_month">%1$s</string>
     <string name="sales_revenue">Revenue</string>
     <string name="sales_vs_last_week">%1$s vs last week</string>
-    <string name="sales_vs_previous_month">%1$s vs previous month</string>
+    <string name="sales_vs_previous_month">%1$s vs %2$s</string>
     <string name="sales_vs_last_weekday">%1$s vs last %2$s</string>
-    <string name="sales_vs_same_hour">%1$s vs same hour last %2$s</string>
+    <string name="sales_vs_same_hour">%1$s vs last %2$s, same hour</string>
     <string name="sales_waiting_first_sync">Waiting for the first sync with your POS. Figures appear after it.</string>
     <plurals name="sales_venues_syncing">
         <item quantity="one">%1$d venue still syncing</item>
@@ -33,7 +34,7 @@
     <string name="sales_average_bill">Avg bill</string>
     <string name="sales_per_guest">Per guest</string>
     <string name="sales_by_payment">By payment</string>
-    <string name="sales_tips">Tips</string>
+    <string name="sales_tips">Tips %1$s</string>
     <string name="sales_card_share">Card · %1$d%</string>
     <string name="sales_cash_share">Cash · %1$d%</string>
     <string name="sales_payment_bar_description">Card %1$d%, cash %2$d%</string>
@@ -70,6 +71,13 @@
     <string name="sales_weekday_friday">Friday</string>
     <string name="sales_weekday_saturday">Saturday</string>
     <string name="sales_weekday_sunday">Sunday</string>
+    <string name="sales_weekday_short_monday">Mon</string>
+    <string name="sales_weekday_short_tuesday">Tue</string>
+    <string name="sales_weekday_short_wednesday">Wed</string>
+    <string name="sales_weekday_short_thursday">Thu</string>
+    <string name="sales_weekday_short_friday">Fri</string>
+    <string name="sales_weekday_short_saturday">Sat</string>
+    <string name="sales_weekday_short_sunday">Sun</string>
     <string name="sales_month_short_january">Jan</string>
     <string name="sales_month_short_february">Feb</string>
     <string name="sales_month_short_march">Mar</string>

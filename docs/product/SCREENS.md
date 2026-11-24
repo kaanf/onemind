@@ -139,10 +139,9 @@ Live overview of the current business day for the selected venue (or all venues)
   - Hourly chart: past hours `chartMutedStrong`, current hour `accent`, forecast hours `chartFuture`; a
     forecast without any earlier same weekday is an empty slot, never a 0 label. No value or axis labels
     (as on the canvas); the chart is one spoken node (*Revenue by hour, peak 22:00*).
-  - *Possible loss* names the included components (*Includes discounts, refunds*); a component the app
-    version doesn't know yet adds *and other losses* (it is in the total). An hour of an unknown kind
-    keeps an empty slot; an unknown data status asks the user to update the app. It is shown without
-    a chevron, and *Occupancy* is not tappable, until 02c and 01a exist.
+  - *Possible loss* is the canvas row: title, amount in red, arrow; it opens 02c Discounts & losses,
+    which names the components. An hour of an unknown kind keeps an empty slot; an unknown data status
+    asks the user to update the app. *Occupancy* is not tappable until 01a exists.
   - `dataGaps`: one warning card (*Some bills are missing from these figures.*) with one line per count
     above 0: couldn't be read, without items (missing from product figures), may be out of date, and
     left out of paid so far because the payments don't add up (METRICS, payment mismatch).
@@ -207,6 +206,11 @@ First release: only *This week*; the *Now* tab is not shown (`MVP_SCOPE.md`).
 - **By payment**: *Tips* total, split bar *Card · 68%* `212 490 Kč` / *Cash · 32%* `99 990 Kč`.
 - Links: **Products by hour** (02a), **Hourly patterns** (02b), **Discounts & losses** (02c, shows
   the period's loss amount, e.g. `−22 410 Kč`).
+
+- **Built (phase 5, mobile):** range pill on the right of the title shows the period (*21:00 to 22:00*,
+  *Today*, *2 to 8 Nov*, *November*) without a date picker yet (*Choose dates* comes later); no *More*
+  button and no *Hourly patterns* row until 02b exists. Deltas: *vs last Tue, same hour*, *vs last
+  Tuesday*, *vs last week*, *vs October*. Polls every 60 s while visible; *Updated 21:38* as on Today.
 
 ## 02a · Products by hour — `AltProducts`
 
