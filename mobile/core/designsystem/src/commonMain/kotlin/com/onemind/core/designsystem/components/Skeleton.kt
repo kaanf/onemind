@@ -3,9 +3,12 @@ package com.onemind.core.designsystem.components
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.withInfiniteAnimationFrameMillis
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableFloatState
@@ -112,18 +115,28 @@ fun OneMindSkeletonText(
     style: TextStyle,
     width: Dp,
     modifier: Modifier = Modifier,
+) = SkeletonTextLine(style, modifier.width(width))
+
+/** As [OneMindSkeletonText], [widthFraction] of the slot's width wide. */
+@Composable
+fun OneMindSkeletonText(
+    style: TextStyle,
+    widthFraction: Float,
+    modifier: Modifier = Modifier,
+) = SkeletonTextLine(style, modifier.fillMaxWidth(widthFraction))
+
+@Composable
+private fun SkeletonTextLine(
+    style: TextStyle,
+    modifier: Modifier,
 ) {
-    // Type styles set the line height in em (Type.kt), so it is a multiple of the font size.
-    val line = style.lineHeight
-    val lineSp =
-        when {
-            line.isSp -> line
-            line.isEm -> (style.fontSize.value * line.value).sp
-            else -> style.fontSize
+    Box(modifier = modifier) {
+        // An empty line of the same style is measured exactly like the loaded text (font metrics, line
+        // height), so the slot is as tall as the value will be, to the pixel.
+        Text(text = "", style = style, maxLines = 1)
+        Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.matchParentSize()) {
+            OneMindSkeleton(modifier = Modifier.fillMaxWidth().fillMaxHeight(TEXT_BLOCK_FRACTION))
         }
-    val lineHeight = with(LocalDensity.current) { lineSp.toDp() }
-    Box(contentAlignment = Alignment.CenterStart, modifier = modifier.height(lineHeight)) {
-        OneMindSkeleton(modifier = Modifier.width(width).height(lineHeight * TEXT_BLOCK_FRACTION))
     }
 }
 

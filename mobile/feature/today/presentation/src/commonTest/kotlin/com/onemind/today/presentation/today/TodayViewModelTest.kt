@@ -1,5 +1,6 @@
 package com.onemind.today.presentation.today
 
+import app.cash.turbine.Event
 import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.test
 import com.onemind.core.domain.money.Currency
@@ -428,6 +429,31 @@ class TodayViewModelTest {
                 advanceTimeBy(10.seconds)
                 assertEquals(1, repository.calls.size)
                 cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun comingBackToTheScreenKeepsTheFiguresAndRefreshesThemSilently() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val vm = viewModel(repository)
+            vm.state.test {
+                assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                cancelAndIgnoreRemainingEvents()
+            }
+            // Away longer than WhileSubscribed's stop timeout (tab switch, lock): the poll stops.
+            advanceTimeBy(6.seconds)
+            repository.answerDelay = 2.seconds
+            repository.fallback = Result.Success(TodayFixtures.ready.copy(guests = 300))
+
+            vm.state.test {
+                advanceTimeBy(3.seconds)
+                val states =
+                    listOf(awaitItem()) + cancelAndConsumeRemainingEvents().filterIsInstance<Event.Item<TodayState>>().map { it.value }
+                // No skeletons on the way: the last figures stay until the new ones replace them.
+                states.forEach { assertIs<TodayContent.Ready>(it.content) }
+                assertEquals("300", assertIs<TodayContent.Ready>(states.last().content).today.guests)
+                assertEquals(2, repository.calls.size)
             }
         }
 

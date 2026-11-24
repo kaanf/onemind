@@ -24,7 +24,9 @@ invoice, sending an order, chatting) need the server anyway.
   answer replaces the cached data. Without cached data the skeletons stay until the answer or the error.
   *Amended 2026-11-24 (owner):* this replaces "shows cached data at once, then refreshes", because old
   figures jumping to new ones on every open read as wrong numbers.
-- Background polls and pull-to-refresh keep the figures on screen while they run (no skeletons).
+- Background polls and pull-to-refresh keep the figures on screen while they run (no skeletons), and so
+  does coming back to a screen (tab switch, lock): the last figures of the same scope and period stay
+  and refresh silently. Skeletons only on a first load and on a scope or period change.
 - Cached data is never edited locally. The server is always the truth.
 - The cache is cleared on logout and when switching accounts.
 

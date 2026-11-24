@@ -22,46 +22,36 @@ enum class StatTileStyle {
     Tile,
 }
 
-/** Label + value, laid out by the caller in a grid of 2–3 columns. */
+/**
+ * Label + value, laid out by the caller in a grid of 2–3 columns. A `null` [value] (loading) shimmers in
+ * the value's line, exactly as tall as the value, and crossfades to it in place when it arrives.
+ */
 @Composable
 fun StatTile(
     label: String,
-    value: String,
+    value: String?,
     modifier: Modifier = Modifier,
     style: StatTileStyle = StatTileStyle.Compact,
     valueColor: Color = OneMindTheme.colors.textPrimary,
 ) {
     val colors = OneMindTheme.colors
     val type = OneMindTheme.typography
+    val (labelText, labelStyle, valueStyle) =
+        when (style) {
+            StatTileStyle.Compact -> Triple(label, type.caption, type.body.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold))
+            StatTileStyle.Tile -> Triple(label, type.caption, type.body.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold))
+            StatTileStyle.Overline -> Triple(label.uppercase(), type.overline, type.figure)
+        }
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(if (style == StatTileStyle.Compact) 2.dp else 4.dp),
     ) {
-        when (style) {
-            StatTileStyle.Compact -> {
-                Text(text = label, style = type.caption, color = colors.textSecondary, maxLines = 1)
-                Text(
-                    text = value,
-                    style = type.body.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
-                    color = valueColor,
-                    maxLines = 1,
-                )
-            }
-
-            StatTileStyle.Tile -> {
-                Text(text = label, style = type.caption, color = colors.textSecondary, maxLines = 1)
-                Text(
-                    text = value,
-                    style = type.body.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
-                    color = valueColor,
-                    maxLines = 1,
-                )
-            }
-
-            StatTileStyle.Overline -> {
-                Text(text = label.uppercase(), style = type.overline, color = colors.textSecondary, maxLines = 1)
-                Text(text = value, style = type.figure, color = valueColor, maxLines = 1)
-            }
+        Text(text = labelText, style = labelStyle, color = colors.textSecondary, maxLines = 1)
+        OneMindLoadingSlot(value = value, skeleton = { OneMindSkeletonText(valueStyle, width = VALUE_SKELETON) }) {
+            Text(text = it, style = valueStyle, color = valueColor, maxLines = 1)
         }
     }
 }
+
+/** About a short figure's width (*1 138 Kč*). */
+private val VALUE_SKELETON = 72.dp

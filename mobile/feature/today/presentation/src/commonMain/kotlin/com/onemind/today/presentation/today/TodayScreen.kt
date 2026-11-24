@@ -567,21 +567,13 @@ private val LoadingToday =
         dataGaps = emptyList(),
     )
 
-/** A live-figure value (18/600) that crossfades in from its skeleton. */
+/** A live-figure tile (18/600) whose value shimmers while loading and crossfades in place. */
 @Composable
 private fun LiveFigure(
     label: String,
     value: String,
 ) {
-    OneMindLoadingSlot(
-        value = value.takeUnless { LocalLoading.current },
-        skeleton = {
-            Column(verticalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.listGap)) {
-                Text(text = label, style = OneMindTheme.typography.caption, color = OneMindTheme.colors.textSecondary, maxLines = 1)
-                OneMindSkeletonText(OneMindTheme.typography.headline, width = SKELETON_VALUE)
-            }
-        },
-    ) { StatTile(label = label, value = it, style = StatTileStyle.Tile) }
+    StatTile(label = label, value = value.takeUnless { LocalLoading.current }, style = StatTileStyle.Tile)
 }
 
 private val SKELETON_PILL_WIDTH = 130.dp

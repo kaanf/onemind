@@ -1,5 +1,6 @@
 package com.onemind.sales.presentation.sales
 
+import app.cash.turbine.Event
 import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.test
 import com.onemind.core.domain.money.Currency
@@ -316,6 +317,29 @@ class SalesViewModelTest {
                 advanceTimeBy(10.seconds)
                 assertEquals(1, repository.calls.size)
                 cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun comingBackToTheScreenKeepsTheFiguresAndRefreshesThemSilently() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val vm = viewModel(repository)
+            vm.state.test {
+                awaitReady()
+                cancelAndIgnoreRemainingEvents()
+            }
+            // Away longer than WhileSubscribed's stop timeout (tab switch, lock): the poll stops.
+            advanceTimeBy(6.seconds)
+            repository.answerDelay = 2.seconds
+
+            vm.state.test {
+                advanceTimeBy(3.seconds)
+                val states =
+                    listOf(awaitItem()) + cancelAndConsumeRemainingEvents().filterIsInstance<Event.Item<SalesState>>().map { it.value }
+                // No skeletons on the way: the last figures stay while the silent refresh runs.
+                states.forEach { assertIs<SalesContent.Ready>(it.content) }
+                assertEquals(2, repository.calls.size)
             }
         }
 

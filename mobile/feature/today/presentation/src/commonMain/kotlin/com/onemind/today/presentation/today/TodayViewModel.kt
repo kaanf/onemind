@@ -72,6 +72,15 @@ class TodayViewModel(
 
     private var latestTarget: Target = Target.Waiting
 
+    /** The figures last on screen and this session's summary behind them, kept for a return to the screen. */
+    private var shown: Shown? = null
+
+    private class Shown(
+        val venueIds: List<String>,
+        val content: TodayContent.Ready,
+        val summary: TodaySummary?,
+    )
+
     val state: StateFlow<TodayState> =
         combine(
             target.flatMapLatest { target ->
@@ -108,17 +117,24 @@ class TodayViewModel(
 
     private fun poll(venueIds: List<String>): Flow<TodayContent> =
         flow {
-            emit(TodayContent.Loading)
-            // ADR 0006 §1: skeletons until the first answer; the figures saved on the device (always with
-            // their age) only when it fails, or when it takes longer than CachedFallbackDelay.
+            // Back on the screen (a restart after WhileSubscribed stopped): the figures of the same scope stay
+            // and refresh silently, like a poll. Otherwise (ADR 0006 §1) skeletons until the first answer, and
+            // the figures saved on the device (always with their age) only when it fails or takes longer than
+            // CachedFallbackDelay.
+            val remembered = shown?.takeIf { it.venueIds == venueIds }
+            emit(remembered?.content ?: TodayContent.Loading)
             val cached = repository.cachedToday(venueIds)
-            var summary: TodaySummary? = null
-            var first = true
+            var summary: TodaySummary? = remembered?.summary
+            var first = remembered == null
             while (true) {
                 var failure: DataError? = null
                 val result =
                     if (first && cached != null) {
-                        awaitWithCachedFallback({ repository.getToday(venueIds) }) { emit(cached.content(offline = false, error = null)) }
+                        awaitWithCachedFallback({ repository.getToday(venueIds) }) {
+                            val fallback = cached.content(offline = false, error = null)
+                            shown = Shown(venueIds, fallback, summary = null)
+                            emit(fallback)
+                        }
                     } else {
                         repository.getToday(venueIds)
                     }
@@ -131,6 +147,7 @@ class TodayViewModel(
                 refreshRequests.tryReceive()
                 refreshing.value = false
                 val content = content(summary, cached, failure)
+                if (content is TodayContent.Ready) shown = Shown(venueIds, content, summary)
                 emit(content)
                 // Wait for the next poll, redrawing the clock at each minute; a refresh request ends the wait.
                 var remaining = pollInterval.after(summary)

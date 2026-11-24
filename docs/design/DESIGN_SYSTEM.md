@@ -181,11 +181,12 @@ Not built yet: **Stepper**, **Fraction picker**, **Checklist row** (with the sto
   lighter band, `chartMuted` 60% towards `surface`, sweeping left to right every `SHIMMER_MILLIS`; every
   block on screen is in step, as one light across the window; it follows the system animation scale, and
   with animations off the blocks stay still). The cards, titles and heights are the
-  loaded ones (a skeleton text block is one line of its style high), so only the values change when the
+  loaded ones (`OneMindSkeletonText` reserves an empty `Text` line of the value's style, so the slot is the value's
+  height to the pixel; `StatTile(value = null)` shimmers its own value line), so only the values change when the
   answer arrives. Online, skeletons stay until the first answer; cached figures (ADR 0006 §1) show only
   when it fails or takes longer than `CachedFallbackDelay` (5 s), with their age (*Last updated 21:40*)
-  at the bottom in the *Updated* line's place. Background polls and pull-to-refresh keep the figures on
-  screen; a scope or period change loads with skeletons again. A detail screen's top bar shimmers its
+  at the bottom in the *Updated* line's place. Background polls, pull-to-refresh and coming back to a screen (tab switch,
+  lock) keep the figures on screen; a scope or period change loads with skeletons again. A detail screen's top bar shimmers its
   subtitle line (`DetailTopBar(subtitleLoading = true)`) so the title doesn't move. `OneMindLoadingSlot(value, skeleton) { … }`
   crossfades a slot from skeleton to value in place (medium); numbers never count up (rule 2).
 - Ripple: a clickable sits on the outermost shape after `clip(shape)` and covers it whole. Cards clip
