@@ -158,10 +158,11 @@ Live overview of the current business day for the selected venue (or all venues)
     currencies or business days gets `422 CURRENCIES_DIFFER` / `BUSINESS_DAYS_DIFFER`, shown as the
     existing "These venues can't be shown together. Choose one venue." (the switcher, P7, is how to
     choose one).
-  - Header: the venue button shows the scope's name (*Demo · Main bar*, or *All venues*). It has no
-    chevron and no click until the switcher sheet exists (P7). The account button shows the initials of
-    `GET /me` `displayName` (first and last word); without a name it is not drawn (no invented
-    initials). Signing out forgets the venues, the scope and the profile.
+  - Header: the venue button shows a green status dot and the scope's name (*Demo · Main bar*, or *All
+    venues*) with the canvas's chevron, but no click until the switcher sheet exists (P7). The account
+    button is always drawn: the initials of `GET /me` `displayName` (first and last word), or a person
+    glyph without a name (never invented initials); it has no click yet. Signing out forgets the venues,
+    the scope and the profile.
   - Offline (ADR 0006): the last answer is saved on the device. On launch it shows at once with
     *Last updated 21:40* until the first poll answers; after a network failure the cached figures stay
     with *Last updated 21:40 · offline*. Figures from an earlier day name it (*Last updated Thursday
