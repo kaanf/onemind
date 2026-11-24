@@ -61,7 +61,8 @@ fun OneMindNavHost(
 /*
  * Back mirrors the push: the screen on top slides out to the right and the one underneath comes back
  * from a quarter left. A gesture from the right edge (Android) moves the other way, with the finger.
- * A gesture follows the finger linearly; a button pop slides on the enter curve and fades only at the end.
+ * A gesture slide follows the finger linearly; a button pop slides on the enter curve. Both fade only at the
+ * end (exit curve), so the screen underneath never shows through the one being dragged.
  */
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.popEnter(
     fromRightEdge: Boolean,
@@ -83,7 +84,7 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.popExit(
     } else {
         val direction = if (fromRightEdge) -1 else 1
         slideOutHorizontally(if (gesture) OneMindMotion.gesture() else OneMindMotion.enter()) { direction * it } +
-            fadeOut(if (gesture) OneMindMotion.gesture() else OneMindMotion.exit())
+            fadeOut(OneMindMotion.exit())
     }
 
 private fun crossfades(
