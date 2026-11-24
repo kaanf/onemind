@@ -61,15 +61,17 @@ fun OneMindNavHost(
 /*
  * Back mirrors the push: the screen on top slides out to the right and the one underneath comes back
  * from a quarter left. A gesture from the right edge (Android) moves the other way, with the finger.
- * A gesture slide follows the finger linearly; a button pop slides on the enter curve. Both fade only at the
- * end (exit curve), so the screen underneath never shows through the one being dragged.
+ * A button pop slides on the enter curve and fades only at the end (exit curve). A gesture slide follows the
+ * finger linearly and never fades, so the screen underneath never shows through the one being dragged; back
+ * from a tab's first screen by gesture fades the upper screen on the exit curve, opaque until late, over the
+ * one underneath.
  */
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.popEnter(
     fromRightEdge: Boolean,
     gesture: Boolean,
 ): EnterTransition =
     if (crossfades(upper = initialState, under = targetState)) {
-        fadeIn(if (gesture) OneMindMotion.gesture() else OneMindMotion.short())
+        if (gesture) EnterTransition.None else fadeIn(OneMindMotion.short())
     } else {
         val direction = if (fromRightEdge) 1 else -1
         slideInHorizontally(if (gesture) OneMindMotion.gesture() else OneMindMotion.enter()) { direction * it / PARALLAX }
@@ -80,11 +82,12 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.popExit(
     gesture: Boolean,
 ): ExitTransition =
     if (crossfades(upper = initialState, under = targetState)) {
-        fadeOut(if (gesture) OneMindMotion.gesture() else OneMindMotion.short())
-    } else {
+        fadeOut(if (gesture) OneMindMotion.exit() else OneMindMotion.short())
+    } else if (gesture) {
         val direction = if (fromRightEdge) -1 else 1
-        slideOutHorizontally(if (gesture) OneMindMotion.gesture() else OneMindMotion.enter()) { direction * it } +
-            fadeOut(OneMindMotion.exit())
+        slideOutHorizontally(OneMindMotion.gesture()) { direction * it }
+    } else {
+        slideOutHorizontally(OneMindMotion.enter()) { it } + fadeOut(OneMindMotion.exit())
     }
 
 private fun crossfades(
