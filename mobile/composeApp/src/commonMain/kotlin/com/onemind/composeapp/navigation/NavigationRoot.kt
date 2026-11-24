@@ -41,7 +41,7 @@ fun NavigationRoot(navController: NavHostController) {
             modifier = Modifier.weight(1f),
         ) {
             todayGraph()
-            salesGraph()
+            salesGraph(navController)
             staffGraph()
             stockGraph()
         }

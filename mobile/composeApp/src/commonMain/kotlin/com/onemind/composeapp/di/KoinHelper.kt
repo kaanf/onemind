@@ -4,6 +4,7 @@ import com.onemind.auth.data.di.authDataModule
 import com.onemind.auth.presentation.di.authPresentationModule
 import com.onemind.core.data.di.coreDataModule
 import com.onemind.core.data.venue.SignedInDataLoader
+import com.onemind.sales.data.di.salesDataModule
 import com.onemind.sales.presentation.di.salesPresentationModule
 import com.onemind.staff.presentation.di.staffPresentationModule
 import com.onemind.today.data.di.todayDataModule
@@ -22,6 +23,7 @@ val appModules: List<Module>
             authPresentationModule,
             todayDataModule,
             todayPresentationModule,
+            salesDataModule,
             salesPresentationModule,
             staffPresentationModule,
         )

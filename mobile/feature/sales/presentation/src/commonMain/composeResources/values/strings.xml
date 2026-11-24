@@ -1,5 +1,97 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="sales_title">Sales</string>
-    <string name="sales_placeholder_message">Coming soon.</string>
+    <!-- 02 Sales -->
+    <string name="sales_loading">Loading sales</string>
+    <string name="sales_no_venue">Add a venue to see its sales.</string>
+    <string name="sales_retry">Try again</string>
+    <string name="sales_error_venues_differ">These venues can\'t be shown together. Choose one venue.</string>
+    <string name="sales_error_venue_not_found">This venue isn\'t available any more.</string>
+    <string name="sales_all_venues">All venues</string>
+    <string name="sales_value_empty">—</string>
+    <string name="sales_period_hour">Hour</string>
+    <string name="sales_period_day">Day</string>
+    <string name="sales_period_week">Week</string>
+    <string name="sales_period_month">Month</string>
+    <!-- Range labels: "21:00 to 22:00", "5 Nov", "2 to 8 Nov", "28 Oct to 3 Nov", "November 2026". -->
+    <string name="sales_range_hour">%1$s to %2$s</string>
+    <string name="sales_range_day">%1$d %2$s</string>
+    <string name="sales_range_same_month">%1$d to %2$d %3$s</string>
+    <string name="sales_range_two_months">%1$d %2$s to %3$d %4$s</string>
+    <string name="sales_range_month">%1$s %2$d</string>
+    <string name="sales_revenue">Revenue</string>
+    <string name="sales_vs_last_week">%1$s vs last week</string>
+    <string name="sales_vs_previous_month">%1$s vs previous month</string>
+    <string name="sales_vs_last_weekday">%1$s vs last %2$s</string>
+    <string name="sales_vs_same_hour">%1$s vs same hour last %2$s</string>
+    <string name="sales_waiting_first_sync">Waiting for the first sync with your POS. Figures appear after it.</string>
+    <plurals name="sales_venues_syncing">
+        <item quantity="one">%1$d venue still syncing</item>
+        <item quantity="other">%1$d venues still syncing</item>
+    </plurals>
+    <string name="sales_guests">Guests</string>
+    <string name="sales_average_bill">Avg bill</string>
+    <string name="sales_per_guest">Per guest</string>
+    <string name="sales_by_payment">By payment</string>
+    <string name="sales_tips">Tips</string>
+    <string name="sales_card_share">Card · %1$d%%</string>
+    <string name="sales_cash_share">Cash · %1$d%%</string>
+    <string name="sales_payment_bar_description">Card %1$d%%, cash %2$d%%</string>
+    <string name="sales_no_card_or_cash">No card or cash payments in this period.</string>
+    <string name="sales_products_by_hour_link">Products by hour</string>
+    <string name="sales_discounts_losses_link">Discounts &amp; losses</string>
+    <string name="sales_data_gaps_lead">Some bills are missing from these figures.</string>
+    <plurals name="sales_gap_unreadable">
+        <item quantity="one">%1$d bill couldn\'t be read.</item>
+        <item quantity="other">%1$d bills couldn\'t be read.</item>
+    </plurals>
+    <plurals name="sales_gap_without_items">
+        <item quantity="one">%1$d bill has no items, so it\'s missing from product figures.</item>
+        <item quantity="other">%1$d bills have no items, so they\'re missing from product figures.</item>
+    </plurals>
+    <plurals name="sales_gap_outdated">
+        <item quantity="one">%1$d bill may be out of date.</item>
+        <item quantity="other">%1$d bills may be out of date.</item>
+    </plurals>
+    <!-- METRICS.md: a bill whose payments don't add up is left out of revenue. -->
+    <plurals name="sales_gap_payment_mismatch">
+        <item quantity="one">%1$d bill left out of revenue: its payments don\'t add up.</item>
+        <item quantity="other">%1$d bills left out of revenue: their payments don\'t add up.</item>
+    </plurals>
+    <string name="sales_updated_at">Updated %1$s</string>
+    <string name="sales_cached">Last updated %1$s</string>
+    <string name="sales_cached_offline">Last updated %1$s · offline</string>
+    <string name="sales_cached_unknown">Saved figures</string>
+    <string name="sales_cached_unknown_offline">Saved figures · offline</string>
+    <string name="sales_weekday_monday">Monday</string>
+    <string name="sales_weekday_tuesday">Tuesday</string>
+    <string name="sales_weekday_wednesday">Wednesday</string>
+    <string name="sales_weekday_thursday">Thursday</string>
+    <string name="sales_weekday_friday">Friday</string>
+    <string name="sales_weekday_saturday">Saturday</string>
+    <string name="sales_weekday_sunday">Sunday</string>
+    <string name="sales_month_short_january">Jan</string>
+    <string name="sales_month_short_february">Feb</string>
+    <string name="sales_month_short_march">Mar</string>
+    <string name="sales_month_short_april">Apr</string>
+    <string name="sales_month_short_may">May</string>
+    <string name="sales_month_short_june">Jun</string>
+    <string name="sales_month_short_july">Jul</string>
+    <string name="sales_month_short_august">Aug</string>
+    <string name="sales_month_short_september">Sep</string>
+    <string name="sales_month_short_october">Oct</string>
+    <string name="sales_month_short_november">Nov</string>
+    <string name="sales_month_short_december">Dec</string>
+    <string name="sales_month_january">January</string>
+    <string name="sales_month_february">February</string>
+    <string name="sales_month_march">March</string>
+    <string name="sales_month_april">April</string>
+    <string name="sales_month_may">May</string>
+    <string name="sales_month_june">June</string>
+    <string name="sales_month_july">July</string>
+    <string name="sales_month_august">August</string>
+    <string name="sales_month_september">September</string>
+    <string name="sales_month_october">October</string>
+    <string name="sales_month_november">November</string>
+    <string name="sales_month_december">December</string>
 </resources>
