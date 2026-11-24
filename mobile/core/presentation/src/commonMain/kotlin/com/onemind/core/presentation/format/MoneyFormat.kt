@@ -4,7 +4,10 @@ import com.onemind.core.domain.money.Money
 
 /** How much precision an amount shows (METRICS.md, Formatting rules). */
 enum class MoneyStyle {
-    /** Summaries and dashboards: no decimals from 100 major units up (`48 320 Kč`), else the currency's (`45,50 Kč`). */
+    /**
+     * Summaries and dashboards: no decimals from 100 major units up (`48 320 Kč`) or for a whole amount
+     * (`0 Kč`, `98 Kč`), else the currency's (`45,50 Kč`).
+     */
     Summary,
 
     /** Always the currency's default fraction digits (`48 320,50 Kč`). */
@@ -25,11 +28,31 @@ fun formatMoney(
     val currencyDigits = currencyFractionDigits(money.currency.code)
     val digits =
         when (style) {
-            MoneyStyle.Precise -> currencyDigits
-            MoneyStyle.Summary -> if (money.absMinor() >= HUNDRED * pow10(currencyDigits)) 0 else currencyDigits
+            MoneyStyle.Precise -> {
+                currencyDigits
+            }
+
+            MoneyStyle.Summary -> {
+                val unit = pow10(currencyDigits)
+                if (money.absMinor() >= HUNDRED * unit || money.absMinor() % unit == 0L) 0 else currencyDigits
+            }
         }
     return normalizeMoneyText(platformFormatCurrency(money.amountMinor, money.currency.code, locale.tag, currencyDigits, digits))
 }
+
+/**
+ * [money] as [formatMoney] writes it in the Summary style, without the currency (`−18 640`, `−890`, `0`):
+ * for rows whose header names the currency (02c by type).
+ */
+fun formatMoneyAmount(
+    money: Money,
+    locale: VenueLocale = VenueLocale.forCurrency(money.currency),
+): String =
+    formatMoney(money, locale)
+        .filterNot { it.isLetter() || it in CURRENCY_SIGNS }
+        .trim(' ', '\u00A0', '\u202F')
+
+private const val CURRENCY_SIGNS = "$€£¥₹₩₺"
 
 /**
  * A compact chart label in major units (METRICS.md: *Large chart labels: `12.4k`*): below 1 000 the

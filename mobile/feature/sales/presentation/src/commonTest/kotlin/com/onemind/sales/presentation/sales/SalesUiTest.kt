@@ -35,7 +35,7 @@ class SalesUiTest {
     fun possibleLossIsShownAsANegativeAmount() {
         assertEquals(shown("−22·410_Kč"), SalesFixtures.week.toUi().possibleLoss)
         assertEquals(
-            shown("0,00_Kč"),
+            shown("0_Kč"),
             SalesFixtures.week
                 .copy(possibleLoss = czk(0))
                 .toUi()

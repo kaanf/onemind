@@ -35,6 +35,7 @@ fun ListRow(
     trailingValue: String? = null,
     trailingMeta: String? = null,
     trailingValueColor: Color = OneMindTheme.colors.textPrimary,
+    trailingValueWeight: FontWeight = FontWeight.Medium,
     showChevron: Boolean = false,
     showDivider: Boolean = true,
     minHeight: Dp = 56.dp,
@@ -61,7 +62,7 @@ fun ListRow(
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = trailingValue,
-                        style = type.body.copy(fontWeight = FontWeight.Medium),
+                        style = type.body.copy(fontWeight = trailingValueWeight),
                         color = trailingValueColor,
                         maxLines = 1,
                     )

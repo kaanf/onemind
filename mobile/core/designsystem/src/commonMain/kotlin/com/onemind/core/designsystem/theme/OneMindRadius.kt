@@ -20,4 +20,11 @@ data class OneMindRadius(
     val tag: Dp = 6.dp,
     val heatCell: Dp = 5.dp,
     val bar: Dp = 3.dp,
+    /** Legend swatches: 10×10 (02c) and 8×8 (02). */
+    val swatch: Dp = 3.dp,
+    val swatchSmall: Dp = 2.dp,
+    /** Stacked share bar segments. */
+    val shareBar: Dp = 5.dp,
+    /** Selected-row marker (02a). */
+    val marker: Dp = 2.dp,
 )

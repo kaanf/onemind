@@ -171,7 +171,7 @@ Stock formulas live in [STOCK.md](STOCK.md).
 
 ## Formatting rules (shared with mobile)
 
-- CZK: no decimals for amounts ≥ 100 Kč in summaries; recipe costs show one decimal (*40.7 Kč*).
+- CZK: no decimals for amounts ≥ 100 Kč or whole amounts (*0 Kč*, *98 Kč*) in summaries; recipe costs show one decimal (*40.7 Kč*).
 - Thousands separator: narrow no-break space (U+202F) or no-break space; currency after the number.
 - Negative: `−` (U+2212), not hyphen. Positive deltas show `+`.
 - Percentages: deltas one decimal (*12.4%*), shares integer (*69%*).
