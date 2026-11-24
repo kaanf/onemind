@@ -172,10 +172,11 @@ Not built yet: **Stepper**, **Fraction picker**, **Checklist row** (with the sto
 - Navigation (`OneMindNavHost`, the only NavHost setup: tabs and the auth gate): a push slides in from
   the right over the previous screen, which moves a quarter left. Every back (top-bar arrow, system back
   button, back gesture, iOS swipe) mirrors it: the screen slides out to the right on `enter()` and fades
-  only at the end (`exit()`). During a back gesture the same slide and fade follow the finger
-  (`gesture()`), never Navigation's default predictive scale-and-fade; a gesture from the right edge
-  (Android) slides the screen out to the left, with the finger. A tab switch, and back from a tab's
-  first screen to the previous tab, crossfade in 150 ms.
+  only at the end (`exit()`). During a back gesture the slide follows the finger (`gesture()`) and the
+  dragged screen never fades (fully opaque), never Navigation's default predictive scale-and-fade; a
+  gesture from the right edge (Android) slides the screen out to the left, with the finger. A gesture
+  always slides, also back from a tab's first screen (the previous tab's screen is revealed underneath).
+  A tab switch, and back from a tab's first screen to the previous tab by button, crossfade in 150 ms.
 - Loading: a screen's Loading state has the loaded layout: the same cards and real labels, with
   `OneMindSkeleton` / `OneMindSkeletonText` blocks in the value slots (`chartMuted` with a shimmer: a
   lighter band, `chartMuted` 60% towards `surface`, sweeping left to right every `SHIMMER_MILLIS`; every
