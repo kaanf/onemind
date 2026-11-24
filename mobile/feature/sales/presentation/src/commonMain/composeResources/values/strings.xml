@@ -117,19 +117,6 @@
     <string name="sales_detail_weekday_5">Fri</string>
     <string name="sales_detail_weekday_6">Sat</string>
     <string name="sales_detail_weekday_7">Sun</string>
-    <string name="sales_detail_range">%1$s to %2$s</string>
-    <string name="sales_detail_month_1">Jan</string>
-    <string name="sales_detail_month_2">Feb</string>
-    <string name="sales_detail_month_3">Mar</string>
-    <string name="sales_detail_month_4">Apr</string>
-    <string name="sales_detail_month_5">May</string>
-    <string name="sales_detail_month_6">Jun</string>
-    <string name="sales_detail_month_7">Jul</string>
-    <string name="sales_detail_month_8">Aug</string>
-    <string name="sales_detail_month_9">Sep</string>
-    <string name="sales_detail_month_10">Oct</string>
-    <string name="sales_detail_month_11">Nov</string>
-    <string name="sales_detail_month_12">Dec</string>
 
     <!-- 02c Discounts & losses -->
     <string name="sales_losses_title">Discounts &amp; losses</string>

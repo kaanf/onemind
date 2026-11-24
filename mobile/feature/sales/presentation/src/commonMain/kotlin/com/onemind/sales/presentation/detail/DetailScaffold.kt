@@ -28,19 +28,6 @@ import com.onemind.sales.presentation.generated.resources.Res
 import com.onemind.sales.presentation.generated.resources.sales_detail_back
 import com.onemind.sales.presentation.generated.resources.sales_detail_date
 import com.onemind.sales.presentation.generated.resources.sales_detail_loading
-import com.onemind.sales.presentation.generated.resources.sales_detail_month_1
-import com.onemind.sales.presentation.generated.resources.sales_detail_month_10
-import com.onemind.sales.presentation.generated.resources.sales_detail_month_11
-import com.onemind.sales.presentation.generated.resources.sales_detail_month_12
-import com.onemind.sales.presentation.generated.resources.sales_detail_month_2
-import com.onemind.sales.presentation.generated.resources.sales_detail_month_3
-import com.onemind.sales.presentation.generated.resources.sales_detail_month_4
-import com.onemind.sales.presentation.generated.resources.sales_detail_month_5
-import com.onemind.sales.presentation.generated.resources.sales_detail_month_6
-import com.onemind.sales.presentation.generated.resources.sales_detail_month_7
-import com.onemind.sales.presentation.generated.resources.sales_detail_month_8
-import com.onemind.sales.presentation.generated.resources.sales_detail_month_9
-import com.onemind.sales.presentation.generated.resources.sales_detail_range
 import com.onemind.sales.presentation.generated.resources.sales_detail_retry
 import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_1
 import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_2
@@ -50,6 +37,9 @@ import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_5
 import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_6
 import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_7
 import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_date
+import com.onemind.sales.presentation.generated.resources.sales_range_same_month
+import com.onemind.sales.presentation.generated.resources.sales_range_two_months
+import com.onemind.sales.presentation.sales.shortNameRes
 import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.stringResource
 
@@ -116,19 +106,38 @@ internal fun DetailMessage(
 /** "5 Nov". */
 @Composable
 internal fun shortDate(date: LocalDate): String =
-    stringResource(Res.string.sales_detail_date, date.day, stringResource(monthNames[date.month.ordinal]))
+    stringResource(Res.string.sales_detail_date, date.day, stringResource(date.month.shortNameRes()))
 
 /** "Thu, 5 Nov". */
 @Composable
 internal fun weekdayDate(date: LocalDate): String =
     stringResource(Res.string.sales_detail_weekday_date, stringResource(weekdayNames[date.dayOfWeek.ordinal]), shortDate(date))
 
-/** "2 to 8 Nov" style range, or one date for a single day. */
+/** "2 to 8 Nov", "30 Nov to 6 Dec", or one date for a single day: the same wording as 02 Sales. */
 @Composable
 internal fun dateRange(
     from: LocalDate,
     to: LocalDate,
-): String = if (from == to) shortDate(from) else stringResource(Res.string.sales_detail_range, shortDate(from), shortDate(to))
+): String =
+    when {
+        from == to -> {
+            shortDate(from)
+        }
+
+        from.month == to.month -> {
+            stringResource(Res.string.sales_range_same_month, from.day, to.day, stringResource(to.month.shortNameRes()))
+        }
+
+        else -> {
+            stringResource(
+                Res.string.sales_range_two_months,
+                from.day,
+                stringResource(from.month.shortNameRes()),
+                to.day,
+                stringResource(to.month.shortNameRes()),
+            )
+        }
+    }
 
 private val weekdayNames =
     listOf(
@@ -139,20 +148,4 @@ private val weekdayNames =
         Res.string.sales_detail_weekday_5,
         Res.string.sales_detail_weekday_6,
         Res.string.sales_detail_weekday_7,
-    )
-
-private val monthNames =
-    listOf(
-        Res.string.sales_detail_month_1,
-        Res.string.sales_detail_month_2,
-        Res.string.sales_detail_month_3,
-        Res.string.sales_detail_month_4,
-        Res.string.sales_detail_month_5,
-        Res.string.sales_detail_month_6,
-        Res.string.sales_detail_month_7,
-        Res.string.sales_detail_month_8,
-        Res.string.sales_detail_month_9,
-        Res.string.sales_detail_month_10,
-        Res.string.sales_detail_month_11,
-        Res.string.sales_detail_month_12,
     )
