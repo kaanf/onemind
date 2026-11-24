@@ -37,6 +37,13 @@ import com.onemind.sales.presentation.generated.resources.sales_period_week
 import com.onemind.sales.presentation.generated.resources.sales_weekday_friday
 import com.onemind.sales.presentation.generated.resources.sales_weekday_monday
 import com.onemind.sales.presentation.generated.resources.sales_weekday_saturday
+import com.onemind.sales.presentation.generated.resources.sales_weekday_short_friday
+import com.onemind.sales.presentation.generated.resources.sales_weekday_short_monday
+import com.onemind.sales.presentation.generated.resources.sales_weekday_short_saturday
+import com.onemind.sales.presentation.generated.resources.sales_weekday_short_sunday
+import com.onemind.sales.presentation.generated.resources.sales_weekday_short_thursday
+import com.onemind.sales.presentation.generated.resources.sales_weekday_short_tuesday
+import com.onemind.sales.presentation.generated.resources.sales_weekday_short_wednesday
 import com.onemind.sales.presentation.generated.resources.sales_weekday_sunday
 import com.onemind.sales.presentation.generated.resources.sales_weekday_thursday
 import com.onemind.sales.presentation.generated.resources.sales_weekday_tuesday
@@ -63,6 +70,17 @@ internal fun DayOfWeek.nameRes(): StringResource =
         DayOfWeek.FRIDAY -> Res.string.sales_weekday_friday
         DayOfWeek.SATURDAY -> Res.string.sales_weekday_saturday
         DayOfWeek.SUNDAY -> Res.string.sales_weekday_sunday
+    }
+
+internal fun DayOfWeek.shortNameRes(): StringResource =
+    when (this) {
+        DayOfWeek.MONDAY -> Res.string.sales_weekday_short_monday
+        DayOfWeek.TUESDAY -> Res.string.sales_weekday_short_tuesday
+        DayOfWeek.WEDNESDAY -> Res.string.sales_weekday_short_wednesday
+        DayOfWeek.THURSDAY -> Res.string.sales_weekday_short_thursday
+        DayOfWeek.FRIDAY -> Res.string.sales_weekday_short_friday
+        DayOfWeek.SATURDAY -> Res.string.sales_weekday_short_saturday
+        DayOfWeek.SUNDAY -> Res.string.sales_weekday_short_sunday
     }
 
 internal fun Month.shortNameRes(): StringResource =

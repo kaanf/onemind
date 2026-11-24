@@ -11,6 +11,7 @@ import com.onemind.sales.domain.SalesPeriod
 import com.onemind.sales.domain.SalesRange
 import com.onemind.sales.domain.SalesSummary
 import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.Month
 
 /** Screen 02 as formatted text; a `null` figure is drawn as the empty value, never as 0 (rule 2). */
 data class SalesUi(
@@ -30,12 +31,13 @@ data class SalesUi(
     val updatedAt: String?,
 )
 
-/** *+8.1% vs last week*; [previousWeekday] names the compared day for Hour and Day. */
+/** *+8.1% vs last week*; [previousWeekday] names the compared day (Hour, Day), [previousMonth] the month (Month). */
 data class SalesComparisonUi(
     val delta: String,
     val tone: BadgeTone,
     val period: SalesPeriod,
     val previousWeekday: DayOfWeek,
+    val previousMonth: Month,
 )
 
 /** Card and cash shares of card + cash (other methods are left out of the split, M4). */
@@ -77,6 +79,7 @@ fun SalesSummary.toUi(): SalesUi {
                             },
                         period = range.period,
                         previousWeekday = c.previousFrom.dayOfWeek,
+                        previousMonth = c.previousFrom.month,
                     )
                 }
             },
