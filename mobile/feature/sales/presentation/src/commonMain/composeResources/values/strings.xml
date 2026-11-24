@@ -154,4 +154,17 @@
     <string name="sales_losses_unavailable_stock_corrections">stock corrections</string>
     <string name="sales_losses_unavailable_body">The POS doesn\'t provide %1$s yet.</string>
     <string name="sales_losses_empty">No discounts, refunds or deleted bills in this period.</string>
+
+    <!-- 02a Products by hour -->
+    <string name="sales_products_title">Products by hour</string>
+    <string name="sales_products_subtitle">%1$s · menu synced from POS</string>
+    <string name="sales_products_all">All</string>
+    <string name="sales_products_sold">%1$s sold</string>
+    <string name="sales_products_peak">Peak %1$s</string>
+    <string name="sales_products_caption">By bill opening time</string>
+    <string name="sales_products_chart_description">%1$s sold by hour, peak at %2$s</string>
+    <string name="sales_products_chart_description_no_peak">%1$s sold by hour</string>
+    <string name="sales_products_row_meta">%1$s · %2$s</string>
+    <string name="sales_products_empty">No products sold on this day yet.</string>
+    <string name="sales_products_empty_category">No products in this category today.</string>
 </resources>
