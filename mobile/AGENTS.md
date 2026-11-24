@@ -89,7 +89,7 @@ Application ID / bundle ID: `com.onemind.app` (dev builds `com.onemind.app.dev`)
   back to `DataError.toUiText()` (`core:presentation`: network errors, `RATE_LIMITED`, else `detail`). Hint cards with an unknown `code` are hidden.
 - Money arrives as minor units, quantities and rates as decimal strings: never parse into `Double`.
 - Live screens poll only while visible and in the foreground (Today 30 s, 5 min when closed;
-  Staff/Tables 60 s; sync status 2 s), send `If-None-Match`, treat `304` as unchanged
+  Staff/Tables 60 s; Sales 60 s, not named in ADR 0005; sync status 2 s), send `If-None-Match`, treat `304` as unchanged
   (ADR 0005). Clients send `X-App-Version` / `X-Platform`; handle `426` with an update screen.
 
 ## Presentation pattern (same as crew-kmp)
