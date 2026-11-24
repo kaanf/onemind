@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -154,6 +156,7 @@ private fun LossesContentColumn(content: LossesContent.Ready) {
 }
 
 /** POSSIBLE LOSS card: overline, 36 figure, change badge beside the records line, then the stacked share bar. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Hero(losses: LossesUi) {
     val colors = OneMindTheme.colors
@@ -172,12 +175,22 @@ private fun Hero(losses: LossesUi) {
                         losses.sharePercent?.let { stringResource(Res.string.sales_losses_share, it) },
                     ).joinToString(" · ")
                 if (losses.change != null || meta.isNotEmpty()) {
-                    Row(
+                    // One row as on the canvas; on a narrow screen the records line moves under the badge whole.
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(spacing.textGap),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(spacing.listGap),
+                        itemVerticalAlignment = Alignment.CenterVertically,
                     ) {
                         losses.change?.let { ChangeBadge(losses.period, it) }
-                        if (meta.isNotEmpty()) Text(text = meta, style = type.caption, color = colors.textSecondary)
+                        if (meta.isNotEmpty()) {
+                            Text(
+                                text = meta,
+                                style = type.caption,
+                                color = colors.textSecondary,
+                                maxLines = 1,
+                                softWrap = false,
+                            )
+                        }
                     }
                 }
             }

@@ -79,7 +79,7 @@ internal fun ProductsSummary.toUi(venueNames: Map<String, String>): ProductsUi {
         businessDay = businessDay,
         hasData = hasData,
         pendingVenueCount = pendingVenueCount,
-        hours = hours,
+        hours = continuousHours(hours),
         chips = rows.mapNotNull { it.rootCategory }.distinct().map { CategoryChip(it, it) },
         products = rows,
         hasDataGaps = !dataGaps.isEmpty,
@@ -104,16 +104,31 @@ private fun root(
 internal fun ProductsUi.visibleProducts(categoryId: String?): List<ProductRow> =
     if (categoryId == null) products else products.filter { it.rootCategory == categoryId }
 
-/** Bars for [product] over the day's hours; the height is a drawing value only, never shown as a figure. */
+/**
+ * The chart's slots: every clock hour from the first to the last hour with sales, in business-day order
+ * (21, 22, 23, 0, 1), so the axis is evenly spaced; hours without sales stay as slots.
+ */
+internal fun continuousHours(hours: List<Int>): List<Int> {
+    if (hours.isEmpty()) return hours
+    val span = (hours.last() - hours.first()).mod(HOURS_IN_DAY)
+    return (0..span).map { (hours.first() + it) % HOURS_IN_DAY }
+}
+
+private const val HOURS_IN_DAY = 24
+
+/**
+ * Bars for [product] over the day's hours; the height is a drawing value only, never shown as a figure.
+ * An hour the product didn't sell in is a real 0: a 2 px stub without a label, as on the canvas.
+ */
 internal fun ProductsUi.bars(product: ProductRow): List<HourBar> {
     val heights = product.hourly.mapValues { (_, quantity) -> quantity.toFloatOrNull() ?: 0f }
     val largest = heights.values.maxOrNull()?.takeIf { it > 0f }
     return hours.map { hour ->
-        val height = heights[hour]
+        val height = heights[hour] ?: 0f
         HourBar(
             hour = hour,
             quantity = product.hourly[hour],
-            heightFraction = height?.let { if (largest == null) 0f else it / largest },
+            heightFraction = if (largest == null) 0f else height / largest,
             isPeak = hour == product.peakHour,
         )
     }

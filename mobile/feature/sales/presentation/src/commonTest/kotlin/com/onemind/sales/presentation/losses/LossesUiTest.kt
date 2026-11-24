@@ -61,7 +61,7 @@ class LossesUiTest {
     fun discountTypesAreNamed() {
         val names = ready.toUi().discountTypes.map { it.name }
 
-        assertEquals(listOf(DiscountName.Pos("Happy hour"), DiscountName.Unspecified, DiscountName.Other), names)
+        assertEquals(listOf(DiscountName.Pos("Happy Hour"), DiscountName.Unspecified, DiscountName.Other), names)
     }
 
     @Test

@@ -19,15 +19,15 @@ internal object LossesPreviewData {
             sharePercent = "6.7",
             rows =
                 listOf(
-                    LossRow(LossRowKind.DISCOUNTS, null, "−18 640 Kč"),
-                    LossRow(LossRowKind.DELETED_BILLS, 2, "−760 Kč"),
-                    LossRow(LossRowKind.REFUNDS, 4, "−890 Kč"),
+                    LossRow(LossRowKind.DISCOUNTS, null, "−18 640"),
+                    LossRow(LossRowKind.DELETED_BILLS, 2, "−760"),
+                    LossRow(LossRowKind.REFUNDS, 4, "−890"),
                 ),
             discountTypes =
                 listOf(
-                    DiscountRow(DiscountName.Pos("Happy hour"), 120, "−9 870 Kč"),
-                    DiscountRow(DiscountName.Pos("Staff"), 60, "−5 200 Kč"),
-                    DiscountRow(DiscountName.Other, null, "−3 570 Kč"),
+                    DiscountRow(DiscountName.Pos("Happy Hour"), 120, "−9 870"),
+                    DiscountRow(DiscountName.Pos("Staff"), 60, "−5 200"),
+                    DiscountRow(DiscountName.Other, null, "−3 570"),
                 ),
             unavailable = listOf(UnavailableLossComponent.ITEM_VOIDS, UnavailableLossComponent.UNPAID_CLOSED),
             hasDataGaps = false,

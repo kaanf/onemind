@@ -65,7 +65,7 @@ sealed interface DiscountName {
     /** An item discount without a type in the POS. */
     data object Unspecified : DiscountName
 
-    /** The POS discount type, made readable ("HAPPY_HOUR" → "Happy hour"). */
+    /** The POS discount type, made readable ("HAPPY_HOUR" → "Happy Hour"). */
     data class Pos(
         val name: String,
     ) : DiscountName
@@ -113,9 +113,23 @@ private fun DecimalValue.toChange(): LossChange {
 
 internal fun String.toName(): DiscountName =
     when (this) {
-        DiscountTypeLoss.UNTYPED -> DiscountName.Other
-        DiscountTypeLoss.UNSPECIFIED -> DiscountName.Unspecified
-        else -> DiscountName.Pos(lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() })
+        DiscountTypeLoss.UNTYPED -> {
+            DiscountName.Other
+        }
+
+        DiscountTypeLoss.UNSPECIFIED -> {
+            DiscountName.Unspecified
+        }
+
+        else -> {
+            DiscountName.Pos(
+                lowercase()
+                    .split('_')
+                    .filter {
+                        it.isNotEmpty()
+                    }.joinToString(" ") { word -> word.replaceFirstChar { it.uppercase() } },
+            )
+        }
     }
 
 private const val MINUS = "−"

@@ -56,6 +56,13 @@ class ProductsUiTest {
     }
 
     @Test
+    fun theChartHasEveryHourBetweenTheFirstAndLastAcrossMidnight() {
+        assertEquals(listOf(22, 23, 0, 1, 2), continuousHours(listOf(22, 0, 2)))
+        assertEquals(listOf(7, 8, 9, 10, 11, 12), continuousHours(listOf(7, 9, 12)))
+        assertEquals(emptyList(), continuousHours(emptyList()))
+    }
+
+    @Test
     fun aChipFiltersOnTheDevice() {
         val ui = ready.toUi(names)
 
@@ -70,7 +77,7 @@ class ProductsUiTest {
         val bars = ui.bars(ui.products[0])
 
         assertEquals(listOf(21, 22, 23, 0), bars.map { it.hour })
-        assertEquals(listOf(0.5f, 1f, null, 0.5f), bars.map { it.heightFraction })
+        assertEquals(listOf(0.5f, 1f, 0f, 0.5f), bars.map { it.heightFraction })
         assertEquals(listOf("10", "20", null, "10"), bars.map { it.quantity })
         assertEquals(listOf(false, true, false, false), bars.map { it.isPeak })
     }
