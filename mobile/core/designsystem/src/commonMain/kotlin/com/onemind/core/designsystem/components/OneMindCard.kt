@@ -9,10 +9,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.onemind.core.designsystem.theme.OneMindTheme
 
-/** Card: `surface` + 1 px `border`, radius 16, no shadow. Lists of rows use `PaddingValues(horizontal = 16.dp)`. */
+/** Card: `surface` + 1 px `border`, radius 16, no shadow, content clipped to the shape. */
 @Composable
 fun OneMindCard(
     modifier: Modifier = Modifier,
@@ -23,6 +24,8 @@ fun OneMindCard(
     Column(
         modifier =
             modifier
+                // Clipped, so a clickable row's ripple keeps the card's corners.
+                .clip(shape)
                 .background(OneMindTheme.colors.surface, shape)
                 .border(OneMindTheme.spacing.borderWidth, OneMindTheme.colors.border, shape)
                 .padding(contentPadding),
@@ -30,9 +33,9 @@ fun OneMindCard(
     )
 }
 
-/** Card holding [ListRow]s: no vertical padding, rows draw their own dividers. */
+/** Card holding [ListRow]s: no padding; each row pads itself (16), so its ripple fills the card's width. */
 @Composable
 fun OneMindListCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
-) = OneMindCard(modifier = modifier, contentPadding = PaddingValues(horizontal = 16.dp), content = content)
+) = OneMindCard(modifier = modifier, contentPadding = PaddingValues(0.dp), content = content)

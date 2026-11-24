@@ -12,6 +12,7 @@ import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -34,6 +35,8 @@ fun OneMindFilterChip(
                 // 36 high as designed, but the touch target is at least 48 × 48 (44 × 44 rule).
                 .minimumInteractiveComponentSize()
                 .heightIn(min = 36.dp)
+                // Clipped, so the ripple stays inside the 36-high pill.
+                .clip(shape)
                 .background(if (selected) colors.textPrimary else colors.surface, shape)
                 .border(
                     OneMindTheme.spacing.borderWidth,
