@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -229,6 +230,13 @@ private fun TodayContentColumn(
 @Composable
 private fun HeaderRow(header: TodayHeader) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        // Until the venue list loads, a pill-sized skeleton keeps the header from shifting.
+        if (header.scopeName == null) {
+            OneMindSkeleton(
+                modifier = Modifier.size(SKELETON_PILL_WIDTH, OneMindTheme.spacing.minTouchTarget),
+                shape = CircleShape,
+            )
+        }
         header.scopeName?.let { scope ->
             val name =
                 when (scope) {
@@ -485,7 +493,7 @@ private fun PossibleLossRow(
                     )
                 }
             },
-            trailingValue = loss?.total ?: stringResource(Res.string.today_value_empty),
+            trailingValue = loss?.total ?: stringResource(Res.string.today_value_empty).takeUnless { LocalLoading.current },
             trailingValueColor = if (loss != null) colors.negativeText else colors.textSecondary,
             trailingValueWeight = FontWeight.SemiBold,
             showChevron = true,
@@ -575,6 +583,7 @@ private fun LiveFigure(
     ) { StatTile(label = label, value = it, style = StatTileStyle.Tile) }
 }
 
+private val SKELETON_PILL_WIDTH = 130.dp
 private val SKELETON_DATE = 180.dp
 private val SKELETON_HERO = 200.dp
 private val SKELETON_BADGE = 140.dp
