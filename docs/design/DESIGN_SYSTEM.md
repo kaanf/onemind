@@ -172,7 +172,8 @@ Not built yet: **Stepper**, **Fraction picker**, **Checklist row** (with the sto
   moves a quarter left; back (predictive back too) mirrors it; a tab switch crossfades in 150 ms.
 - Loading: a screen's Loading state has the loaded layout: the same cards and real labels, with
   `OneMindSkeleton` / `OneMindSkeletonText` blocks in the value slots (`chartMuted`, pulsing). Cached
-  figures, when there are any, show instead of skeletons. `OneMindLoadingSlot(value, skeleton) { … }`
+  figures, when there are any, show instead of skeletons; their age (*Last updated 21:40*) sits at the
+  bottom in the *Updated* line's place, so nothing above moves when the first poll answers. `OneMindLoadingSlot(value, skeleton) { … }`
   crossfades a slot from skeleton to value in place (medium); numbers never count up (rule 2).
 - Ripple: a clickable sits on the outermost shape after `clip(shape)` and covers it whole. Cards clip
   their content; `OneMindListCard` has no padding and each `ListRow` pads itself (16).

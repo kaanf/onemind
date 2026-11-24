@@ -270,9 +270,6 @@ private fun SalesContentColumn(
     val colors = OneMindTheme.colors
     val type = OneMindTheme.typography
     val sales = content.sales
-    content.cached?.let { marker ->
-        Text(text = marker.text(), style = type.caption, color = if (marker.offline) colors.warningText else colors.textSecondary)
-    }
     content.refreshError?.let { Text(text = it.asString(), style = type.caption, color = colors.negativeText) }
     if (sales.pendingVenueCount > 0) {
         Text(
@@ -290,8 +287,14 @@ private fun SalesContentColumn(
             body = sales.dataGaps.map { pluralStringResource(it.kind.pluralRes(), it.count, it.count) }.joinToString(" "),
         )
     }
-    sales.updatedAt?.let {
-        Text(text = stringResource(Res.string.sales_updated_at, it), style = type.caption, color = colors.textSecondary)
+    // The age of cached figures takes the Updated line's place at the bottom (nothing above moves).
+    val cached = content.cached
+    if (cached != null) {
+        Text(text = cached.text(), style = type.caption, color = if (cached.offline) colors.warningText else colors.textSecondary)
+    } else {
+        sales.updatedAt?.let {
+            Text(text = stringResource(Res.string.sales_updated_at, it), style = type.caption, color = colors.textSecondary)
+        }
     }
 }
 

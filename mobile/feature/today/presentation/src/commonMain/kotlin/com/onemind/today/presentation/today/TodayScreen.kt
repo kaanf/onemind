@@ -195,13 +195,6 @@ private fun TodayContentColumn(
     val colors = OneMindTheme.colors
     val type = OneMindTheme.typography
     ScreenTitle(title = title, dateLine = today.dateLine())
-    cached?.let { marker ->
-        Text(
-            text = marker.text(),
-            style = type.caption,
-            color = if (marker.offline) colors.warningText else colors.textSecondary,
-        )
-    }
     if (refreshError != null) {
         Text(text = refreshError.asString(), style = type.caption, color = colors.negativeText)
     }
@@ -221,8 +214,14 @@ private fun TodayContentColumn(
             body = today.dataGaps.map { it.text() }.joinToString(" "),
         )
     }
-    today.updatedAt?.let {
-        Text(text = stringResource(Res.string.today_updated_at, it), style = type.caption, color = colors.textSecondary)
+    // The age of cached figures takes the Updated line's place at the bottom, so nothing above moves
+    // when the first poll answers.
+    if (cached != null) {
+        Text(text = cached.text(), style = type.caption, color = if (cached.offline) colors.warningText else colors.textSecondary)
+    } else {
+        today.updatedAt?.let {
+            Text(text = stringResource(Res.string.today_updated_at, it), style = type.caption, color = colors.textSecondary)
+        }
     }
 }
 
@@ -472,6 +471,7 @@ private fun PossibleLossRow(
     today: TodayUi,
     onOpenLosses: () -> Unit,
 ) {
+    val loading = LocalLoading.current
     val colors = OneMindTheme.colors
     val loss = today.possibleLoss
     OneMindListCard {
@@ -493,7 +493,8 @@ private fun PossibleLossRow(
                     )
                 }
             },
-            trailingValue = loss?.total ?: stringResource(Res.string.today_value_empty).takeUnless { LocalLoading.current },
+            trailingValue = loss?.total ?: stringResource(Res.string.today_value_empty).takeUnless { loading },
+            trailingContent = if (loading) ({ OneMindSkeletonText(OneMindTheme.typography.body, width = SKELETON_LOSS) }) else null,
             trailingValueColor = if (loss != null) colors.negativeText else colors.textSecondary,
             trailingValueWeight = FontWeight.SemiBold,
             showChevron = true,
@@ -588,5 +589,6 @@ private val SKELETON_DATE = 180.dp
 private val SKELETON_HERO = 200.dp
 private val SKELETON_BADGE = 140.dp
 private val SKELETON_VALUE = 72.dp
+private val SKELETON_LOSS = 64.dp
 private val BADGE_PADDING = 3.dp
 private val CHART_HEIGHT = 52.dp
