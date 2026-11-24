@@ -17,6 +17,9 @@ enum class StatTileStyle {
 
     /** Overline label + Inter Tight figure (*HOURS 18:40*). */
     Overline,
+
+    /** Caption label + 18/600 value, in a live-figure tile (*Guests 286* on Today). */
+    Tile,
 }
 
 /** Label + value, laid out by the caller in a grid of 2–3 columns. */
@@ -32,7 +35,7 @@ fun StatTile(
     val type = OneMindTheme.typography
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(if (style == StatTileStyle.Overline) 4.dp else 2.dp),
+        verticalArrangement = Arrangement.spacedBy(if (style == StatTileStyle.Compact) 2.dp else 4.dp),
     ) {
         when (style) {
             StatTileStyle.Compact -> {
@@ -40,6 +43,16 @@ fun StatTile(
                 Text(
                     text = value,
                     style = type.body.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+                    color = valueColor,
+                    maxLines = 1,
+                )
+            }
+
+            StatTileStyle.Tile -> {
+                Text(text = label, style = type.caption, color = colors.textSecondary, maxLines = 1)
+                Text(
+                    text = value,
+                    style = type.body.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
                     color = valueColor,
                     maxLines = 1,
                 )

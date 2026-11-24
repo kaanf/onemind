@@ -23,7 +23,22 @@ class MoneyFormatTest {
         expect("100_Kč", formatMoney(czk(10_000)))
         expect("99,99_Kč", formatMoney(czk(9_999)))
         expect("45,50_Kč", formatMoney(czk(4_550)))
-        expect("0,00_Kč", formatMoney(czk(0)))
+    }
+
+    @Test
+    fun czkSummaryDropsDecimalsOfAWholeAmount() {
+        expect("0_Kč", formatMoney(czk(0)))
+        expect("98_Kč", formatMoney(czk(9_800)))
+        expect("−5_Kč", formatMoney(czk(-500)))
+        expect("0,00_Kč", formatMoney(czk(0), style = MoneyStyle.Precise))
+    }
+
+    @Test
+    fun anAmountWithoutTheCurrency() {
+        expect("−18·640", formatMoneyAmount(czk(-1_864_000)))
+        expect("−890", formatMoneyAmount(czk(-89_000)))
+        expect("0", formatMoneyAmount(czk(0)))
+        expect("45,50", formatMoneyAmount(czk(4_550)))
     }
 
     @Test

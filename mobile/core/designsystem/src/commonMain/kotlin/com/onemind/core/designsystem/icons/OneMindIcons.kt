@@ -42,6 +42,10 @@ object OneMindIcons {
             "M16 4.8a3.2 3.2 0 0 1 0 6.4",
             "M18 14.2c2.1.6 3.5 2.6 3.5 5.8",
         )
+
+    /** One person: the account button without initials. */
+    val Account =
+        strokeIcon("Account", 1.75f, "M15.5 8a3.5 3.5 0 1 1-7 0a3.5 3.5 0 1 1 7 0z", "M5.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6")
     val Stock =
         strokeIcon("Stock", 1.75f, "M3.5 7.5 12 3.5l8.5 4v9L12 20.5l-8.5-4z", "M3.5 7.5 12 11.5l8.5-4", "M12 11.5v9")
 }

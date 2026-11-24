@@ -20,11 +20,13 @@ fun DeltaBadge(
     text: String,
     tone: BadgeTone,
     modifier: Modifier = Modifier,
+    /** SemiBold for deltas; Medium for a neutral tag such as *Peak 22:00* (02a). */
+    weight: FontWeight = FontWeight.SemiBold,
 ) {
     val (background, content) = OneMindTheme.colors.badgeColors(tone)
     Text(
         text = text,
-        style = OneMindTheme.typography.caption.copy(fontWeight = FontWeight.SemiBold),
+        style = OneMindTheme.typography.caption.copy(fontWeight = weight),
         color = content,
         maxLines = 1,
         modifier =

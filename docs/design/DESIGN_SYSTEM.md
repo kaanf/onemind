@@ -72,6 +72,7 @@ Treat accent as a single token so it can be switched.
 | `tabLabel`     | Inter 11 / 500 (active 600) | Tab bar |
 | `chartLabel`   | Inter 10 / 400            | Chart value and axis labels (bar values, heatmap hours) |
 | `label`        | Inter 13 / 500            | Field and group labels (*Work email*, *Code*) |
+| `labelLarge`   | Inter 14 / 500            | Row amounts (02a gross); the venue pill name as 14 / 600 |
 | `button`       | Inter 16 / 600            | Button text |
 | `brand`        | Inter Tight 20 / 700, −0.02em | *OneMind* wordmark next to the brand mark |
 
@@ -87,7 +88,18 @@ Treat accent as a single token so it can be switched.
 - Card: `surface` + 1 px `border`, no shadow.
 - Leading icon box in a list row (*Possible loss* on Today): **32** square, radius 8, icon **18**
   (`OneMindTheme.spacing.iconBoxSize`, `iconBoxIconSize`).
-- Rows: min height 44–68 dp, separated by 1 px `divider`; the last row has no divider.
+- Rows: min height 44–68 dp, separated by 1 px `divider`; the last row has no divider. Link rows on
+  02 are **54** (`rowHeightLink`), by-type rows on 02c **60** (`rowHeightTall`).
+- Charts: Today's hourly bars **52** high, gap 4; 02a's with value labels **88** (`chartHeightTall`),
+  gap **5** (`barGapWide`). Selected-row marker on 02a **4×28**, radius 2 (`selectionMarkerWidth`,
+  `selectionMarkerHeight`, `radius.marker`).
+- Stacked share bar (02 card/cash, 02c by type): **10** high, segments **3** apart, radius **5**
+  (`shareBarHeight`, `shareBarGap`, `radius.shareBar`). Legend swatches **10×10** radius 3 (02c) and
+  **8×8** radius 2 (02) (`swatch`, `swatchSmall`, `radius.swatch`, `radius.swatchSmall`).
+- Venue pill status dot **8**, `positive` (`statusDot`).
+- Card padding **18** top/bottom, 20 sides on *By payment* (02) and the 02a chart card (`cardPaddingTight`).
+  Gaps: hero column **6** (`heroGap`), chart header **4** (`listGap`), name over meta **2** (`hairlineGap`);
+  list rows **56** (`listRowHeight`).
 
 ## Components
 
@@ -130,10 +142,10 @@ built from the canvas SVG paths); add new ones there rather than adding an icon 
 | Segmented tabs | `SegmentedTabs` |
 | Chips (filter) | `OneMindFilterChip` |
 | Primary / outline button | `PrimaryButton` (`Accent`, `Dark`), `OutlineButton` |
-| Stat tile | `StatTile` (`Compact`, `Overline`) |
-| List row | `ListRow` |
+| Stat tile | `StatTile` (`Compact` 12 + 16/600, `Tile` 12 + 18/600 for Today's live figures, `Overline`) |
+| List row | `ListRow` (`trailingValueWeight`: Medium by default, SemiBold for *Possible loss* on Today) |
 | Avatar initials | `AvatarInitials` |
-| Delta / tag badge | `DeltaBadge` (`Positive`, `Negative`, `Neutral`) |
+| Delta / tag badge | `DeltaBadge` (`Positive`, `Negative`, `Neutral`; `weight` Medium for a tag such as *Peak 22:00*) |
 | Hint card / warning card | `HintCard`, `WarningCard` |
 | Bar chart | `BarChart` + `Bar` |
 | Heatmap | `Heatmap` + `HeatmapRow`, `HeatCell` |
@@ -143,8 +155,8 @@ built from the canvas SVG paths); add new ones there rather than adding an icon 
 | Text field | `OneMindTextField` |
 | Inline error | `InlineError` (`negativeText`, 13, announced when it appears) |
 | Brand mark | `BrandMark` (glass on a dark 36 box + wordmark, A1) |
-| Venue button | `VenueButton` (white pill, 44 high, `borderStrong`, side padding `pillPadding` 14; chevron `chevronSize` 12 only with a click) |
-| Account button | `AccountButton` (initials in a dark 44 circle, `onAccent` text) |
+| Venue button | `VenueButton` (white pill, 44 high, `borderStrong`, green status dot, name 14/600, side padding `pillPadding` 14; chevron `chevronSize` 12 with a click or `showChevron`) |
+| Account button | `AccountButton` (initials 14/600 in a dark 44 circle, `onAccent` text; a person glyph `OneMindIcons.Account` when the user has no name) |
 | Placeholder screen (temporary, not in the design) | `PlaceholderScreen`: tab title + one line, for tabs whose screen is not built yet |
 
 Not built yet: **Stepper**, **Fraction picker**, **Checklist row** (with the stock screens, phase 6) and
