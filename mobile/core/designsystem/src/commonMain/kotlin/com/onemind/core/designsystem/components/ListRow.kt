@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -39,11 +40,19 @@ fun ListRow(
     showChevron: Boolean = false,
     showDivider: Boolean = true,
     minHeight: Dp = 56.dp,
+    /** Side padding inside the row (its card has none), so the ripple covers the full width. */
+    horizontalPadding: Dp = OneMindTheme.spacing.cardPaddingCompact,
     onClick: (() -> Unit)? = null,
 ) {
     val colors = OneMindTheme.colors
     val type = OneMindTheme.typography
-    Column(modifier = modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .padding(horizontal = horizontalPadding),
+    ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.rowGap),
