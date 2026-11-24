@@ -34,9 +34,9 @@
     <string name="sales_per_guest">Per guest</string>
     <string name="sales_by_payment">By payment</string>
     <string name="sales_tips">Tips</string>
-    <string name="sales_card_share">Card · %1$d%%</string>
-    <string name="sales_cash_share">Cash · %1$d%%</string>
-    <string name="sales_payment_bar_description">Card %1$d%%, cash %2$d%%</string>
+    <string name="sales_card_share">Card · %1$d%</string>
+    <string name="sales_cash_share">Cash · %1$d%</string>
+    <string name="sales_payment_bar_description">Card %1$d%, cash %2$d%</string>
     <string name="sales_no_card_or_cash">No card or cash payments in this period.</string>
     <string name="sales_products_by_hour_link">Products by hour</string>
     <string name="sales_discounts_losses_link">Discounts &amp; losses</string>
@@ -136,7 +136,7 @@
         <item quantity="one">%1$s record</item>
         <item quantity="other">%1$s records</item>
     </plurals>
-    <string name="sales_losses_share">%1$s%% of revenue</string>
+    <string name="sales_losses_share">%1$s% of revenue</string>
     <string name="sales_losses_by_type">By type</string>
     <string name="sales_losses_discounts">Discounts</string>
     <string name="sales_losses_discounts_meta">Happy Hour, staff, comps, loyalty</string>
