@@ -26,7 +26,7 @@ import com.onemind.core.api.model.TodaySummary as TodaySummaryDto
  *   `If-None-Match`; a `304` returns that answer again;
  * - every fresh answer is also written to the [ScreenCache] as the raw body the server sent (not
  *   re-encoded: values this app version reads as `UNKNOWN` stay as sent, for a newer version to read),
- *   so the next launch can show it at once ([cachedToday]) and its first poll sends the cached `ETag`;
+ *   so the next launch can fall back to it ([cachedToday]) and its first poll sends the cached `ETag`;
  * - a `304` with nothing usable to return (no readable entry) is fetched again without `If-None-Match`,
  *   never turned into an empty screen.
  */

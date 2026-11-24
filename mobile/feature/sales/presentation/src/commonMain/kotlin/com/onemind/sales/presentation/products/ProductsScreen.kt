@@ -88,6 +88,7 @@ fun ProductsScreen(
     DetailLazyScaffold(
         title = stringResource(Res.string.sales_products_title),
         subtitle = ready?.products?.let { stringResource(Res.string.sales_products_subtitle, weekdayDate(it.businessDay)) },
+        subtitleLoading = state.content == ProductsContent.Loading,
         onBack = onBack,
         isRefreshing = state.isRefreshing,
         onRefresh = { onAction(ProductsAction.Refresh) },

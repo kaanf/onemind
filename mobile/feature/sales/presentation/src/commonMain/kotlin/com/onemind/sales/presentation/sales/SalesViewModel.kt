@@ -11,6 +11,7 @@ import com.onemind.core.domain.venue.VenueScopeRepository
 import com.onemind.core.domain.venue.venueIds
 import com.onemind.core.presentation.format.formatClockTime
 import com.onemind.core.presentation.util.UiText
+import com.onemind.core.presentation.util.awaitWithCachedFallback
 import com.onemind.core.presentation.util.toUiText
 import com.onemind.sales.domain.CachedSales
 import com.onemind.sales.domain.SalesErrorCodes
@@ -39,7 +40,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * 02 Sales. Polls `GET /dashboard/sales` for the selected venue scope and period only while the screen
  * collects [state] (visible and in the foreground, ADR 0005), every [SalesPollInterval]. Changing the
  * period starts a new poll. A failed poll keeps the last figures with a note; cached figures (ADR 0006)
- * show at once with their age; a failed first load without them shows the error.
+ * show with their age when the first load fails or is slow; a failed first load without them shows the error.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SalesViewModel(
@@ -65,6 +66,16 @@ class SalesViewModel(
         }
 
     private var latestTarget: SalesTarget = SalesTarget.Waiting
+
+    /** The figures last on screen and this session's summary behind them, kept for a return to the screen. */
+    private var shown: Shown? = null
+
+    private class Shown(
+        val venueIds: List<String>,
+        val period: SalesPeriod,
+        val content: SalesContent.Ready,
+        val summary: SalesSummary?,
+    )
 
     val state: StateFlow<SalesState> =
         combine(
@@ -110,18 +121,37 @@ class SalesViewModel(
         period: SalesPeriod,
     ): Flow<SalesContent> =
         flow {
-            emit(SalesContent.Loading)
+            // Back on the screen (a restart after WhileSubscribed stopped): the figures of the same scope and period
+            // stay and refresh silently, like a poll. Otherwise (ADR 0006 §1) skeletons until the first answer;
+            // cached figures only after a failure or a slow answer.
+            val remembered = shown?.takeIf { it.venueIds == venueIds && it.period == period }
+            emit(remembered?.content ?: SalesContent.Loading)
             val cached = repository.cachedSales(venueIds, period)
-            if (cached != null) emit(cached.content(offline = false, error = null))
-            var summary: SalesSummary? = null
+            var summary: SalesSummary? = remembered?.summary
+            var first = remembered == null
             while (true) {
                 var failure: DataError? = null
-                when (val result = repository.getSales(venueIds, period)) {
+                val result =
+                    if (first && cached != null) {
+                        awaitWithCachedFallback({ repository.getSales(venueIds, period) }) {
+                            val fallback = cached.content(offline = false, error = null)
+                            shown = Shown(venueIds, period, fallback, summary = null)
+                            emit(fallback)
+                        }
+                    } else {
+                        repository.getSales(venueIds, period)
+                    }
+                first = false
+                when (result) {
                     is Result.Success -> summary = result.data
                     is Result.Failure -> failure = result.error
                 }
+                // This answer also serves a refresh asked while it was on the way (pulling on cached figures).
+                refreshRequests.tryReceive()
                 refreshing.value = false
-                emit(content(summary, cached, failure))
+                val content = content(summary, cached, failure)
+                if (content is SalesContent.Ready) shown = Shown(venueIds, period, content, summary)
+                emit(content)
                 withTimeoutOrNull(pollInterval.next()) { refreshRequests.receive() }
             }
         }

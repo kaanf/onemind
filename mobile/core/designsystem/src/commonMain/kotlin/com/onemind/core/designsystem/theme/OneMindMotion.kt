@@ -20,8 +20,8 @@ object OneMindMotion {
     /** Screen push and pop. */
     const val LONG_MILLIS = 350
 
-    /** One skeleton pulse (half a cycle). */
-    const val PULSE_MILLIS = 500
+    /** One skeleton shimmer sweep across the screen (linear, repeating). */
+    const val SHIMMER_MILLIS = 1200
 
     val EnterEasing: Easing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
     val ExitEasing: Easing = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
