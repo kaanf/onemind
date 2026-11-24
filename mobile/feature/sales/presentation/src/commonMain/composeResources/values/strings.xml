@@ -94,4 +94,64 @@
     <string name="sales_month_october">October</string>
     <string name="sales_month_november">November</string>
     <string name="sales_month_december">December</string>
+
+    <!-- Sales detail screens (02a, 02c), shared -->
+    <string name="sales_detail_back">Back to Sales</string>
+    <string name="sales_detail_loading">Loading</string>
+    <string name="sales_detail_retry">Try again</string>
+    <string name="sales_detail_no_venue">Add a venue to see its figures.</string>
+    <string name="sales_detail_error_venues_differ">These venues can\'t be shown together. Choose one venue.</string>
+    <string name="sales_detail_error_venue_not_found">This venue isn\'t available any more.</string>
+    <string name="sales_detail_no_data_yet">Waiting for the first sync from the POS. Figures appear after it.</string>
+    <plurals name="sales_detail_venues_syncing">
+        <item quantity="one">%1$d venue is still syncing and isn\'t included.</item>
+        <item quantity="other">%1$d venues are still syncing and aren\'t included.</item>
+    </plurals>
+    <string name="sales_detail_data_gaps">Some bills couldn\'t be read or are being updated, so these figures may be incomplete.</string>
+    <string name="sales_detail_date">%1$d %2$s</string>
+    <string name="sales_detail_range">%1$s to %2$s</string>
+    <string name="sales_detail_month_1">Jan</string>
+    <string name="sales_detail_month_2">Feb</string>
+    <string name="sales_detail_month_3">Mar</string>
+    <string name="sales_detail_month_4">Apr</string>
+    <string name="sales_detail_month_5">May</string>
+    <string name="sales_detail_month_6">Jun</string>
+    <string name="sales_detail_month_7">Jul</string>
+    <string name="sales_detail_month_8">Aug</string>
+    <string name="sales_detail_month_9">Sep</string>
+    <string name="sales_detail_month_10">Oct</string>
+    <string name="sales_detail_month_11">Nov</string>
+    <string name="sales_detail_month_12">Dec</string>
+
+    <!-- 02c Discounts & losses -->
+    <string name="sales_losses_title">Discounts &amp; losses</string>
+    <string name="sales_losses_period_day">Day</string>
+    <string name="sales_losses_period_week">Week</string>
+    <string name="sales_losses_period_month">Month</string>
+    <string name="sales_losses_possible_loss">POSSIBLE LOSS</string>
+    <string name="sales_losses_change_vs_day">%1$s pts vs previous day</string>
+    <string name="sales_losses_change_vs_week">%1$s pts vs last week</string>
+    <string name="sales_losses_change_vs_month">%1$s pts vs last month</string>
+    <plurals name="sales_losses_records">
+        <item quantity="one">%1$s record</item>
+        <item quantity="other">%1$s records</item>
+    </plurals>
+    <string name="sales_losses_share">%1$s%% of revenue</string>
+    <string name="sales_losses_by_type">By type</string>
+    <string name="sales_losses_discounts">Discounts</string>
+    <string name="sales_losses_discounts_meta">Happy Hour, staff, comps, loyalty</string>
+    <string name="sales_losses_deleted_bills">Deleted bills</string>
+    <string name="sales_losses_deleted_bills_meta">Whole bills deleted</string>
+    <string name="sales_losses_refunds">Refunds</string>
+    <string name="sales_losses_refunds_meta">Paid, then returned</string>
+    <string name="sales_losses_meta_count">%1$s · %2$s</string>
+    <string name="sales_losses_discount_types">Discounts by type</string>
+    <string name="sales_losses_discount_other">Other discounts</string>
+    <string name="sales_losses_discount_unspecified">Without a type</string>
+    <string name="sales_losses_unavailable_lead">Not included yet</string>
+    <string name="sales_losses_unavailable_unpaid_closed">bills closed without payment</string>
+    <string name="sales_losses_unavailable_item_voids">items removed after ordering</string>
+    <string name="sales_losses_unavailable_stock_corrections">stock corrections</string>
+    <string name="sales_losses_unavailable_body">The POS doesn\'t provide %1$s yet.</string>
+    <string name="sales_losses_empty">No discounts, refunds or deleted bills in this period.</string>
 </resources>
