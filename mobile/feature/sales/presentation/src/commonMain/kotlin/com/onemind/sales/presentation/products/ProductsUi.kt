@@ -1,5 +1,6 @@
 package com.onemind.sales.presentation.products
 
+import androidx.compose.runtime.Immutable
 import com.onemind.core.presentation.format.VenueLocale
 import com.onemind.core.presentation.format.formatMoney
 import com.onemind.sales.domain.products.ProductCategory
@@ -7,6 +8,7 @@ import com.onemind.sales.domain.products.ProductsSummary
 import kotlinx.datetime.LocalDate
 
 /** 02a ready to draw: the day's products formatted, plus what the chips and the chart need. */
+@Immutable
 data class ProductsUi(
     val businessDay: LocalDate,
     /** `false` while no venue has data for the day: no figure is drawn (rule 2). */
@@ -25,11 +27,13 @@ data class ProductsUi(
 )
 
 /** A chip; [id] is the category name (the same name in several venues is one chip). */
+@Immutable
 data class CategoryChip(
     val id: String,
     val name: String,
 )
 
+@Immutable
 data class ProductRow(
     /** Unique across venues (product ids are per venue). */
     val key: String,
@@ -50,6 +54,7 @@ data class ProductRow(
 )
 
 /** One chart bar: [heightFraction] against the product's busiest hour, 0–1; `null` draws nothing. */
+@Immutable
 data class HourBar(
     val hour: Int,
     val quantity: String?,

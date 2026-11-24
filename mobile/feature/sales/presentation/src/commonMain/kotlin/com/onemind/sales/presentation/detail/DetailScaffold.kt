@@ -5,29 +5,28 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import com.onemind.core.designsystem.components.DetailTopBar
 import com.onemind.core.designsystem.components.OutlineButton
 import com.onemind.core.designsystem.theme.OneMindTheme
 import com.onemind.sales.presentation.generated.resources.Res
 import com.onemind.sales.presentation.generated.resources.sales_detail_back
 import com.onemind.sales.presentation.generated.resources.sales_detail_date
-import com.onemind.sales.presentation.generated.resources.sales_detail_loading
 import com.onemind.sales.presentation.generated.resources.sales_detail_retry
 import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_1
 import com.onemind.sales.presentation.generated.resources.sales_detail_weekday_2
@@ -81,14 +80,41 @@ internal fun DetailScaffold(
     }
 }
 
+/**
+ * The lazy variant for long lists (02a): the same bar and paddings, items with stable keys. Items carry
+ * their own gaps, so rows of one card can sit edge to edge.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun DetailLoading() {
-    val description = stringResource(Res.string.sales_detail_loading)
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-        CircularProgressIndicator(
-            color = OneMindTheme.colors.accent,
-            modifier = Modifier.semantics { contentDescription = description },
+internal fun DetailLazyScaffold(
+    title: String,
+    subtitle: String?,
+    onBack: () -> Unit,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    content: LazyListScope.() -> Unit,
+) {
+    val spacing = OneMindTheme.spacing
+    Column(modifier = Modifier.fillMaxSize().background(OneMindTheme.colors.background).windowInsetsPadding(WindowInsets.statusBars)) {
+        DetailTopBar(
+            title = title,
+            subtitle = subtitle,
+            onBack = onBack,
+            backContentDescription = stringResource(Res.string.sales_detail_back),
         )
+        PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                contentPadding =
+                    PaddingValues(
+                        start = spacing.screenHorizontal,
+                        end = spacing.screenHorizontal,
+                        top = spacing.textGap,
+                        bottom = spacing.sectionGap,
+                    ),
+                modifier = Modifier.fillMaxSize(),
+                content = content,
+            )
+        }
     }
 }
 
