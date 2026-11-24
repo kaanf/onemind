@@ -53,6 +53,8 @@ data class OneMindTypography(
     val chartLabel: TextStyle,
     /** Field and group labels (*Work email*, *Code*). */
     val label: TextStyle,
+    /** 14/500: row amounts (02a gross), the venue pill name (as 600). */
+    val labelLarge: TextStyle,
     /** Button text (16 SemiBold). */
     val button: TextStyle,
     /** The *OneMind* wordmark next to the brand mark. */
@@ -110,6 +112,7 @@ internal fun oneMindTypography(
         tabLabel = style(inter, 11, FontWeight.Medium, lineHeight = 1.3),
         chartLabel = style(inter, 10, FontWeight.Normal, lineHeight = 1.3),
         label = style(inter, 13, FontWeight.Medium, lineHeight = 1.4),
+        labelLarge = style(inter, 14, FontWeight.Medium, lineHeight = 1.4),
         button = style(inter, 16, FontWeight.SemiBold, lineHeight = 1.3),
         brand = style(interTight, 20, FontWeight.Bold, lineHeight = 1.2, letterSpacing = -0.02),
     )

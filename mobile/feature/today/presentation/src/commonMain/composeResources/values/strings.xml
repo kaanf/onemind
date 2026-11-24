@@ -35,6 +35,9 @@
     </plurals>
     <string name="today_open_tabs">Open tabs</string>
     <string name="today_not_available_from_pos">Not available from your POS</string>
+    <!-- One-line empty value in a tile (canvas height); the full sentence is spoken. -->
+    <string name="today_not_available">Not available</string>
+    <string name="today_unavailable_description">%1$s: not available from your POS</string>
     <string name="today_tips">Tips</string>
     <string name="today_hourly_description">Revenue by hour, peak %1$s</string>
     <string name="today_hourly_description_no_peak">Revenue by hour</string>

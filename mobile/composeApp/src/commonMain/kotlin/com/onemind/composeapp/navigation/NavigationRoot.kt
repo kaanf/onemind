@@ -18,6 +18,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.onemind.core.designsystem.components.TabBar
 import com.onemind.core.designsystem.components.TabBarItem
 import com.onemind.core.designsystem.theme.OneMindTheme
+import com.onemind.sales.presentation.navigation.SalesGraphRoutes
 import com.onemind.sales.presentation.navigation.salesGraph
 import com.onemind.staff.presentation.navigation.staffGraph
 import com.onemind.today.presentation.navigation.todayGraph
@@ -40,7 +41,7 @@ fun NavigationRoot(navController: NavHostController) {
             exitTransition = { ExitTransition.None },
             modifier = Modifier.weight(1f),
         ) {
-            todayGraph()
+            todayGraph(onOpenLosses = { navController.navigate(SalesGraphRoutes.Losses) })
             salesGraph(navController)
             staffGraph()
             stockGraph()

@@ -1,15 +1,19 @@
 package com.onemind.sales.presentation.sales
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -18,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -25,9 +30,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.onemind.core.designsystem.components.BadgeTone
@@ -40,12 +47,12 @@ import com.onemind.core.designsystem.components.PlaceholderScreen
 import com.onemind.core.designsystem.components.SegmentedTabs
 import com.onemind.core.designsystem.components.StatTile
 import com.onemind.core.designsystem.components.WarningCard
+import com.onemind.core.designsystem.icons.OneMindIcons
 import com.onemind.core.designsystem.theme.OneMindTheme
 import com.onemind.core.presentation.util.UiText
 import com.onemind.sales.domain.SalesPeriod
 import com.onemind.sales.domain.SalesRange
 import com.onemind.sales.presentation.generated.resources.Res
-import com.onemind.sales.presentation.generated.resources.sales_all_venues
 import com.onemind.sales.presentation.generated.resources.sales_average_bill
 import com.onemind.sales.presentation.generated.resources.sales_by_payment
 import com.onemind.sales.presentation.generated.resources.sales_cached
@@ -67,6 +74,7 @@ import com.onemind.sales.presentation.generated.resources.sales_range_day
 import com.onemind.sales.presentation.generated.resources.sales_range_hour
 import com.onemind.sales.presentation.generated.resources.sales_range_month
 import com.onemind.sales.presentation.generated.resources.sales_range_same_month
+import com.onemind.sales.presentation.generated.resources.sales_range_today
 import com.onemind.sales.presentation.generated.resources.sales_range_two_months
 import com.onemind.sales.presentation.generated.resources.sales_retry
 import com.onemind.sales.presentation.generated.resources.sales_revenue
@@ -110,7 +118,7 @@ fun SalesScreen(
 
         else -> {
             Refreshable(state, onAction) {
-                Header(title = title, state = state, range = (content as? SalesContent.Ready)?.sales?.range)
+                Header(title = title, range = (content as? SalesContent.Ready)?.sales?.range)
                 PeriodTabs(state.period, onAction)
                 when (content) {
                     SalesContent.Loading -> {
@@ -161,33 +169,62 @@ private fun Refreshable(
         onRefresh = { onAction(SalesAction.Refresh) },
         modifier = Modifier.fillMaxSize().background(OneMindTheme.colors.background).windowInsetsPadding(WindowInsets.statusBars),
     ) {
+        // Canvas AltSales: 20 at the top and sides, 14 between sections.
         Column(
-            verticalArrangement = Arrangement.spacedBy(spacing.sectionGap),
+            verticalArrangement = Arrangement.spacedBy(spacing.sectionGapTight),
             modifier =
                 Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = spacing.screenHorizontal, vertical = spacing.rowGap),
+                    .padding(
+                        start = spacing.screenHorizontal,
+                        end = spacing.screenHorizontal,
+                        top = spacing.cardPadding,
+                        bottom = spacing.rowGap,
+                    ),
         ) {
             content()
         }
     }
 }
 
-/** Venue scope, the period's range label (*2 to 8 Nov*) and the title. */
+/** Title on the left, the period's range in a pill on the right (*2 to 8 Nov*). */
 @Composable
 private fun Header(
     title: String,
-    state: SalesState,
     range: SalesRange?,
 ) {
     val colors = OneMindTheme.colors
-    val type = OneMindTheme.typography
-    val scope = if (state.isAllVenues) stringResource(Res.string.sales_all_venues) else state.venueName
-    val line = listOfNotNull(scope, range?.label()).joinToString(" · ")
-    Column {
-        if (line.isNotEmpty()) Text(text = line, style = type.bodySmall, color = colors.textSecondary)
-        Text(text = title, style = type.title, color = colors.textPrimary, modifier = Modifier.semantics { heading() })
+    val spacing = OneMindTheme.spacing
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            style = OneMindTheme.typography.title,
+            color = colors.textPrimary,
+            modifier = Modifier.weight(1f).semantics { heading() },
+        )
+        range?.let {
+            // "Choose dates" in the canvas; picking a date isn't built yet, so the pill only shows the range.
+            val shape = RoundedCornerShape(OneMindTheme.radius.chip)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.tileGap),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier =
+                    Modifier
+                        .heightIn(min = spacing.minTouchTarget - spacing.tileGap / 2)
+                        .background(colors.surface, shape)
+                        .border(spacing.borderWidth, colors.borderStrong, shape)
+                        .padding(horizontal = spacing.rowGap),
+            ) {
+                Icon(
+                    imageVector = OneMindIcons.Calendar,
+                    contentDescription = null,
+                    tint = colors.textPrimary,
+                    modifier = Modifier.size(spacing.chevronSize + spacing.listGap),
+                )
+                Text(text = it.label(), style = OneMindTheme.typography.label, color = colors.textPrimary)
+            }
+        }
     }
 }
 
@@ -246,54 +283,55 @@ private fun RevenueCard(sales: SalesUi) {
     val empty = stringResource(Res.string.sales_value_empty)
     OneMindCard {
         Column(verticalArrangement = Arrangement.spacedBy(spacing.sectionGap)) {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.tileGap)) {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.heroGap)) {
                 Text(text = stringResource(Res.string.sales_revenue).uppercase(), style = type.overline, color = colors.textSecondary)
-                Text(text = sales.revenue ?: empty, style = type.displayLarge, color = colors.textPrimary)
+                Text(text = sales.revenue ?: empty, style = type.display, color = colors.textPrimary)
                 sales.comparison?.let { DeltaBadge(text = it.text(), tone = it.tone) }
                 if (sales.waitingForFirstSync) {
                     Text(text = stringResource(Res.string.sales_waiting_first_sync), style = type.bodySmall, color = colors.textSecondary)
                 }
             }
-            HorizontalDivider(thickness = spacing.borderWidth, color = colors.divider)
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.rowGap)) {
-                StatTile(label = stringResource(Res.string.sales_guests), value = sales.guests ?: empty, modifier = Modifier.weight(1f))
-                StatTile(
-                    label = stringResource(Res.string.sales_average_bill),
-                    value = sales.averageBill ?: empty,
-                    modifier = Modifier.weight(1f),
-                )
-                StatTile(
-                    label = stringResource(Res.string.sales_per_guest),
-                    value = sales.perGuest ?: empty,
-                    modifier = Modifier.weight(1f),
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.sectionGapTight)) {
+                HorizontalDivider(thickness = spacing.borderWidth, color = colors.divider)
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.tileGap)) {
+                    StatTile(label = stringResource(Res.string.sales_guests), value = sales.guests ?: empty, modifier = Modifier.weight(1f))
+                    StatTile(
+                        label = stringResource(Res.string.sales_average_bill),
+                        value = sales.averageBill ?: empty,
+                        modifier = Modifier.weight(1f),
+                    )
+                    StatTile(
+                        label = stringResource(Res.string.sales_per_guest),
+                        value = sales.perGuest ?: empty,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     }
 }
 
-/** *By payment*: tips total, then the card/cash split bar with each side's amount. */
+/** *By payment*: title and tips total, the card/cash share bar, then each side with its swatch and amount. */
 @Composable
 private fun PaymentCard(sales: SalesUi) {
     val colors = OneMindTheme.colors
     val type = OneMindTheme.typography
     val spacing = OneMindTheme.spacing
     val empty = stringResource(Res.string.sales_value_empty)
-    OneMindCard {
-        Column(verticalArrangement = Arrangement.spacedBy(spacing.tileGap)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacing.tileGap),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
+    OneMindCard(contentPadding = PaddingValues(horizontal = spacing.cardPadding, vertical = spacing.cardPaddingTight)) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.rowGap)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = stringResource(Res.string.sales_by_payment),
-                    style = type.headline,
+                    style = type.body.copy(fontWeight = FontWeight.SemiBold),
                     color = colors.textPrimary,
                     modifier = Modifier.weight(1f),
                 )
-                Text(text = stringResource(Res.string.sales_tips), style = type.caption, color = colors.textSecondary)
-                Text(text = sales.tips ?: empty, style = type.bodySmall, color = colors.textPrimary)
+                Text(
+                    text = stringResource(Res.string.sales_tips, sales.tips ?: empty),
+                    style = type.bodySmall,
+                    color = colors.textSecondary,
+                )
             }
             val payment = sales.payment
             if (payment == null) {
@@ -304,31 +342,33 @@ private fun PaymentCard(sales: SalesUi) {
                 )
             } else {
                 val description = stringResource(Res.string.sales_payment_bar_description, payment.cardPercent, payment.cashPercent)
+                val segment = RoundedCornerShape(OneMindTheme.radius.shareBar)
                 Row(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.shareBarGap),
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(spacing.rowGap)
-                            .clip(RoundedCornerShape(OneMindTheme.radius.bar))
-                            .background(colors.chartMuted)
+                            .height(spacing.shareBarHeight)
                             .semantics { contentDescription = description },
                 ) {
-                    if (payment.cardPercent > 0) Box(Modifier.weight(payment.cardPercent.toFloat()).fillMaxSize().background(colors.accent))
-                    if (payment.cashPercent >
-                        0
-                    ) {
-                        Box(Modifier.weight(payment.cashPercent.toFloat()).fillMaxSize().background(colors.chartMutedStrong))
+                    if (payment.cardPercent > 0) {
+                        Box(Modifier.weight(payment.cardPercent.toFloat()).fillMaxSize().background(colors.accent, segment))
+                    }
+                    if (payment.cashPercent > 0) {
+                        Box(Modifier.weight(payment.cashPercent.toFloat()).fillMaxSize().background(colors.chartMuted, segment))
                     }
                 }
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    StatTile(
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.rowGap), modifier = Modifier.fillMaxWidth()) {
+                    PaymentShare(
                         label = stringResource(Res.string.sales_card_share, payment.cardPercent),
                         value = payment.card,
+                        swatch = colors.accent,
                         modifier = Modifier.weight(1f),
                     )
-                    StatTile(
+                    PaymentShare(
                         label = stringResource(Res.string.sales_cash_share, payment.cashPercent),
                         value = payment.cash,
+                        swatch = colors.chartMuted,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -337,7 +377,31 @@ private fun PaymentCard(sales: SalesUi) {
     }
 }
 
-/** Entry points to 02a and 02c (02b Hourly patterns isn't built yet). */
+/** An 8 px swatch and *Card · 68%* over the amount (16/600). */
+@Composable
+private fun PaymentShare(
+    label: String,
+    value: String,
+    swatch: Color,
+    modifier: Modifier = Modifier,
+) {
+    val colors = OneMindTheme.colors
+    val spacing = OneMindTheme.spacing
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.hairlineGap), modifier = modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.heroGap)) {
+            Box(Modifier.size(spacing.swatchSmall).background(swatch, RoundedCornerShape(OneMindTheme.radius.swatchSmall)))
+            Text(text = label, style = OneMindTheme.typography.caption, color = colors.textSecondary, maxLines = 1)
+        }
+        Text(
+            text = value,
+            style = OneMindTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = colors.textPrimary,
+            maxLines = 1,
+        )
+    }
+}
+
+/** Entry points to 02a and 02c (02b Hourly patterns isn't built yet, so its row is left out). */
 @Composable
 private fun Links(
     sales: SalesUi,
@@ -345,26 +409,35 @@ private fun Links(
     onOpenLosses: () -> Unit,
 ) {
     val colors = OneMindTheme.colors
+    val rowHeight = OneMindTheme.spacing.rowHeightLink
     OneMindListCard {
-        ListRow(title = stringResource(Res.string.sales_products_by_hour_link), showChevron = true, onClick = onOpenProductsByHour)
+        ListRow(
+            title = stringResource(Res.string.sales_products_by_hour_link),
+            showChevron = true,
+            minHeight = rowHeight,
+            onClick = onOpenProductsByHour,
+        )
         ListRow(
             title = stringResource(Res.string.sales_discounts_losses_link),
             trailingValue = sales.possibleLoss,
-            trailingValueColor = colors.negativeText,
+            trailingValueColor = colors.textSecondary,
+            trailingValueWeight = FontWeight.Normal,
             showChevron = true,
             showDivider = false,
+            minHeight = rowHeight,
             onClick = onOpenLosses,
         )
     }
 }
 
+/** *+8.1% vs last week*, *+3.6% vs October*, *+12.4% vs last Friday*, *+9.2% vs last Fri, same hour*. */
 @Composable
 private fun SalesComparisonUi.text(): String =
     when (period) {
-        SalesPeriod.HOUR -> stringResource(Res.string.sales_vs_same_hour, delta, stringResource(previousWeekday.nameRes()))
+        SalesPeriod.HOUR -> stringResource(Res.string.sales_vs_same_hour, delta, stringResource(previousWeekday.shortNameRes()))
         SalesPeriod.DAY -> stringResource(Res.string.sales_vs_last_weekday, delta, stringResource(previousWeekday.nameRes()))
         SalesPeriod.WEEK -> stringResource(Res.string.sales_vs_last_week, delta)
-        SalesPeriod.MONTH -> stringResource(Res.string.sales_vs_previous_month, delta)
+        SalesPeriod.MONTH -> stringResource(Res.string.sales_vs_previous_month, delta, stringResource(previousMonth.nameRes()))
     }
 
 @Composable
@@ -373,7 +446,7 @@ private fun SalesCachedMarker.text(): String {
     return stringResource(if (offline) Res.string.sales_cached_offline else Res.string.sales_cached, time)
 }
 
-/** *21:00 to 22:00*, *5 Nov*, *2 to 8 Nov*, *28 Oct to 3 Nov*, *November 2026*. */
+/** *21:00 to 22:00*, *Today*, *2 to 8 Nov*, *28 Oct to 3 Nov*, *November*. */
 @Composable
 private fun SalesRange.label(): String =
     when (period) {
@@ -382,8 +455,9 @@ private fun SalesRange.label(): String =
             stringResource(Res.string.sales_range_hour, start.hourLabel(), ((start + 1) % HOURS_PER_DAY).hourLabel())
         }
 
+        // No date is chosen yet (Choose dates), so the day is always the current business day.
         SalesPeriod.DAY -> {
-            from.dayLabel()
+            stringResource(Res.string.sales_range_today)
         }
 
         SalesPeriod.WEEK -> {
@@ -401,7 +475,7 @@ private fun SalesRange.label(): String =
         }
 
         SalesPeriod.MONTH -> {
-            stringResource(Res.string.sales_range_month, stringResource(from.month.nameRes()), from.year)
+            stringResource(Res.string.sales_range_month, stringResource(from.month.nameRes()))
         }
     }
 
@@ -457,7 +531,14 @@ private fun previewSales() =
         waitingForFirstSync = false,
         pendingVenueCount = 0,
         revenue = "312 480 Kč",
-        comparison = SalesComparisonUi("+8.1%", BadgeTone.Positive, SalesPeriod.WEEK, kotlinx.datetime.DayOfWeek.MONDAY),
+        comparison =
+            SalesComparisonUi(
+                "+8.1%",
+                BadgeTone.Positive,
+                SalesPeriod.WEEK,
+                kotlinx.datetime.DayOfWeek.MONDAY,
+                kotlinx.datetime.Month.OCTOBER,
+            ),
         guests = "1 846",
         averageBill = "412 Kč",
         perGuest = "169 Kč",
