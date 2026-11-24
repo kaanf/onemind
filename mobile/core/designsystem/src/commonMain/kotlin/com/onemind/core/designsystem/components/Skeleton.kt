@@ -11,8 +11,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -29,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.onemind.core.designsystem.theme.OneMindMotion
 import com.onemind.core.designsystem.theme.OneMindTheme
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * A loading placeholder block (`chartMuted` with a shimmer sweeping across it) in the slot of a value
@@ -66,18 +69,38 @@ fun OneMindSkeleton(
     )
 }
 
-/** The shimmer's phase (0–1) from the frame clock, so every block on screen is in step. */
+/**
+ * The shimmer's phase (0–1) from the frame clock, so every block on screen is in step. It follows the
+ * system animation scale ([MotionDurationScale]): with animations off the blocks stay still.
+ */
 @Composable
 private fun shimmerProgress(): MutableFloatState {
     val progress = remember { mutableFloatStateOf(0f) }
     LaunchedEffect(Unit) {
-        while (true) {
-            withInfiniteAnimationFrameMillis { frame ->
-                progress.floatValue = (frame % OneMindMotion.SHIMMER_MILLIS).toFloat() / OneMindMotion.SHIMMER_MILLIS
+        val durationScale = coroutineContext[MotionDurationScale]
+        snapshotFlow { durationScale?.scaleFactor ?: 1f }.collectLatest { scale ->
+            progress.floatValue = shimmerPhase(frameMillis = 0, durationScale = scale)
+            if (scale <= 0f) return@collectLatest
+            while (true) {
+                withInfiniteAnimationFrameMillis { frame -> progress.floatValue = shimmerPhase(frame, scale) }
             }
         }
     }
     return progress
+}
+
+/**
+ * Where the sweep is (0–1) at [frameMillis] of the frame clock, stretched by [durationScale] (the
+ * system animation scale). `0` puts the band left of the window: plain `chartMuted`, the still state
+ * when animations are off (`durationScale` 0).
+ */
+internal fun shimmerPhase(
+    frameMillis: Long,
+    durationScale: Float,
+): Float {
+    if (durationScale <= 0f) return 0f
+    val millis = OneMindMotion.SHIMMER_MILLIS * durationScale.toDouble()
+    return ((frameMillis % millis) / millis).toFloat()
 }
 
 /**

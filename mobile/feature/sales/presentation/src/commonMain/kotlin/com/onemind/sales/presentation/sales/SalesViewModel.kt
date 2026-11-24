@@ -131,6 +131,8 @@ class SalesViewModel(
                     is Result.Success -> summary = result.data
                     is Result.Failure -> failure = result.error
                 }
+                // This answer also serves a refresh asked while it was on the way (pulling on cached figures).
+                refreshRequests.tryReceive()
                 refreshing.value = false
                 emit(content(summary, cached, failure))
                 withTimeoutOrNull(pollInterval.next()) { refreshRequests.receive() }

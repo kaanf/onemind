@@ -109,6 +109,7 @@ class TodayViewModelTest {
         var fallback: Result<TodaySummary, DataError> = Result.Success(TodayFixtures.ready)
 
         var cached: CachedToday? = null
+        val cachedByVenues = mutableMapOf<List<String>, CachedToday>()
         var answerDelay: Duration = Duration.ZERO
 
         override suspend fun getToday(venueIds: List<String>): Result<TodaySummary, DataError> {
@@ -117,7 +118,7 @@ class TodayViewModelTest {
             return results.removeFirstOrNull() ?: fallback
         }
 
-        override suspend fun cachedToday(venueIds: List<String>) = cached
+        override suspend fun cachedToday(venueIds: List<String>) = cachedByVenues[venueIds] ?: cached
     }
 
     /** Virtual time from 21:40:00 Prague on the fixture's Friday. */
@@ -132,7 +133,8 @@ class TodayViewModelTest {
         venues: VenueRepository = FakeVenues(bothVenues),
         profile: ProfileRepository = FakeProfile(),
         pollInterval: TodayPollInterval = TodayPollInterval.Default,
-    ) = TodayViewModel(repository, FakeVenueScope(scope), venues, profile, clock(), pollInterval)
+        venueScope: VenueScopeRepository = FakeVenueScope(scope),
+    ) = TodayViewModel(repository, venueScope, venues, profile, clock(), pollInterval)
 
     @Test
     fun anAccountWithoutVenuesHasNothingToLoad() =
@@ -383,6 +385,47 @@ class TodayViewModelTest {
                 assertEquals(8.seconds.inWholeMilliseconds, testScheduler.currentTime)
                 assertNull(fresh.cached)
                 assertEquals("286", fresh.today.guests)
+                assertEquals(1, repository.calls.size)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun switchingTheScopeWhileTheFirstAnswerIsSlowNeverShowsTheOldScopesCache() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            repository.cachedByVenues[listOf(VENUE_A)] =
+                CachedToday(TodayFixtures.ready.copy(guests = 100), Instant.parse("2026-11-06T20:12:00Z"))
+            repository.answerDelay = 8.seconds
+            val venueScope = FakeVenueScope(VenueScope.Venue(VENUE_A))
+
+            viewModel(repository, venueScope = venueScope).state.test {
+                advanceTimeBy(2.seconds)
+                venueScope.select(VenueScope.Venue(VENUE_B))
+                // A's request is cancelled with its fallback (due at 5 s); B has no cache, so skeletons until its answer.
+                val fresh = assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                assertEquals(10.seconds.inWholeMilliseconds, testScheduler.currentTime)
+                assertNull(fresh.cached)
+                assertEquals(listOf(listOf(VENUE_A), listOf(VENUE_B)), repository.calls)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun aRefreshOnTheCachedFiguresIsServedByTheAnswerOnTheWay() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            repository.cached = CachedToday(TodayFixtures.ready.copy(guests = 100), Instant.parse("2026-11-06T20:12:00Z"))
+            repository.answerDelay = 8.seconds
+            val vm = viewModel(repository)
+
+            vm.state.test {
+                assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                vm.onAction(TodayAction.Refresh)
+                // The cached figures stay (refreshing) until the answer on the way arrives at 8 s.
+                while (assertIs<TodayContent.Ready>(awaitNonLoading().content).cached != null) Unit
+                assertEquals(8.seconds.inWholeMilliseconds, testScheduler.currentTime)
+                advanceTimeBy(10.seconds)
                 assertEquals(1, repository.calls.size)
                 cancelAndIgnoreRemainingEvents()
             }

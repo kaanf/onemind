@@ -127,6 +127,8 @@ class TodayViewModel(
                     is Result.Success -> summary = result.data
                     is Result.Failure -> failure = result.error
                 }
+                // This answer also serves a refresh asked while it was on the way (pulling on cached figures).
+                refreshRequests.tryReceive()
                 refreshing.value = false
                 val content = content(summary, cached, failure)
                 emit(content)

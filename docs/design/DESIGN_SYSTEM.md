@@ -179,7 +179,8 @@ Not built yet: **Stepper**, **Fraction picker**, **Checklist row** (with the sto
 - Loading: a screen's Loading state has the loaded layout: the same cards and real labels, with
   `OneMindSkeleton` / `OneMindSkeletonText` blocks in the value slots (`chartMuted` with a shimmer: a
   lighter band, `chartMuted` 60% towards `surface`, sweeping left to right every `SHIMMER_MILLIS`; every
-  block on screen is in step, as one light across the window). The cards, titles and heights are the
+  block on screen is in step, as one light across the window; it follows the system animation scale, and
+  with animations off the blocks stay still). The cards, titles and heights are the
   loaded ones (a skeleton text block is one line of its style high), so only the values change when the
   answer arrives. Online, skeletons stay until the first answer; cached figures (ADR 0006 §1) show only
   when it fails or takes longer than `CachedFallbackDelay` (5 s), with their age (*Last updated 21:40*)

@@ -83,6 +83,7 @@ class SalesViewModelTest {
         val results = ArrayDeque<Result<SalesSummary, DataError>>()
         var fallback: Result<SalesSummary, DataError> = Result.Success(SalesFixtures.week)
         var cached: CachedSales? = null
+        val cachedByPeriod = mutableMapOf<SalesPeriod, CachedSales>()
         var answerDelay: Duration = Duration.ZERO
 
         override suspend fun getSales(
@@ -97,7 +98,7 @@ class SalesViewModelTest {
         override suspend fun cachedSales(
             venueIds: List<String>,
             period: SalesPeriod,
-        ) = cached
+        ) = cachedByPeriod[period] ?: cached
     }
 
     private val barA = Venue(VENUE_A, "Main bar", Currency.CZK, followed = true)
@@ -268,6 +269,51 @@ class SalesViewModelTest {
                 val fresh = assertIs<SalesContent.Ready>(awaitReady().content)
                 assertEquals(8.seconds.inWholeMilliseconds, testScheduler.currentTime)
                 assertNull(fresh.cached)
+                assertEquals(1, repository.calls.size)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun choosingAPeriodWhileTheFirstAnswerIsSlowNeverShowsTheOldPeriodsCache() =
+        runTest(dispatcher) {
+            val repository =
+                FakeRepository().apply {
+                    cachedByPeriod[SalesPeriod.WEEK] = CachedSales(SalesFixtures.week, Instant.parse("2026-11-06T20:40:00Z"))
+                    answerDelay = 8.seconds
+                }
+            val vm = viewModel(repository)
+
+            vm.state.test {
+                advanceTimeBy(2.seconds)
+                vm.onAction(SalesAction.SelectPeriod(SalesPeriod.MONTH))
+                // The week's request is cancelled with its fallback; the month has no cache: skeletons until its answer.
+                val fresh = awaitReady()
+                assertEquals(10.seconds.inWholeMilliseconds, testScheduler.currentTime)
+                assertEquals(SalesPeriod.MONTH, fresh.period)
+                assertNull(assertIs<SalesContent.Ready>(fresh.content).cached)
+                assertEquals(listOf(SalesPeriod.WEEK, SalesPeriod.MONTH), repository.calls.map { it.second })
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun aRefreshOnTheCachedFiguresIsServedByTheAnswerOnTheWay() =
+        runTest(dispatcher) {
+            val repository =
+                FakeRepository().apply {
+                    cached = CachedSales(SalesFixtures.week, Instant.parse("2026-11-06T20:40:00Z"))
+                    answerDelay = 8.seconds
+                }
+            val vm = viewModel(repository)
+
+            vm.state.test {
+                awaitReady()
+                vm.onAction(SalesAction.Refresh)
+                // The cached figures stay (refreshing) until the answer on the way arrives at 8 s.
+                while (assertIs<SalesContent.Ready>(awaitReady().content).cached != null) Unit
+                assertEquals(8.seconds.inWholeMilliseconds, testScheduler.currentTime)
+                advanceTimeBy(10.seconds)
                 assertEquals(1, repository.calls.size)
                 cancelAndIgnoreRemainingEvents()
             }

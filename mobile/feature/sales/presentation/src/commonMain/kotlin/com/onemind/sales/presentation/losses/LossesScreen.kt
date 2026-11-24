@@ -22,9 +22,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,6 +37,7 @@ import com.onemind.core.designsystem.components.BadgeTone
 import com.onemind.core.designsystem.components.DeltaBadge
 import com.onemind.core.designsystem.components.OneMindCard
 import com.onemind.core.designsystem.components.OneMindListCard
+import com.onemind.core.designsystem.components.OneMindLoadingSlot
 import com.onemind.core.designsystem.components.WarningCard
 import com.onemind.core.designsystem.theme.OneMindMotion
 import com.onemind.core.designsystem.theme.OneMindTheme
@@ -79,7 +79,6 @@ import com.onemind.sales.presentation.generated.resources.sales_losses_unavailab
 import com.onemind.sales.presentation.generated.resources.sales_losses_unavailable_lead
 import com.onemind.sales.presentation.generated.resources.sales_losses_unavailable_stock_corrections
 import com.onemind.sales.presentation.generated.resources.sales_losses_unavailable_unpaid_closed
-import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -118,23 +117,15 @@ fun LossesScreen(
             label = "losses",
         ) { content ->
             val loadingDescription = stringResource(Res.string.sales_detail_loading)
+            val loading = content == LossesContent.Loading
             Column(
                 verticalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.sectionGapTight),
-                modifier =
-                    if (content ==
-                        LossesContent.Loading
-                    ) {
-                        Modifier.semantics { contentDescription = loadingDescription }
-                    } else {
-                        Modifier
-                    },
+                modifier = if (loading) Modifier.semantics { contentDescription = loadingDescription } else Modifier,
             ) {
                 when (content) {
+                    // One call site for both, so each value slot crossfades from its skeleton in place.
                     LossesContent.Loading, is LossesContent.Ready -> {
-                        val ready = content as? LossesContent.Ready
-                        CompositionLocalProvider(LocalLoading provides (ready == null)) {
-                            LossesContentColumn(ready ?: LossesContent.Ready(LoadingLosses))
-                        }
+                        LossesContentColumn(content as? LossesContent.Ready)
                     }
 
                     LossesContent.NoVenue -> {
@@ -154,30 +145,32 @@ fun LossesScreen(
     }
 }
 
+/** The figures, or with [content] `null` (loading) the same cards with skeletons in their value slots. */
 @Composable
-private fun LossesContentColumn(content: LossesContent.Ready) {
-    val losses = content.losses
+private fun LossesContentColumn(content: LossesContent.Ready?) {
+    val losses = content?.losses
     val colors = OneMindTheme.colors
     val type = OneMindTheme.typography
-    content.refreshError?.let { Text(text = it.asString(), style = type.caption, color = colors.negativeText) }
-    if (losses.pendingVenueCount > 0) {
+    content?.refreshError?.let { Text(text = it.asString(), style = type.caption, color = colors.negativeText) }
+    if (losses != null && losses.pendingVenueCount > 0) {
         Text(
             text = pluralStringResource(Res.plurals.sales_detail_venues_syncing, losses.pendingVenueCount, losses.pendingVenueCount),
             style = type.caption,
             color = colors.textSecondary,
         )
     }
-    if (!losses.hasData) {
+    if (losses != null && !losses.hasData) {
         DetailMessage(stringResource(Res.string.sales_detail_no_data_yet), isError = false)
         return
     }
     Hero(losses)
-    if (losses.rows.isEmpty() && losses.discountTypes.isEmpty()) {
+    if (losses != null && losses.rows.isEmpty() && losses.discountTypes.isEmpty()) {
         DetailMessage(stringResource(Res.string.sales_losses_empty), isError = false)
     } else {
-        ByType(losses.rows)
-        DiscountTypes(losses.discountTypes)
+        ByType(losses?.rows)
+        losses?.let { DiscountTypes(it.discountTypes) }
     }
+    if (losses == null) return
     if (losses.unavailable.isNotEmpty()) {
         val parts = losses.unavailable.map { it.text() }.joinToString(", ")
         WarningCard(
@@ -190,10 +183,13 @@ private fun LossesContentColumn(content: LossesContent.Ready) {
     }
 }
 
-/** POSSIBLE LOSS card: overline, 36 figure, change badge beside the records line, then the stacked share bar. */
+/**
+ * POSSIBLE LOSS card: overline, 36 figure, change badge beside the records line, then the stacked share
+ * bar. With [losses] `null` (loading) the value slots shimmer, each crossfading to its value in place.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Hero(losses: LossesUi) {
+private fun Hero(losses: LossesUi?) {
     val colors = OneMindTheme.colors
     val type = OneMindTheme.typography
     val spacing = OneMindTheme.spacing
@@ -201,46 +197,63 @@ private fun Hero(losses: LossesUi) {
         Column(verticalArrangement = Arrangement.spacedBy(spacing.sectionGapTight)) {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.heroGap)) {
                 Text(text = stringResource(Res.string.sales_losses_possible_loss), style = type.overline, color = colors.textSecondary)
-                if (LocalLoading.current) {
-                    SkeletonLine(type.display, widthFraction = SKELETON_HERO_FIGURE)
-                    // The change badge (a caption line plus DeltaBadge's 3 above and below, heroGap = 6) beside the records line.
-                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.textGap), verticalAlignment = Alignment.CenterVertically) {
-                        SkeletonBlock(Modifier.weight(SKELETON_BADGE).height(type.caption.lineHeightDp() + spacing.heroGap))
-                        Box(
-                            modifier = Modifier.weight(1f - SKELETON_BADGE),
-                        ) { SkeletonLine(type.caption, widthFraction = SKELETON_RECORDS_LINE) }
-                    }
-                }
-                losses.possibleLoss?.takeUnless { LocalLoading.current }?.let {
-                    Text(text = it, style = type.display, color = colors.textPrimary, modifier = Modifier.semantics { heading() })
-                }
-                val meta =
-                    listOfNotNull(
-                        losses.records?.let { pluralStringResource(Res.plurals.sales_losses_records, it, it.toString()) },
-                        losses.sharePercent?.let { stringResource(Res.string.sales_losses_share, it) },
-                    ).joinToString(" · ")
-                if (!LocalLoading.current && (losses.change != null || meta.isNotEmpty())) {
-                    // One row as on the canvas; on a narrow screen the records line moves under the badge whole.
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(spacing.textGap),
-                        verticalArrangement = Arrangement.spacedBy(spacing.listGap),
-                        itemVerticalAlignment = Alignment.CenterVertically,
+                if (losses == null || losses.possibleLoss != null) {
+                    OneMindLoadingSlot(
+                        value = losses?.possibleLoss,
+                        skeleton = { SkeletonLine(type.display, widthFraction = SKELETON_HERO_FIGURE) },
                     ) {
-                        losses.change?.let { ChangeBadge(losses.period, it) }
-                        if (meta.isNotEmpty()) {
-                            Text(
-                                text = meta,
-                                style = type.caption,
-                                color = colors.textSecondary,
-                                maxLines = 1,
-                                softWrap = false,
-                            )
-                        }
+                        Text(text = it, style = type.display, color = colors.textPrimary, modifier = Modifier.semantics { heading() })
                     }
+                }
+                if (losses == null || losses.change != null || losses.records != null || losses.sharePercent != null) {
+                    OneMindLoadingSlot(value = losses, skeleton = { MetaSkeleton() }) { MetaRow(it) }
                 }
             }
-            ShareBar(losses.rows)
+            OneMindLoadingSlot(
+                value = losses?.rows,
+                skeleton = {
+                    SkeletonBlock(Modifier.fillMaxWidth().height(spacing.shareBarHeight), RoundedCornerShape(OneMindTheme.radius.shareBar))
+                },
+            ) { ShareBar(it) }
         }
+    }
+}
+
+/** The change badge beside the records line; on a narrow screen the records line moves under the badge whole. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MetaRow(losses: LossesUi) {
+    val meta =
+        listOfNotNull(
+            losses.records?.let { pluralStringResource(Res.plurals.sales_losses_records, it, it.toString()) },
+            losses.sharePercent?.let { stringResource(Res.string.sales_losses_share, it) },
+        ).joinToString(" · ")
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.textGap),
+        verticalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.listGap),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
+        losses.change?.let { ChangeBadge(losses.period, it) }
+        if (meta.isNotEmpty()) {
+            Text(
+                text = meta,
+                style = OneMindTheme.typography.caption,
+                color = OneMindTheme.colors.textSecondary,
+                maxLines = 1,
+                softWrap = false,
+            )
+        }
+    }
+}
+
+/** The badge (a caption line plus DeltaBadge's 3 above and below, heroGap = 6) beside the records line. */
+@Composable
+private fun MetaSkeleton() {
+    val type = OneMindTheme.typography
+    val spacing = OneMindTheme.spacing
+    Row(horizontalArrangement = Arrangement.spacedBy(spacing.textGap), verticalAlignment = Alignment.CenterVertically) {
+        SkeletonBlock(Modifier.weight(SKELETON_BADGE).height(type.caption.lineHeightDp() + spacing.heroGap))
+        Box(modifier = Modifier.weight(1f - SKELETON_BADGE)) { SkeletonLine(type.caption, widthFraction = SKELETON_RECORDS_LINE) }
     }
 }
 
@@ -269,10 +282,6 @@ private fun ChangeBadge(
 @Composable
 private fun ShareBar(rows: List<LossRow>) {
     val shape = RoundedCornerShape(OneMindTheme.radius.shareBar)
-    if (LocalLoading.current) {
-        SkeletonBlock(Modifier.fillMaxWidth().height(OneMindTheme.spacing.shareBarHeight), shape)
-        return
-    }
     val segments = rows.mapNotNull { row -> row.shareFraction?.takeIf { it > 0f }?.let { row.kind to it } }
     if (segments.isEmpty()) return
     Row(
@@ -285,25 +294,32 @@ private fun ShareBar(rows: List<LossRow>) {
     }
 }
 
-/** By type: swatch, name, meta with count, amount (no section title, as on the canvas). */
+/**
+ * By type: swatch, name, meta with count, amount (no section title, as on the canvas). With [rows] `null`
+ * (loading) every kind shows with its real name and swatch and shimmering values.
+ */
 @Composable
-private fun ByType(rows: List<LossRow>) {
-    if (rows.isEmpty()) return
+private fun ByType(rows: List<LossRow>?) {
+    if (rows?.isEmpty() == true) return
+    val shown: List<Pair<LossRowKind, LossRow?>> = rows?.map { it.kind to it } ?: LossRowKind.entries.map { it to null }
     OneMindListCard {
-        rows.forEachIndexed { index, row ->
+        shown.forEachIndexed { index, (kind, row) ->
             val (title, meta) =
-                when (row.kind) {
+                when (kind) {
                     LossRowKind.DISCOUNTS -> Res.string.sales_losses_discounts to Res.string.sales_losses_discounts_meta
                     LossRowKind.DELETED_BILLS -> Res.string.sales_losses_deleted_bills to Res.string.sales_losses_deleted_bills_meta
                     LossRowKind.REFUNDS -> Res.string.sales_losses_refunds to Res.string.sales_losses_refunds_meta
                 }
-            LossTypeRow(
-                swatch = row.kind.color(),
-                name = stringResource(title),
-                meta = withCount(stringResource(meta), row.records),
-                amount = row.amount,
-                showDivider = index < rows.lastIndex,
-            )
+            key(kind) {
+                LossTypeRow(
+                    swatch = kind.color(),
+                    name = stringResource(title),
+                    meta = row?.let { withCount(stringResource(meta), it.records) },
+                    amount = row?.amount,
+                    showDivider = index < shown.lastIndex,
+                    loading = row == null,
+                )
+            }
         }
     }
 }
@@ -337,19 +353,24 @@ private fun DiscountTypes(rows: List<DiscountRow>) {
                 meta = row.records?.let { pluralStringResource(Res.plurals.sales_losses_records, it, it.toString()) },
                 amount = row.amount,
                 showDivider = index < rows.lastIndex,
+                loading = false,
             )
         }
     }
 }
 
-/** A by-type row: 60 high, 10 × 10 swatch, name 15/600 over meta 12, amount 15/500, divider. */
+/**
+ * A by-type row: 60 high, 10 × 10 swatch, name 15/600 over meta 12, amount 15/500, divider. While
+ * [loading], meta and amount shimmer in their slots and crossfade to the values.
+ */
 @Composable
 private fun LossTypeRow(
     swatch: Color?,
     name: String,
     meta: String?,
-    amount: String,
+    amount: String?,
     showDivider: Boolean,
+    loading: Boolean,
 ) {
     val colors = OneMindTheme.colors
     val type = OneMindTheme.typography
@@ -369,15 +390,17 @@ private fun LossTypeRow(
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.hairlineGap)) {
                 Text(text = name, style = type.body.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary)
-                when {
-                    LocalLoading.current -> SkeletonLine(type.caption, widthFraction = SKELETON_ROW_META)
-                    meta != null -> Text(text = meta, style = type.caption, color = colors.textSecondary)
+                if (loading || meta != null) {
+                    OneMindLoadingSlot(value = meta, skeleton = { SkeletonLine(type.caption, widthFraction = SKELETON_ROW_META) }) {
+                        Text(text = it, style = type.caption, color = colors.textSecondary)
+                    }
                 }
             }
-            if (LocalLoading.current) {
-                Box(modifier = Modifier.width(spacing.rowHeightTall)) { SkeletonLine(type.body, widthFraction = 1f) }
-            } else {
-                Text(text = amount, style = type.body.copy(fontWeight = FontWeight.Medium), color = colors.textPrimary)
+            OneMindLoadingSlot(
+                value = amount,
+                skeleton = { Box(modifier = Modifier.width(spacing.rowHeightTall)) { SkeletonLine(type.body, widthFraction = 1f) } },
+            ) {
+                Text(text = it, style = type.body.copy(fontWeight = FontWeight.Medium), color = colors.textPrimary)
             }
         }
         if (showDivider) {
@@ -413,27 +436,6 @@ private fun UnavailableLossComponent.text(): String =
             UnavailableLossComponent.ITEM_VOIDS -> Res.string.sales_losses_unavailable_item_voids
             UnavailableLossComponent.STOCK_CORRECTIONS -> Res.string.sales_losses_unavailable_stock_corrections
         },
-    )
-
-/** Set while 02c loads: the cards draw skeletons in their value slots (no figure, no 0: rule 2). */
-private val LocalLoading = staticCompositionLocalOf { false }
-
-/** The layout 02c loads into: the three by-type rows with their real names; its values are never drawn. */
-private val LoadingLosses =
-    LossesUi(
-        period = LossesPeriod.WEEK,
-        from = LocalDate(1970, 1, 1),
-        to = LocalDate(1970, 1, 1),
-        hasData = true,
-        pendingVenueCount = 0,
-        possibleLoss = "",
-        change = null,
-        records = null,
-        sharePercent = null,
-        rows = LossRowKind.entries.map { LossRow(it, records = null, amount = "") },
-        discountTypes = emptyList(),
-        unavailable = emptyList(),
-        hasDataGaps = false,
     )
 
 // Skeleton widths as shares of their slot; drawing only.
