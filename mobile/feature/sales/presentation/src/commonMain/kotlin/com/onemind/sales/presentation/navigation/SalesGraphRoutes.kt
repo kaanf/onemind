@@ -8,4 +8,12 @@ sealed interface SalesGraphRoutes {
 
     @Serializable
     data object Sales : SalesGraphRoutes
+
+    /** 02a Products by hour. */
+    @Serializable
+    data object ProductsByHour : SalesGraphRoutes
+
+    /** 02c Discounts & losses. */
+    @Serializable
+    data object Losses : SalesGraphRoutes
 }
