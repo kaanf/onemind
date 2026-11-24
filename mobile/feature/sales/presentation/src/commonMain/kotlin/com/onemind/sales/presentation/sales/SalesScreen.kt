@@ -626,23 +626,14 @@ private fun loadingSales(period: SalesPeriod) =
         updatedAt = null,
     )
 
-/** A stat (12 + 16/600) whose value crossfades in from its skeleton. */
+/** A stat (12 + 16/600) whose value shimmers while loading and crossfades in place. */
 @Composable
 private fun SalesStat(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
 ) {
-    OneMindLoadingSlot(
-        value = value.takeUnless { LocalLoading.current },
-        modifier = modifier,
-        skeleton = {
-            Column(verticalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.hairlineGap)) {
-                Text(text = label, style = OneMindTheme.typography.caption, color = OneMindTheme.colors.textSecondary, maxLines = 1)
-                OneMindSkeletonText(OneMindTheme.typography.bodyLarge, width = SKELETON_VALUE)
-            }
-        },
-    ) { StatTile(label = label, value = it) }
+    StatTile(label = label, value = value.takeUnless { LocalLoading.current }, modifier = modifier)
 }
 
 private val SKELETON_PILL_WIDTH = 120.dp

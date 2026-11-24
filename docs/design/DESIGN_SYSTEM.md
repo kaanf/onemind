@@ -165,7 +165,7 @@ Not built yet: **Stepper**, **Fraction picker**, **Checklist row** (with the sto
 ## Motion and loading
 
 - Motion tokens live in `OneMindMotion` (`core:designsystem/theme`): `SHORT_MILLIS` 150 (tab switch, chips),
-  `MEDIUM_MILLIS` 250 (skeleton → content, expand), `LONG_MILLIS` 350 (screen push/pop), `PULSE_MILLIS` 500;
+  `MEDIUM_MILLIS` 250 (skeleton → content, expand), `LONG_MILLIS` 350 (screen push/pop), `SHIMMER_MILLIS` 1200 (one skeleton sweep);
   easing `EnterEasing` (emphasized decelerate), `ExitEasing` (accelerate), `StandardEasing`; specs
   `short()`, `medium()`, `enter()`, `exit()`, `gesture()` (linear, for a pop that follows a back gesture).
   No other `tween(…)` numbers in screens.
@@ -178,9 +178,17 @@ Not built yet: **Stepper**, **Fraction picker**, **Checklist row** (with the sto
   always slides, also back from a tab's first screen (the previous tab's screen is revealed underneath).
   A tab switch, and back from a tab's first screen to the previous tab by button, crossfade in 150 ms.
 - Loading: a screen's Loading state has the loaded layout: the same cards and real labels, with
-  `OneMindSkeleton` / `OneMindSkeletonText` blocks in the value slots (`chartMuted`, pulsing). Cached
-  figures, when there are any, show instead of skeletons; their age (*Last updated 21:40*) sits at the
-  bottom in the *Updated* line's place, so nothing above moves when the first poll answers. `OneMindLoadingSlot(value, skeleton) { … }`
+  `OneMindSkeleton` / `OneMindSkeletonText` blocks in the value slots (`chartMuted` with a shimmer: a
+  lighter band, `chartMuted` 60% towards `surface`, sweeping left to right every `SHIMMER_MILLIS`; every
+  block on screen is in step, as one light across the window; it follows the system animation scale, and
+  with animations off the blocks stay still). The cards, titles and heights are the
+  loaded ones (`OneMindSkeletonText` reserves an empty `Text` line of the value's style, so the slot is the value's
+  height to the pixel; `StatTile(value = null)` shimmers its own value line), so only the values change when the
+  answer arrives. Online, skeletons stay until the first answer; cached figures (ADR 0006 §1) show only
+  when it fails or takes longer than `CachedFallbackDelay` (5 s), with their age (*Last updated 21:40*)
+  at the bottom in the *Updated* line's place. Background polls, pull-to-refresh and coming back to a screen (tab switch,
+  lock) keep the figures on screen; a scope or period change loads with skeletons again. A detail screen's top bar shimmers its
+  subtitle line (`DetailTopBar(subtitleLoading = true)`) so the title doesn't move. `OneMindLoadingSlot(value, skeleton) { … }`
   crossfades a slot from skeleton to value in place (medium); numbers never count up (rule 2).
 - Ripple: a clickable sits on the outermost shape after `clip(shape)` and covers it whole. Cards clip
   their content; `OneMindListCard` has no padding and each `ListRow` pads itself (16).

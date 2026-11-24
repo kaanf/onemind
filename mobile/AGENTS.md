@@ -155,8 +155,10 @@ Per screen, in `feature/<x>/presentation/<screen>/`:
   `screenCacheKey(path, params)`, at most 20 entries. Its file is **outside device backups**: Android
   `noBackupFilesDir`, iOS `NSCachesDirectory` (not in iCloud backups or the Files app), so cached revenue
   figures never leave the device. `SignedInDataLoader` clears it on sign-out only (app launch is a
-  sign-in too, and the cache is for launch). A screen shows cached figures only with their age
-  ("Last updated 21:40", the day when it isn't today, "· offline" after a network failure); a repository
+  sign-in too, and the cache is for launch). A screen shows skeletons until its first answer and
+  cached figures only when that fails or takes longer than `CachedFallbackDelay` (5 s, `core:presentation`
+  `awaitWithCachedFallback`), always with their age ("Last updated 21:40", the day when it isn't today,
+  "· offline" after a network failure); a repository
   polls against the cached `ETag` and fetches again without `If-None-Match` when a `304` leaves nothing
   readable. A repository takes `ScreenCache.generation` before its request and passes it to `write`, so
   an answer that was on the way at sign-out isn't written back. The cache never crashes a screen: a

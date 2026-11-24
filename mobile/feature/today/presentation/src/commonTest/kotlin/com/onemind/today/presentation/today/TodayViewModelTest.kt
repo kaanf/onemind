@@ -1,5 +1,6 @@
 package com.onemind.today.presentation.today
 
+import app.cash.turbine.Event
 import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.test
 import com.onemind.core.domain.money.Currency
@@ -13,6 +14,7 @@ import com.onemind.core.domain.venue.VenueList
 import com.onemind.core.domain.venue.VenueRepository
 import com.onemind.core.domain.venue.VenueScope
 import com.onemind.core.domain.venue.VenueScopeRepository
+import com.onemind.core.presentation.util.CachedFallbackDelay
 import com.onemind.core.presentation.util.UiText
 import com.onemind.today.domain.CachedToday
 import com.onemind.today.domain.TodayErrorCodes
@@ -25,6 +27,7 @@ import com.onemind.today.presentation.generated.resources.Res
 import com.onemind.today.presentation.generated.resources.today_error_venues_differ
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -44,6 +47,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -106,13 +110,16 @@ class TodayViewModelTest {
         var fallback: Result<TodaySummary, DataError> = Result.Success(TodayFixtures.ready)
 
         var cached: CachedToday? = null
+        val cachedByVenues = mutableMapOf<List<String>, CachedToday>()
+        var answerDelay: Duration = Duration.ZERO
 
         override suspend fun getToday(venueIds: List<String>): Result<TodaySummary, DataError> {
             calls += venueIds
+            delay(answerDelay)
             return results.removeFirstOrNull() ?: fallback
         }
 
-        override suspend fun cachedToday(venueIds: List<String>) = cached
+        override suspend fun cachedToday(venueIds: List<String>) = cachedByVenues[venueIds] ?: cached
     }
 
     /** Virtual time from 21:40:00 Prague on the fixture's Friday. */
@@ -127,7 +134,8 @@ class TodayViewModelTest {
         venues: VenueRepository = FakeVenues(bothVenues),
         profile: ProfileRepository = FakeProfile(),
         pollInterval: TodayPollInterval = TodayPollInterval.Default,
-    ) = TodayViewModel(repository, FakeVenueScope(scope), venues, profile, clock(), pollInterval)
+        venueScope: VenueScopeRepository = FakeVenueScope(scope),
+    ) = TodayViewModel(repository, venueScope, venues, profile, clock(), pollInterval)
 
     @Test
     fun anAccountWithoutVenuesHasNothingToLoad() =
@@ -344,17 +352,14 @@ class TodayViewModelTest {
         }
 
     @Test
-    fun cachedFiguresShowAtOnceWithTheirAgeAndFreshOnesDropTheMarker() =
+    fun withCachedFiguresAFastAnswerShowsOnlyTheFreshOnes() =
         runTest(dispatcher) {
             val repository = FakeRepository()
-            // Received at 21:12 Prague, shown at launch before the network answers.
             repository.cached = CachedToday(TodayFixtures.ready.copy(guests = 100), Instant.parse("2026-11-06T20:12:00Z"))
+            // Just inside the fallback delay: skeletons until the answer, the cache is never drawn.
+            repository.answerDelay = CachedFallbackDelay - 1.seconds
 
             viewModel(repository).state.test {
-                val cached = assertIs<TodayContent.Ready>(awaitNonLoading().content)
-                assertEquals(CachedMarker(time = "21:12", day = CachedDay.Today, offline = false), cached.cached)
-                assertEquals("100", cached.today.guests)
-
                 val fresh = assertIs<TodayContent.Ready>(awaitNonLoading().content)
                 assertNull(fresh.cached)
                 assertEquals("286", fresh.today.guests)
@@ -363,18 +368,116 @@ class TodayViewModelTest {
         }
 
     @Test
-    fun offlineTheCachedFiguresStayMarkedOffline() =
+    fun aSlowAnswerShowsTheCachedFiguresWithTheirAgeAfterTheDelayThenTheFreshOnes() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            // Received at 21:12 Prague.
+            repository.cached = CachedToday(TodayFixtures.ready.copy(guests = 100), Instant.parse("2026-11-06T20:12:00Z"))
+            repository.answerDelay = 8.seconds
+
+            viewModel(repository).state.test {
+                val cached = assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                assertEquals(CachedFallbackDelay.inWholeMilliseconds, testScheduler.currentTime)
+                assertEquals(CachedMarker(time = "21:12", day = CachedDay.Today, offline = false), cached.cached)
+                assertEquals("100", cached.today.guests)
+
+                // The request kept going: its answer replaces the cached figures.
+                val fresh = assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                assertEquals(8.seconds.inWholeMilliseconds, testScheduler.currentTime)
+                assertNull(fresh.cached)
+                assertEquals("286", fresh.today.guests)
+                assertEquals(1, repository.calls.size)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun switchingTheScopeWhileTheFirstAnswerIsSlowNeverShowsTheOldScopesCache() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            repository.cachedByVenues[listOf(VENUE_A)] =
+                CachedToday(TodayFixtures.ready.copy(guests = 100), Instant.parse("2026-11-06T20:12:00Z"))
+            repository.answerDelay = 8.seconds
+            val venueScope = FakeVenueScope(VenueScope.Venue(VENUE_A))
+
+            viewModel(repository, venueScope = venueScope).state.test {
+                advanceTimeBy(2.seconds)
+                venueScope.select(VenueScope.Venue(VENUE_B))
+                // A's request is cancelled with its fallback (due at 5 s); B has no cache, so skeletons until its answer.
+                val fresh = assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                assertEquals(10.seconds.inWholeMilliseconds, testScheduler.currentTime)
+                assertNull(fresh.cached)
+                assertEquals(listOf(listOf(VENUE_A), listOf(VENUE_B)), repository.calls)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun aRefreshOnTheCachedFiguresIsServedByTheAnswerOnTheWay() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            repository.cached = CachedToday(TodayFixtures.ready.copy(guests = 100), Instant.parse("2026-11-06T20:12:00Z"))
+            repository.answerDelay = 8.seconds
+            val vm = viewModel(repository)
+
+            vm.state.test {
+                assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                vm.onAction(TodayAction.Refresh)
+                // The cached figures stay (refreshing) until the answer on the way arrives at 8 s.
+                while (assertIs<TodayContent.Ready>(awaitNonLoading().content).cached != null) Unit
+                assertEquals(8.seconds.inWholeMilliseconds, testScheduler.currentTime)
+                advanceTimeBy(10.seconds)
+                assertEquals(1, repository.calls.size)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun comingBackToTheScreenKeepsTheFiguresAndRefreshesThemSilently() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            val vm = viewModel(repository)
+            vm.state.test {
+                assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                cancelAndIgnoreRemainingEvents()
+            }
+            // Away longer than WhileSubscribed's stop timeout (tab switch, lock): the poll stops.
+            advanceTimeBy(6.seconds)
+            repository.answerDelay = 2.seconds
+            repository.fallback = Result.Success(TodayFixtures.ready.copy(guests = 300))
+
+            vm.state.test {
+                advanceTimeBy(3.seconds)
+                val states =
+                    listOf(awaitItem()) + cancelAndConsumeRemainingEvents().filterIsInstance<Event.Item<TodayState>>().map { it.value }
+                // No skeletons on the way: the last figures stay until the new ones replace them.
+                states.forEach { assertIs<TodayContent.Ready>(it.content) }
+                assertEquals("300", assertIs<TodayContent.Ready>(states.last().content).today.guests)
+                assertEquals(2, repository.calls.size)
+            }
+        }
+
+    @Test
+    fun aSlowAnswerWithoutCachedFiguresKeepsTheSkeletons() =
+        runTest(dispatcher) {
+            val repository = FakeRepository()
+            repository.answerDelay = 8.seconds
+
+            viewModel(repository).state.test {
+                assertIs<TodayContent.Ready>(awaitNonLoading().content)
+                assertEquals(8.seconds.inWholeMilliseconds, testScheduler.currentTime)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun offlineTheCachedFiguresShowMarkedOffline() =
         runTest(dispatcher) {
             val repository = FakeRepository()
             repository.cached = CachedToday(TodayFixtures.ready, Instant.parse("2026-11-06T20:12:00Z"))
             repository.fallback = Result.Failure(DataError.Network.NO_INTERNET)
 
             viewModel(repository).state.test {
-                skipItems(1)
-                assertEquals(
-                    CachedMarker("21:12", CachedDay.Today, offline = false),
-                    assertIs<TodayContent.Ready>(awaitNonLoading().content).cached,
-                )
                 val offline = assertIs<TodayContent.Ready>(awaitNonLoading().content)
                 assertEquals(CachedMarker("21:12", CachedDay.Today, offline = true), offline.cached)
                 // The offline marker says it; no second error line.
@@ -391,8 +494,6 @@ class TodayViewModelTest {
             repository.fallback = Result.Failure(DataError.Api(422, TodayErrorCodes.BUSINESS_DAYS_DIFFER))
 
             viewModel(repository).state.test {
-                skipItems(1)
-                awaitNonLoading()
                 val failed = assertIs<TodayContent.Ready>(awaitNonLoading().content)
                 assertEquals(CachedMarker("21:12", CachedDay.Today, offline = false), failed.cached)
                 assertEquals(UiText.Resource(Res.string.today_error_venues_differ), failed.refreshError)
@@ -406,6 +507,7 @@ class TodayViewModelTest {
             val repository = FakeRepository()
             // Thursday 23:50 Prague; now is Friday 21:40.
             repository.cached = CachedToday(TodayFixtures.ready, Instant.parse("2026-11-05T22:50:00Z"))
+            repository.answerDelay = 8.seconds
 
             viewModel(repository).state.test {
                 val cached = assertIs<TodayContent.Ready>(awaitNonLoading().content)
@@ -419,6 +521,7 @@ class TodayViewModelTest {
         runTest(dispatcher) {
             val repository = FakeRepository()
             repository.cached = CachedToday(TodayFixtures.ready.copy(venues = emptyList()), Instant.parse("2026-11-06T20:12:00Z"))
+            repository.answerDelay = 8.seconds
 
             viewModel(repository).state.test {
                 val cached = assertIs<TodayContent.Ready>(awaitNonLoading().content)
