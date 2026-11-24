@@ -167,9 +167,15 @@ Not built yet: **Stepper**, **Fraction picker**, **Checklist row** (with the sto
 - Motion tokens live in `OneMindMotion` (`core:designsystem/theme`): `SHORT_MILLIS` 150 (tab switch, chips),
   `MEDIUM_MILLIS` 250 (skeleton → content, expand), `LONG_MILLIS` 350 (screen push/pop), `PULSE_MILLIS` 500;
   easing `EnterEasing` (emphasized decelerate), `ExitEasing` (accelerate), `StandardEasing`; specs
-  `short()`, `medium()`, `enter()`, `exit()`. No other `tween(…)` numbers in screens.
-- Navigation (`NavigationRoot`, once): a push slides in from the right over the previous screen, which
-  moves a quarter left; back (predictive back too) mirrors it; a tab switch crossfades in 150 ms.
+  `short()`, `medium()`, `enter()`, `exit()`, `gesture()` (linear, for a pop that follows a back gesture).
+  No other `tween(…)` numbers in screens.
+- Navigation (`OneMindNavHost`, the only NavHost setup: tabs and the auth gate): a push slides in from
+  the right over the previous screen, which moves a quarter left. Every back (top-bar arrow, system back
+  button, back gesture, iOS swipe) mirrors it: the screen slides out to the right on `enter()` and fades
+  only at the end (`exit()`). During a back gesture the same slide and fade follow the finger
+  (`gesture()`), never Navigation's default predictive scale-and-fade; a gesture from the right edge
+  (Android) slides the screen out to the left, with the finger. A tab switch, and back from a tab's
+  first screen to the previous tab, crossfade in 150 ms.
 - Loading: a screen's Loading state has the loaded layout: the same cards and real labels, with
   `OneMindSkeleton` / `OneMindSkeletonText` blocks in the value slots (`chartMuted`, pulsing). Cached
   figures, when there are any, show instead of skeletons; their age (*Last updated 21:40*) sits at the

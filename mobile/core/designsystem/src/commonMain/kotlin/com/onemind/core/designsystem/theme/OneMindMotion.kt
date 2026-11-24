@@ -3,6 +3,7 @@ package com.onemind.core.designsystem.theme
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 
 /**
@@ -33,4 +34,10 @@ object OneMindMotion {
     fun <T> enter(): FiniteAnimationSpec<T> = tween(LONG_MILLIS, easing = EnterEasing)
 
     fun <T> exit(): FiniteAnimationSpec<T> = tween(LONG_MILLIS, easing = ExitEasing)
+
+    /**
+     * Screen pop driven by a back gesture (predictive back): linear, so the screen moves with the finger
+     * instead of running ahead of it (enter curve) or lagging behind it (exit curve).
+     */
+    fun <T> gesture(): FiniteAnimationSpec<T> = tween(LONG_MILLIS, easing = LinearEasing)
 }

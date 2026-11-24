@@ -7,11 +7,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.onemind.auth.presentation.navigation.AuthGraphRoutes
 import com.onemind.auth.presentation.navigation.authGraph
 import com.onemind.composeapp.navigation.NavigationRoot
+import com.onemind.composeapp.navigation.OneMindNavHost
 import com.onemind.composeapp.root.AppScreen
 import com.onemind.composeapp.root.UpdateScreen
 import com.onemind.composeapp.root.appScreen
@@ -51,7 +51,7 @@ private fun AppRoot(
 
         AppScreen.Auth -> {
             val navController = rememberNavController()
-            NavHost(navController = navController, startDestination = AuthGraphRoutes.Graph) {
+            OneMindNavHost(navController = navController, startDestination = AuthGraphRoutes.Graph) {
                 authGraph(navController)
             }
         }
