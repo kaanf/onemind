@@ -124,7 +124,10 @@ class SignedInDataLoaderTest {
             sessions.state.value = SessionState.SignedIn
             eventually { meCalls == 1 }
             sessions.state.value = SessionState.SignedOut
-            eventually { venues.venues.value == VenueList.Loading }
+            // Wait for the loader to have handled the sign-out (it empties the cache), not just for a value
+            // that may still be the initial one: the session is a StateFlow, so a sign-in set before the
+            // collector saw SignedOut would be conflated away and A's sign-in would never be cancelled.
+            eventually { cache.generation == 1L && venues.venues.value == VenueList.Loading }
             sessions.state.value = SessionState.SignedIn
             eventually { meCalls == 2 && venues.venues.value is VenueList.Loaded }
 
