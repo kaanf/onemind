@@ -4,6 +4,7 @@ import com.onemind.core.domain.money.Money
 import com.onemind.core.domain.quantity.DecimalValue
 import com.onemind.core.presentation.format.VenueLocale
 import com.onemind.core.presentation.format.formatMoney
+import com.onemind.core.presentation.format.formatMoneyAmount
 import com.onemind.sales.domain.losses.DiscountTypeLoss
 import com.onemind.sales.domain.losses.LossesPeriod
 import com.onemind.sales.domain.losses.LossesSummary
@@ -45,6 +46,8 @@ data class LossRow(
     val records: Int?,
     /** "−18 640 Kč". */
     val amount: String,
+    /** Its share of the possible loss for the stacked bar, 0–1 (drawing only); `null` without a total. */
+    val shareFraction: Float? = null,
 )
 
 enum class LossRowKind { DISCOUNTS, DELETED_BILLS, REFUNDS }
@@ -62,7 +65,7 @@ sealed interface DiscountName {
     /** An item discount without a type in the POS. */
     data object Unspecified : DiscountName
 
-    /** The POS discount type, made readable ("HAPPY_HOUR" → "Happy hour"). */
+    /** The POS discount type, made readable ("HAPPY_HOUR" → "Happy Hour"). */
     data class Pos(
         val name: String,
     ) : DiscountName
@@ -71,7 +74,11 @@ sealed interface DiscountName {
 internal fun LossesSummary.toUi(): LossesUi {
     val locale = VenueLocale.forCurrency(currency)
 
-    fun Money.asLoss() = formatMoney(if (isZero) this else -this, locale)
+    // By-type rows show the amount without the currency, as on the canvas (*−18 640*).
+    fun Money.asLoss() = formatMoneyAmount(if (isZero) this else -this, locale)
+    val total = possibleLoss?.amountMinor?.takeIf { it > 0 }
+
+    fun Money.share(): Float? = total?.let { amountMinor.toFloat() / it.toFloat() }
     return LossesUi(
         period = period,
         from = from,
@@ -85,9 +92,9 @@ internal fun LossesSummary.toUi(): LossesUi {
         rows =
             listOfNotNull(
                 // No count: bill-wide discounts (*Other discounts*) have none, so a sum of the typed ones would undercount.
-                discounts?.let { LossRow(LossRowKind.DISCOUNTS, records = null, amount = it.asLoss()) },
-                deletedBills?.let { LossRow(LossRowKind.DELETED_BILLS, it.records, it.amount.asLoss()) },
-                refunds?.let { LossRow(LossRowKind.REFUNDS, it.records, it.amount.asLoss()) },
+                discounts?.let { LossRow(LossRowKind.DISCOUNTS, records = null, amount = it.asLoss(), shareFraction = it.share()) },
+                deletedBills?.let { LossRow(LossRowKind.DELETED_BILLS, it.records, it.amount.asLoss(), it.amount.share()) },
+                refunds?.let { LossRow(LossRowKind.REFUNDS, it.records, it.amount.asLoss(), it.amount.share()) },
             ),
         discountTypes = discountsByType.map { DiscountRow(it.type.toName(), it.records, it.amount.asLoss()) },
         unavailable = unavailable.sortedBy { it.ordinal },
@@ -106,9 +113,23 @@ private fun DecimalValue.toChange(): LossChange {
 
 internal fun String.toName(): DiscountName =
     when (this) {
-        DiscountTypeLoss.UNTYPED -> DiscountName.Other
-        DiscountTypeLoss.UNSPECIFIED -> DiscountName.Unspecified
-        else -> DiscountName.Pos(lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() })
+        DiscountTypeLoss.UNTYPED -> {
+            DiscountName.Other
+        }
+
+        DiscountTypeLoss.UNSPECIFIED -> {
+            DiscountName.Unspecified
+        }
+
+        else -> {
+            DiscountName.Pos(
+                lowercase()
+                    .split('_')
+                    .filter {
+                        it.isNotEmpty()
+                    }.joinToString(" ") { word -> word.replaceFirstChar { it.uppercase() } },
+            )
+        }
     }
 
 private const val MINUS = "−"

@@ -82,7 +82,7 @@ class ProductsViewModelTest {
                 val first = awaitSettled()
                 viewModel.onAction(ProductsAction.SelectProduct(first.visibleProducts[2].key))
                 assertEquals("Water", awaitItem().selectedProduct?.name)
-                viewModel.onAction(ProductsAction.SelectCategory("cocktails"))
+                viewModel.onAction(ProductsAction.SelectCategory("Cocktails"))
                 val filtered = awaitItem()
                 assertEquals(listOf("Aperol Spritz"), filtered.visibleProducts.map { it.name })
                 assertEquals("Aperol Spritz", filtered.selectedProduct?.name)
