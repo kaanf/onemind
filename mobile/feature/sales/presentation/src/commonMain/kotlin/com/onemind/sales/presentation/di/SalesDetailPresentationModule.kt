@@ -1,6 +1,7 @@
 package com.onemind.sales.presentation.di
 
 import com.onemind.sales.presentation.losses.LossesViewModel
+import com.onemind.sales.presentation.products.ProductsViewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
@@ -8,4 +9,5 @@ import org.koin.dsl.module
 val salesDetailPresentationModule =
     module {
         viewModelOf(::LossesViewModel)
+        viewModelOf(::ProductsViewModel)
     }

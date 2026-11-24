@@ -1,7 +1,9 @@
 package com.onemind.sales.data.di
 
 import com.onemind.sales.data.losses.LossesRepositoryImpl
+import com.onemind.sales.data.products.ProductsRepositoryImpl
 import com.onemind.sales.domain.losses.LossesRepository
+import com.onemind.sales.domain.products.ProductsRepository
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -10,4 +12,5 @@ import org.koin.dsl.module
 val salesDetailDataModule =
     module {
         singleOf(::LossesRepositoryImpl) bind LossesRepository::class
+        singleOf(::ProductsRepositoryImpl) bind ProductsRepository::class
     }
