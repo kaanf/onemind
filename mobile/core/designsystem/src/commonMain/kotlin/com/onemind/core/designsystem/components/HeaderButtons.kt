@@ -21,7 +21,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.sp
 import com.onemind.core.designsystem.icons.OneMindIcons
 import com.onemind.core.designsystem.theme.OneMindTheme
 
@@ -57,7 +56,7 @@ fun VenueButton(
         Box(modifier = Modifier.size(spacing.statusDot).background(colors.positive, CircleShape))
         Text(
             text = name,
-            style = OneMindTheme.typography.body.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+            style = OneMindTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
             color = colors.textPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

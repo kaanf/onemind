@@ -72,6 +72,7 @@ Treat accent as a single token so it can be switched.
 | `tabLabel`     | Inter 11 / 500 (active 600) | Tab bar |
 | `chartLabel`   | Inter 10 / 400            | Chart value and axis labels (bar values, heatmap hours) |
 | `label`        | Inter 13 / 500            | Field and group labels (*Work email*, *Code*) |
+| `labelLarge`   | Inter 14 / 500            | Row amounts (02a gross); the venue pill name as 14 / 600 |
 | `button`       | Inter 16 / 600            | Button text |
 | `brand`        | Inter Tight 20 / 700, −0.02em | *OneMind* wordmark next to the brand mark |
 
@@ -96,6 +97,9 @@ Treat accent as a single token so it can be switched.
   (`shareBarHeight`, `shareBarGap`, `radius.shareBar`). Legend swatches **10×10** radius 3 (02c) and
   **8×8** radius 2 (02) (`swatch`, `swatchSmall`, `radius.swatch`, `radius.swatchSmall`).
 - Venue pill status dot **8**, `positive` (`statusDot`).
+- Card padding **18** top/bottom, 20 sides on *By payment* (02) and the 02a chart card (`cardPaddingTight`).
+  Gaps: hero column **6** (`heroGap`), chart header **4** (`listGap`), name over meta **2** (`hairlineGap`);
+  list rows **56** (`listRowHeight`).
 
 ## Components
 

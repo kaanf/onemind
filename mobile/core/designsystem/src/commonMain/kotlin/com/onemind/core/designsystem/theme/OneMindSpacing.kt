@@ -52,4 +52,14 @@ data class OneMindSpacing(
     /** Taller list rows (02c by type) and shorter link rows (02 *Products by hour*). */
     val rowHeightTall: Dp = 60.dp,
     val rowHeightLink: Dp = 54.dp,
+    /** Default list row height (02a item rows draw their own row at this height). */
+    val listRowHeight: Dp = 56.dp,
+    /** Card padding with a shorter top and bottom: 18 (02 *By payment*, 02a chart card), sides stay 20. */
+    val cardPaddingTight: Dp = 18.dp,
+    /** Hero column gap: overline, figure, badge (02c). */
+    val heroGap: Dp = 6.dp,
+    /** Chart header: overline over *n sold* (02a). */
+    val listGap: Dp = 4.dp,
+    /** Name over meta in list rows. */
+    val hairlineGap: Dp = 2.dp,
 )
