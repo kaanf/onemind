@@ -20,14 +20,15 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -36,6 +37,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.onemind.core.designsystem.components.AccountButton
 import com.onemind.core.designsystem.components.Bar
@@ -44,6 +46,9 @@ import com.onemind.core.designsystem.components.DeltaBadge
 import com.onemind.core.designsystem.components.ListRow
 import com.onemind.core.designsystem.components.OneMindCard
 import com.onemind.core.designsystem.components.OneMindListCard
+import com.onemind.core.designsystem.components.OneMindLoadingSlot
+import com.onemind.core.designsystem.components.OneMindSkeleton
+import com.onemind.core.designsystem.components.OneMindSkeletonText
 import com.onemind.core.designsystem.components.OutlineButton
 import com.onemind.core.designsystem.components.PlaceholderScreen
 import com.onemind.core.designsystem.components.StatTile
@@ -109,15 +114,18 @@ fun TodayScreen(
     val title = stringResource(Res.string.today_title)
     when (val content = state.content) {
         TodayContent.Loading -> {
+            // The loaded layout with skeleton value slots, so nothing moves when the figures arrive.
             val description = stringResource(Res.string.today_loading)
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxSize().background(OneMindTheme.colors.background),
-            ) {
-                CircularProgressIndicator(
-                    color = OneMindTheme.colors.accent,
+            Refreshable(state, onAction) {
+                HeaderRow(state.header)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.sectionGap),
                     modifier = Modifier.semantics { contentDescription = description },
-                )
+                ) {
+                    CompositionLocalProvider(LocalLoading provides true) {
+                        TodayContentColumn(title = title, today = LoadingToday, refreshError = null, cached = null, onOpenLosses = {})
+                    }
+                }
             }
         }
 
@@ -240,6 +248,7 @@ private fun ScreenTitle(
     dateLine: String?,
 ) {
     Column {
+        if (LocalLoading.current) OneMindSkeletonText(OneMindTheme.typography.bodySmall, width = SKELETON_DATE)
         dateLine?.let { Text(text = it, style = OneMindTheme.typography.bodySmall, color = OneMindTheme.colors.textSecondary) }
         Text(
             text = title,
@@ -291,6 +300,7 @@ private fun TodayUi.dateLine(): String? {
 
 @Composable
 private fun RevenueCard(today: TodayUi) {
+    val loading = LocalLoading.current
     val colors = OneMindTheme.colors
     val type = OneMindTheme.typography
     val spacing = OneMindTheme.spacing
@@ -299,7 +309,17 @@ private fun RevenueCard(today: TodayUi) {
         Column(verticalArrangement = Arrangement.spacedBy(spacing.sectionGap)) {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.tileGap)) {
                 Text(text = stringResource(Res.string.today_paid_so_far).uppercase(), style = type.overline, color = colors.textSecondary)
-                Text(text = today.paidSoFar ?: empty, style = type.displayLarge, color = colors.textPrimary)
+                OneMindLoadingSlot(
+                    value = today.paidSoFar ?: empty.takeUnless { loading },
+                    skeleton = { OneMindSkeletonText(type.displayLarge, width = SKELETON_HERO) },
+                ) { Text(text = it, style = type.displayLarge, color = colors.textPrimary) }
+                if (loading) {
+                    OneMindSkeletonText(
+                        type.caption,
+                        width = SKELETON_BADGE,
+                        modifier = Modifier.padding(vertical = BADGE_PADDING),
+                    )
+                }
                 today.comparison?.let { comparison ->
                     DeltaBadge(
                         text =
@@ -316,13 +336,18 @@ private fun RevenueCard(today: TodayUi) {
                 }
             }
             today.hourly?.let { HourlyChart(it) }
+            if (loading) OneMindSkeleton(modifier = Modifier.fillMaxWidth().height(CHART_HEIGHT))
             Column(verticalArrangement = Arrangement.spacedBy(spacing.sectionGapTight)) {
                 HorizontalDivider(thickness = spacing.borderWidth, color = colors.divider)
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.rowGap)) {
                     if (today.openTabsUnavailable) {
                         CardFigure(label = stringResource(Res.string.today_open_tabs), value = null, modifier = Modifier.weight(1f))
                     }
-                    CardFigure(label = stringResource(Res.string.today_tips), value = today.tips ?: empty, modifier = Modifier.weight(1f))
+                    CardFigure(
+                        label = stringResource(Res.string.today_tips),
+                        value = today.tips ?: empty.takeUnless { loading },
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
         }
@@ -341,7 +366,9 @@ private fun CardFigure(
     val unavailable = stringResource(Res.string.today_unavailable_description, label)
     Column(modifier = if (value == null) modifier.clearAndSetSemantics { contentDescription = unavailable } else modifier) {
         Text(text = label, style = type.caption, color = colors.textSecondary)
-        if (value == null) {
+        if (LocalLoading.current) {
+            OneMindSkeletonText(type.headline, width = SKELETON_VALUE)
+        } else if (value == null) {
             Text(
                 text = stringResource(Res.string.today_not_available),
                 style = type.headline.copy(fontSize = type.caption.fontSize, fontWeight = FontWeight.Normal),
@@ -387,21 +414,28 @@ private fun LiveFigures(today: TodayUi) {
             // 01a Tables (This week) opens from here once it is built.
             val label = stringResource(Res.string.today_occupancy)
             val unavailable = stringResource(Res.string.today_unavailable_description, label)
-            FigureTile(modifier = Modifier.weight(1f).clearAndSetSemantics { contentDescription = unavailable }) {
+            val loading = LocalLoading.current
+            FigureTile(
+                modifier = Modifier.weight(1f).clearAndSetSemantics { if (!loading) contentDescription = unavailable },
+            ) {
                 Text(text = label, style = OneMindTheme.typography.caption, color = OneMindTheme.colors.textSecondary, maxLines = 1)
-                Text(
-                    text = stringResource(Res.string.today_not_available),
-                    style = OneMindTheme.typography.caption,
-                    color = OneMindTheme.colors.textSecondary,
-                    maxLines = 1,
-                )
+                if (loading) {
+                    OneMindSkeletonText(OneMindTheme.typography.caption, width = SKELETON_VALUE)
+                } else {
+                    Text(
+                        text = stringResource(Res.string.today_not_available),
+                        style = OneMindTheme.typography.caption,
+                        color = OneMindTheme.colors.textSecondary,
+                        maxLines = 1,
+                    )
+                }
             }
         }
         FigureTile(modifier = Modifier.weight(1f)) {
-            StatTile(label = stringResource(Res.string.today_guests), value = today.guests ?: empty, style = StatTileStyle.Tile)
+            LiveFigure(label = stringResource(Res.string.today_guests), value = today.guests ?: empty)
         }
         FigureTile(modifier = Modifier.weight(1f)) {
-            StatTile(label = stringResource(Res.string.today_per_guest), value = today.perGuest ?: empty, style = StatTileStyle.Tile)
+            LiveFigure(label = stringResource(Res.string.today_per_guest), value = today.perGuest ?: empty)
         }
     }
 }
@@ -500,3 +534,50 @@ private fun TodayNoVenuePreview() {
 private fun TodayFailedPreview() {
     OneMindTheme { TodayScreen(TodayState(TodayContent.Failed(UiText.Dynamic("No internet connection."))), onAction = {}) }
 }
+
+/** Loading draws the loaded layout with skeleton value slots (DESIGN_SYSTEM.md, Motion and loading). */
+private val LocalLoading = staticCompositionLocalOf { false }
+
+/** Today while loading: no figure known; the tiles of the usual layout keep their places. */
+private val LoadingToday =
+    TodayUi(
+        businessDay = null,
+        clockTime = null,
+        updatedAt = null,
+        waitingForFirstSync = false,
+        pendingVenueCount = 0,
+        paidSoFar = null,
+        comparison = null,
+        openTabsUnavailable = true,
+        tips = null,
+        hourly = null,
+        occupancyUnavailable = true,
+        guests = null,
+        perGuest = null,
+        possibleLoss = null,
+        dataGaps = emptyList(),
+    )
+
+/** A live-figure value (18/600) that crossfades in from its skeleton. */
+@Composable
+private fun LiveFigure(
+    label: String,
+    value: String,
+) {
+    OneMindLoadingSlot(
+        value = value.takeUnless { LocalLoading.current },
+        skeleton = {
+            Column(verticalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.listGap)) {
+                Text(text = label, style = OneMindTheme.typography.caption, color = OneMindTheme.colors.textSecondary, maxLines = 1)
+                OneMindSkeletonText(OneMindTheme.typography.headline, width = SKELETON_VALUE)
+            }
+        },
+    ) { StatTile(label = label, value = it, style = StatTileStyle.Tile) }
+}
+
+private val SKELETON_DATE = 180.dp
+private val SKELETON_HERO = 200.dp
+private val SKELETON_BADGE = 140.dp
+private val SKELETON_VALUE = 72.dp
+private val BADGE_PADDING = 3.dp
+private val CHART_HEIGHT = 52.dp

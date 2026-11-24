@@ -19,14 +19,15 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,12 +37,16 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.onemind.core.designsystem.components.BadgeTone
 import com.onemind.core.designsystem.components.DeltaBadge
 import com.onemind.core.designsystem.components.ListRow
 import com.onemind.core.designsystem.components.OneMindCard
 import com.onemind.core.designsystem.components.OneMindListCard
+import com.onemind.core.designsystem.components.OneMindLoadingSlot
+import com.onemind.core.designsystem.components.OneMindSkeleton
+import com.onemind.core.designsystem.components.OneMindSkeletonText
 import com.onemind.core.designsystem.components.OutlineButton
 import com.onemind.core.designsystem.components.PlaceholderScreen
 import com.onemind.core.designsystem.components.SegmentedTabs
@@ -122,15 +127,19 @@ fun SalesScreen(
                 PeriodTabs(state.period, onAction)
                 when (content) {
                     SalesContent.Loading -> {
+                        // The loaded layout with skeleton value slots, so nothing moves when the figures arrive.
                         val description = stringResource(Res.string.sales_loading)
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.fillMaxWidth().padding(OneMindTheme.spacing.sectionGap),
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.sectionGapTight),
+                            modifier = Modifier.semantics { contentDescription = description },
                         ) {
-                            CircularProgressIndicator(
-                                color = OneMindTheme.colors.accent,
-                                modifier = Modifier.semantics { contentDescription = description },
-                            )
+                            CompositionLocalProvider(LocalLoading provides true) {
+                                SalesContentColumn(
+                                    SalesContent.Ready(loadingSales(state.period)),
+                                    onOpenProductsByHour = {},
+                                    onOpenLosses = {},
+                                )
+                            }
                         }
                     }
 
@@ -194,15 +203,26 @@ private fun Header(
     title: String,
     range: SalesRange?,
 ) {
+    val loading = LocalLoading.current
     val colors = OneMindTheme.colors
     val spacing = OneMindTheme.spacing
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+    // As high as the range pill, so the content below doesn't move when the pill appears.
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().heightIn(min = spacing.minTouchTarget - spacing.tileGap / 2),
+    ) {
         Text(
             text = title,
             style = OneMindTheme.typography.title,
             color = colors.textPrimary,
             modifier = Modifier.weight(1f).semantics { heading() },
         )
+        if (range == null && loading) {
+            OneMindSkeleton(
+                modifier = Modifier.size(SKELETON_PILL_WIDTH, spacing.minTouchTarget - spacing.tileGap / 2),
+                shape = RoundedCornerShape(OneMindTheme.radius.chip),
+            )
+        }
         range?.let {
             // "Choose dates" in the canvas; picking a date isn't built yet, so the pill only shows the range.
             val shape = RoundedCornerShape(OneMindTheme.radius.chip)
@@ -277,6 +297,7 @@ private fun SalesContentColumn(
 
 @Composable
 private fun RevenueCard(sales: SalesUi) {
+    val loading = LocalLoading.current
     val colors = OneMindTheme.colors
     val type = OneMindTheme.typography
     val spacing = OneMindTheme.spacing
@@ -285,7 +306,17 @@ private fun RevenueCard(sales: SalesUi) {
         Column(verticalArrangement = Arrangement.spacedBy(spacing.sectionGap)) {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.heroGap)) {
                 Text(text = stringResource(Res.string.sales_revenue).uppercase(), style = type.overline, color = colors.textSecondary)
-                Text(text = sales.revenue ?: empty, style = type.display, color = colors.textPrimary)
+                OneMindLoadingSlot(
+                    value = sales.revenue ?: empty.takeUnless { loading },
+                    skeleton = { OneMindSkeletonText(type.display, width = SKELETON_HERO) },
+                ) { Text(text = it, style = type.display, color = colors.textPrimary) }
+                if (loading) {
+                    OneMindSkeletonText(
+                        type.caption,
+                        width = SKELETON_BADGE,
+                        modifier = Modifier.padding(vertical = BADGE_PADDING),
+                    )
+                }
                 sales.comparison?.let { DeltaBadge(text = it.text(), tone = it.tone) }
                 if (sales.waitingForFirstSync) {
                     Text(text = stringResource(Res.string.sales_waiting_first_sync), style = type.bodySmall, color = colors.textSecondary)
@@ -294,13 +325,17 @@ private fun RevenueCard(sales: SalesUi) {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.sectionGapTight)) {
                 HorizontalDivider(thickness = spacing.borderWidth, color = colors.divider)
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.tileGap)) {
-                    StatTile(label = stringResource(Res.string.sales_guests), value = sales.guests ?: empty, modifier = Modifier.weight(1f))
-                    StatTile(
+                    SalesStat(
+                        label = stringResource(Res.string.sales_guests),
+                        value = sales.guests ?: empty,
+                        modifier = Modifier.weight(1f),
+                    )
+                    SalesStat(
                         label = stringResource(Res.string.sales_average_bill),
                         value = sales.averageBill ?: empty,
                         modifier = Modifier.weight(1f),
                     )
-                    StatTile(
+                    SalesStat(
                         label = stringResource(Res.string.sales_per_guest),
                         value = sales.perGuest ?: empty,
                         modifier = Modifier.weight(1f),
@@ -314,6 +349,7 @@ private fun RevenueCard(sales: SalesUi) {
 /** *By payment*: title and tips total, the card/cash share bar, then each side with its swatch and amount. */
 @Composable
 private fun PaymentCard(sales: SalesUi) {
+    val loading = LocalLoading.current
     val colors = OneMindTheme.colors
     val type = OneMindTheme.typography
     val spacing = OneMindTheme.spacing
@@ -327,14 +363,31 @@ private fun PaymentCard(sales: SalesUi) {
                     color = colors.textPrimary,
                     modifier = Modifier.weight(1f),
                 )
-                Text(
-                    text = stringResource(Res.string.sales_tips, sales.tips ?: empty),
-                    style = type.bodySmall,
-                    color = colors.textSecondary,
-                )
+                if (loading) {
+                    OneMindSkeletonText(type.bodySmall, width = SKELETON_VALUE)
+                } else {
+                    Text(
+                        text = stringResource(Res.string.sales_tips, sales.tips ?: empty),
+                        style = type.bodySmall,
+                        color = colors.textSecondary,
+                    )
+                }
             }
             val payment = sales.payment
-            if (payment == null) {
+            if (loading) {
+                OneMindSkeleton(
+                    modifier = Modifier.fillMaxWidth().height(spacing.shareBarHeight),
+                    shape = RoundedCornerShape(OneMindTheme.radius.shareBar),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.rowGap), modifier = Modifier.fillMaxWidth()) {
+                    repeat(2) {
+                        Column(verticalArrangement = Arrangement.spacedBy(spacing.hairlineGap), modifier = Modifier.weight(1f)) {
+                            OneMindSkeletonText(type.caption, width = SKELETON_VALUE)
+                            OneMindSkeletonText(type.bodyLarge, width = SKELETON_VALUE)
+                        }
+                    }
+                }
+            } else if (payment == null) {
                 Text(
                     text = if (sales.waitingForFirstSync) empty else stringResource(Res.string.sales_no_card_or_cash),
                     style = type.bodySmall,
@@ -548,3 +601,49 @@ private fun previewSales() =
         dataGaps = listOf(SalesDataGapLine(SalesDataGapKind.OUTDATED, 3)),
         updatedAt = "21:38",
     )
+
+/** Loading draws the loaded layout with skeleton value slots (DESIGN_SYSTEM.md, Motion and loading). */
+private val LocalLoading = staticCompositionLocalOf { false }
+
+/** Sales while loading: no figure known; the range is never drawn (the header has none while loading). */
+private fun loadingSales(period: SalesPeriod) =
+    SalesUi(
+        range = SalesRange(period, LocalDate.fromEpochDays(0), LocalDate.fromEpochDays(0), hour = null, finished = false),
+        waitingForFirstSync = false,
+        pendingVenueCount = 0,
+        revenue = null,
+        comparison = null,
+        guests = null,
+        averageBill = null,
+        perGuest = null,
+        tips = null,
+        payment = null,
+        possibleLoss = null,
+        dataGaps = emptyList(),
+        updatedAt = null,
+    )
+
+/** A stat (12 + 16/600) whose value crossfades in from its skeleton. */
+@Composable
+private fun SalesStat(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    OneMindLoadingSlot(
+        value = value.takeUnless { LocalLoading.current },
+        modifier = modifier,
+        skeleton = {
+            Column(verticalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.hairlineGap)) {
+                Text(text = label, style = OneMindTheme.typography.caption, color = OneMindTheme.colors.textSecondary, maxLines = 1)
+                OneMindSkeletonText(OneMindTheme.typography.bodyLarge, width = SKELETON_VALUE)
+            }
+        },
+    ) { StatTile(label = label, value = it) }
+}
+
+private val SKELETON_PILL_WIDTH = 120.dp
+private val SKELETON_HERO = 200.dp
+private val SKELETON_BADGE = 140.dp
+private val SKELETON_VALUE = 72.dp
+private val BADGE_PADDING = 3.dp
