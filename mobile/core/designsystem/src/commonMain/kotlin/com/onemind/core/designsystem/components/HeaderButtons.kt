@@ -25,8 +25,9 @@ import com.onemind.core.designsystem.icons.OneMindIcons
 import com.onemind.core.designsystem.theme.OneMindTheme
 
 /**
- * The venue button at the top of the tabs (*Main bar ▾*): a white pill, 44 high, `borderStrong`. Without
- * [onClick] (the switcher sheet isn't built yet) it shows the name only, with no chevron and no click.
+ * The venue button at the top of the tabs (*Main bar ▾*): a white pill, 44 high, `borderStrong`, a green
+ * status dot. Without [onClick] (the switcher sheet isn't built yet) it has no click; [showChevron] draws
+ * the canvas's chevron anyway.
  * [contentDescription] is what a screen reader says (*Venue: Main bar*).
  */
 @Composable
@@ -35,6 +36,7 @@ fun VenueButton(
     contentDescription: String,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    showChevron: Boolean = onClick != null,
 ) {
     val colors = OneMindTheme.colors
     val spacing = OneMindTheme.spacing
@@ -61,7 +63,7 @@ fun VenueButton(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        if (onClick != null) {
+        if (showChevron) {
             Icon(
                 imageVector = OneMindIcons.ChevronDown,
                 contentDescription = null,
@@ -73,12 +75,13 @@ fun VenueButton(
 }
 
 /**
- * The account button: the user's initials (*KF*) in a dark 44 circle. Without [onClick] (no account
+ * The account button: the user's initials (*KF*, 14/600) in a dark 44 circle, or a person glyph when the
+ * user has no name. Without [onClick] (no account
  * screen yet) it is a label, not a button.
  */
 @Composable
 fun AccountButton(
-    initials: String,
+    initials: String?,
     contentDescription: String,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
@@ -95,11 +98,21 @@ fun AccountButton(
                     if (onClick != null) role = Role.Button
                 },
     ) {
-        Text(
-            text = initials,
-            style = OneMindTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-            color = OneMindTheme.colors.onAccent,
-            maxLines = 1,
-        )
+        if (initials != null) {
+            Text(
+                text = initials,
+                style = OneMindTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = OneMindTheme.colors.onAccent,
+                maxLines = 1,
+            )
+        } else {
+            // No name given (`GET /me` displayName null): a person glyph, never invented initials.
+            Icon(
+                imageVector = OneMindIcons.Account,
+                contentDescription = null,
+                tint = OneMindTheme.colors.onAccent,
+                modifier = Modifier.size(OneMindTheme.spacing.iconBoxIconSize),
+            )
+        }
     }
 }
