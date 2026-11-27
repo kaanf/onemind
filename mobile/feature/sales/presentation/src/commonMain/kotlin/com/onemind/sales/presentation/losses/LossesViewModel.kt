@@ -8,11 +8,11 @@ import com.onemind.core.domain.venue.VenueRepository
 import com.onemind.core.domain.venue.VenueScopeRepository
 import com.onemind.core.presentation.util.UiText
 import com.onemind.core.presentation.util.toUiText
+import com.onemind.core.presentation.venue.VenueTarget
+import com.onemind.core.presentation.venue.venueTarget
 import com.onemind.sales.domain.losses.LossesErrorCodes
 import com.onemind.sales.domain.losses.LossesPeriod
 import com.onemind.sales.domain.losses.LossesRepository
-import com.onemind.sales.presentation.detail.VenueTarget
-import com.onemind.sales.presentation.detail.venueTarget
 import com.onemind.sales.presentation.generated.resources.Res
 import com.onemind.sales.presentation.generated.resources.sales_detail_error_venue_not_found
 import com.onemind.sales.presentation.generated.resources.sales_detail_error_venues_differ
