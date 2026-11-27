@@ -48,6 +48,18 @@ object OneMindIcons {
         strokeIcon("Account", 1.75f, "M15.5 8a3.5 3.5 0 1 1-7 0a3.5 3.5 0 1 1 7 0z", "M5.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6")
     val Stock =
         strokeIcon("Stock", 1.75f, "M3.5 7.5 12 3.5l8.5 4v9L12 20.5l-8.5-4z", "M3.5 7.5 12 11.5l8.5-4", "M12 11.5v9")
+    val Receipt = strokeIcon("Receipt", 1.75f, "M6 3h12v18l-3-2-3 2-3-2-3 2z", "M9 8h6", "M9 12h6")
+    val Transfer = strokeIcon("Transfer", 1.75f, "M4 8h15", "M15 4l4 4-4 4", "M20 16H5", "M9 12l-4 4 4 4")
+    val Count =
+        strokeIcon(
+            "Count",
+            1.75f,
+            "M7 4h10a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z",
+            "M9 4V3h6v1",
+            "M9 11l2 2 4-4",
+            "M9 17h6",
+        )
+    val Plus = strokeIcon("Plus", 2.4f, "M12 5v14", "M5 12h14")
 }
 
 private fun strokeIcon(

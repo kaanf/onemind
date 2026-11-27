@@ -278,6 +278,10 @@ First release: only *This week*; the *Now* tab is not shown (`MVP_SCOPE.md`).
 
 ## 04 · Stock · Order plan — `StockPlan`
 
+- **Dev builds** show this landing over fixed demo figures with a *Demo data* badge
+  (`composeApp/stock/StockDemoScreen`, owner decision 2026-11-27, for demos); tiles and rows don't open
+  screens yet. Prod keeps the placeholder until the stock API exists (phase 6, rule 2).
+
 Stock tab has three sections (segmented): **Order plan | Idle stock | Count**, plus venue label.
 
 - Header card: *ORDER BY MON 10:00 · DELIVERY TUE*, total `14 160 Kč`,

@@ -6,6 +6,45 @@
     <string name="tab_stock">Stock</string>
     <string name="stock_title">Stock</string>
     <string name="stock_placeholder_message">Coming soon.</string>
+    <!-- Stock tab landing (canvas StockPlan), dev builds only, over demo figures until the stock API exists (phase 6). -->
+    <string name="stock_demo_badge">Demo data</string>
+    <plurals name="stock_on_hand">
+        <item quantity="one">%1$s on hand · %2$d location</item>
+        <item quantity="other">%1$s on hand · %2$d locations</item>
+    </plurals>
+    <string name="stock_action_scan_invoice">Scan invoice</string>
+    <string name="stock_action_transfer">Transfer</string>
+    <string name="stock_action_count">Count</string>
+    <string name="stock_action_recipes">Recipes</string>
+    <string name="stock_needs_attention">Needs attention</string>
+    <plurals name="stock_attention_delivery">
+        <item quantity="one">%1$d delivery to approve</item>
+        <item quantity="other">%1$d deliveries to approve</item>
+    </plurals>
+    <plurals name="stock_attention_delivery_meta">
+        <item quantity="one">%1$s · scanned by %2$s · %3$d line</item>
+        <item quantity="other">%1$s · scanned by %2$s · %3$d lines</item>
+    </plurals>
+    <string name="stock_attention_review">Review</string>
+    <plurals name="stock_attention_pull">
+        <item quantity="one">Move %1$d item to %2$s</item>
+        <item quantity="other">Move %1$d items to %2$s</item>
+    </plurals>
+    <string name="stock_attention_pull_meta">Below par at the bar · %1$s has them</string>
+    <string name="stock_attention_pull_list">Pull list</string>
+    <string name="stock_attention_reorder">Reorder %1$s</string>
+    <string name="stock_attention_reorder_meta">%1$d left in the whole venue · reorder at %2$d</string>
+    <string name="stock_attention_ordered_meta">Marked ordered today · reminder paused</string>
+    <string name="stock_attention_mark_ordered">Mark ordered</string>
+    <string name="stock_attention_ordered">Ordered</string>
+    <string name="stock_locations">Locations</string>
+    <string name="stock_add">Add</string>
+    <plurals name="stock_location_items">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d items</item>
+    </plurals>
+    <string name="stock_location_below_par">%1$d below par</string>
+    <string name="stock_location_receiving">Receiving</string>
     <!-- Shown on 426 APP_UPGRADE_REQUIRED. Not designed yet (P7); no store button until the listings exist (phase 7). -->
     <string name="update_title">Update OneMind</string>
     <string name="update_body">This version of OneMind is no longer supported. Update the app from the store to continue.</string>
