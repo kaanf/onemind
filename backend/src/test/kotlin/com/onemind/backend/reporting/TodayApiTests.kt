@@ -9,6 +9,7 @@ import com.onemind.backend.testing.MutableClock
 import com.onemind.backend.testing.TenancyFixture
 import com.onemind.backend.testing.expectNoCrossVenueAccess
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -43,6 +44,7 @@ import kotlin.test.assertTrue
     ],
 )
 @AutoConfigureMockMvc
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class TodayApiTests {
     @TestConfiguration(proxyBeanMethods = false)
     class Config {
@@ -70,9 +72,15 @@ class TodayApiTests {
     @Autowired
     lateinit var json: JsonMapper
 
+    /**
+     * One synced demo organization for the tests that only read it: the sync and its rollups are the slow
+     * part. Tests that change data (rollups, venue settings) sync their own with [syncedOwner].
+     */
+    private val shared by lazy { syncedOwner() }
+
     @Test
     fun `today's figures equal an independent SQL calculation`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
 
         val today = get(owner, venue)
 
@@ -130,7 +138,7 @@ class TodayApiTests {
 
     @Test
     fun `a venue still waiting for its first sync is pending, never counted as 0`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
         val pending = newVenue(owner, "CZK")
 
         val both = get(owner, venue, pending)
@@ -179,7 +187,7 @@ class TodayApiTests {
 
     @Test
     fun `no venue at all is a bad request`() {
-        val (owner, _) = syncedOwner()
+        val (owner, _) = shared
 
         mockMvc.get("/api/v1/dashboard/today?venueIds=") { bearer(owner) }.andExpect {
             status { isBadRequest() }
@@ -190,7 +198,7 @@ class TodayApiTests {
 
     @Test
     fun `an unchanged answer is 304 for its ETag`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
         val first = mockMvc.get("/api/v1/dashboard/today?venueIds=$venue") { bearer(owner) }.andReturn().response
         val tag = requireNotNull(first.getHeader("ETag"))
 
@@ -212,7 +220,7 @@ class TodayApiTests {
 
     @Test
     fun `venues of different currencies are never added up`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
         val inEuro = newVenue(owner, "EUR")
 
         mockMvc.get("/api/v1/dashboard/today?venueIds=$venue,$inEuro") { bearer(owner) }.andExpect {
