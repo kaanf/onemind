@@ -1,12 +1,12 @@
-package com.onemind.sales.presentation.detail
+package com.onemind.core.presentation.venue
 
 import com.onemind.core.domain.util.DataError
 import com.onemind.core.domain.venue.VenueList
 import com.onemind.core.domain.venue.VenueScope
 import com.onemind.core.domain.venue.venueIds
 
-/** What a Sales detail screen loads for the selected scope (same rules as Today). */
-internal sealed interface VenueTarget {
+/** What a dashboard screen loads for the selected scope (same rules as Today). */
+sealed interface VenueTarget {
     data object Waiting : VenueTarget
 
     data object NoVenue : VenueTarget
@@ -20,7 +20,7 @@ internal sealed interface VenueTarget {
     ) : VenueTarget
 }
 
-internal fun venueTarget(
+fun venueTarget(
     scope: VenueScope?,
     list: VenueList,
 ): VenueTarget =

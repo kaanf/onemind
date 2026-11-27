@@ -8,6 +8,7 @@ import com.onemind.sales.data.di.salesDataModule
 import com.onemind.sales.data.di.salesDetailDataModule
 import com.onemind.sales.presentation.di.salesDetailPresentationModule
 import com.onemind.sales.presentation.di.salesPresentationModule
+import com.onemind.staff.data.di.staffDataModule
 import com.onemind.staff.presentation.di.staffPresentationModule
 import com.onemind.today.data.di.todayDataModule
 import com.onemind.today.presentation.di.todayPresentationModule
@@ -29,6 +30,7 @@ val appModules: List<Module>
             salesPresentationModule,
             salesDetailDataModule,
             salesDetailPresentationModule,
+            staffDataModule,
             staffPresentationModule,
         )
 
