@@ -9,6 +9,7 @@ import com.onemind.backend.testing.MutableClock
 import com.onemind.backend.testing.TenancyFixture
 import com.onemind.backend.testing.expectNoCrossVenueAccess
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -41,6 +42,7 @@ import kotlin.test.assertTrue
     ],
 )
 @AutoConfigureMockMvc
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class StaffApiTests {
     @TestConfiguration(proxyBeanMethods = false)
     class Config {
@@ -68,9 +70,12 @@ class StaffApiTests {
     @Autowired
     lateinit var json: JsonMapper
 
+    /** One synced demo organization for all tests: they only read it, and the sync is the slow part. */
+    private val shared by lazy { syncedOwner() }
+
     @Test
     fun `a day's staff figures equal an independent SQL calculation`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
 
         val staff = get(owner, "date=2026-11-19", venue)
 
@@ -129,7 +134,7 @@ class StaffApiTests {
 
     @Test
     fun `a day before the data starts is no data, never a day without staff (rule 2)`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
 
         val beforeData = get(owner, "date=2026-10-01", venue)
 
@@ -140,7 +145,7 @@ class StaffApiTests {
 
     @Test
     fun `a future day is a bad request`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
 
         mockMvc.get("/api/v1/dashboard/staff?venueIds=$venue&date=2026-11-21") { bearer(owner) }.andExpect {
             status { isBadRequest() }

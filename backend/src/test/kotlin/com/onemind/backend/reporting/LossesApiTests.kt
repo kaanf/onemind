@@ -9,6 +9,7 @@ import com.onemind.backend.testing.MutableClock
 import com.onemind.backend.testing.TenancyFixture
 import com.onemind.backend.testing.expectNoCrossVenueAccess
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -43,6 +44,7 @@ import kotlin.test.assertTrue
     ],
 )
 @AutoConfigureMockMvc
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LossesApiTests {
     @TestConfiguration(proxyBeanMethods = false)
     class Config {
@@ -70,9 +72,15 @@ class LossesApiTests {
     @Autowired
     lateinit var json: JsonMapper
 
+    /**
+     * One synced demo organization for the tests that only read it: the sync and its rollups are the slow
+     * part. Tests that change data (rollups, venue settings) sync their own with [syncedOwner].
+     */
+    private val shared by lazy { syncedOwner() }
+
     @Test
     fun `this week's losses equal an independent SQL calculation`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
 
         val losses = get(owner, "period=WEEK", venue)
 
@@ -110,7 +118,7 @@ class LossesApiTests {
 
     @Test
     fun `the loss share is compared in percentage points with the same elapsed span`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
 
         val comparison = get(owner, "period=WEEK", venue)["comparison"]
 
@@ -138,7 +146,7 @@ class LossesApiTests {
 
     @Test
     fun `losses cover days, a venue without data is pending`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
         val pending = newVenue(owner)
 
         mockMvc.get("/api/v1/dashboard/losses?venueIds=$venue&period=HOUR") { bearer(owner) }.andExpect {

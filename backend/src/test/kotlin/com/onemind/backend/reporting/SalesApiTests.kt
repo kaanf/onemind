@@ -9,6 +9,7 @@ import com.onemind.backend.testing.MutableClock
 import com.onemind.backend.testing.TenancyFixture
 import com.onemind.backend.testing.expectNoCrossVenueAccess
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -44,6 +45,7 @@ import kotlin.test.assertTrue
     ],
 )
 @AutoConfigureMockMvc
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SalesApiTests {
     @TestConfiguration(proxyBeanMethods = false)
     class Config {
@@ -71,9 +73,15 @@ class SalesApiTests {
     @Autowired
     lateinit var json: JsonMapper
 
+    /**
+     * One synced demo organization for the tests that only read it: the sync and its rollups are the slow
+     * part. Tests that change data (rollups, venue settings) sync their own with [syncedOwner].
+     */
+    private val shared by lazy { syncedOwner() }
+
     @Test
     fun `this week's figures equal an independent SQL calculation`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
 
         val sales = get(owner, "period=WEEK", venue)
 
@@ -128,7 +136,7 @@ class SalesApiTests {
 
     @Test
     fun `the current hour is compared with the same hour last week up to the same minute`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
 
         val sales = get(owner, "period=HOUR", venue)
 
@@ -146,7 +154,7 @@ class SalesApiTests {
 
     @Test
     fun `a finished week is compared with the whole previous week`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
 
         val sales = get(owner, "period=WEEK&date=2026-11-04", venue)
 
@@ -167,7 +175,7 @@ class SalesApiTests {
 
     @Test
     fun `a venue whose data starts inside the compared span is left out of the comparison`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
 
         // The data starts 29 days back, after 1 October: November can't be compared with October.
         val sales = get(owner, "period=MONTH", venue)
@@ -194,7 +202,7 @@ class SalesApiTests {
 
     @Test
     fun `a venue still waiting for its first sync is pending, never counted as 0`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
         val pending = newVenue(owner, "CZK")
 
         val both = get(owner, "period=DAY", venue, pending)
@@ -208,7 +216,7 @@ class SalesApiTests {
 
     @Test
     fun `a wrong period or date is a bad request`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
 
         expectProblem(owner, "period=YEAR", venue, 400, "SALES_PERIOD_UNKNOWN")
         expectProblem(owner, "period=DAY&date=2026-11-21", venue, 400, "SALES_DATE_IN_FUTURE")

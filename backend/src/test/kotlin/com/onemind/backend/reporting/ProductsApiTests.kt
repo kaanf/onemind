@@ -9,6 +9,7 @@ import com.onemind.backend.testing.MutableClock
 import com.onemind.backend.testing.TenancyFixture
 import com.onemind.backend.testing.expectNoCrossVenueAccess
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -42,6 +43,7 @@ import kotlin.test.assertTrue
     ],
 )
 @AutoConfigureMockMvc
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ProductsApiTests {
     @TestConfiguration(proxyBeanMethods = false)
     class Config {
@@ -69,9 +71,15 @@ class ProductsApiTests {
     @Autowired
     lateinit var json: JsonMapper
 
+    /**
+     * One synced demo organization for the tests that only read it: the sync and its rollups are the slow
+     * part. Tests that change data (rollups, venue settings) sync their own with [syncedOwner].
+     */
+    private val shared by lazy { syncedOwner() }
+
     @Test
     fun `a day's products equal an independent SQL calculation`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
 
         val products = get(owner, "date=2026-11-20", venue)
 
@@ -103,7 +111,7 @@ class ProductsApiTests {
 
     @Test
     fun `a day before the data starts is no data, never a day without sales (rule 2)`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
         val pending = newVenue(owner, "CZK")
 
         // The demo data starts 29 days back (22 October).
@@ -133,7 +141,7 @@ class ProductsApiTests {
 
     @Test
     fun `a future day is a bad request`() {
-        val (owner, venue) = syncedOwner()
+        val (owner, venue) = shared
 
         mockMvc.get("/api/v1/dashboard/products?venueIds=$venue&date=2026-11-21") { bearer(owner) }.andExpect {
             status { isBadRequest() }
