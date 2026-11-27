@@ -19,6 +19,9 @@ import com.onemind.api.v1.model.ProductsSummary
 import com.onemind.api.v1.model.SalesComparison
 import com.onemind.api.v1.model.SalesRange
 import com.onemind.api.v1.model.SalesSummary
+import com.onemind.api.v1.model.StaffSales
+import com.onemind.api.v1.model.StaffSummary
+import com.onemind.api.v1.model.StaffTotals
 import com.onemind.api.v1.model.TodayComparison
 import com.onemind.api.v1.model.TodayHourly
 import com.onemind.api.v1.model.TodaySummary
@@ -31,12 +34,14 @@ import com.onemind.backend.common.web.ETagResponses
 import com.onemind.backend.reporting.application.GetLosses
 import com.onemind.backend.reporting.application.GetProducts
 import com.onemind.backend.reporting.application.GetSales
+import com.onemind.backend.reporting.application.GetStaff
 import com.onemind.backend.reporting.application.GetTodaySummary
 import com.onemind.backend.reporting.application.LossesView
 import com.onemind.backend.reporting.application.ProductsView
 import com.onemind.backend.reporting.application.SalesPeriodUnknownException
 import com.onemind.backend.reporting.application.SalesView
 import com.onemind.backend.reporting.application.ScopedVenue
+import com.onemind.backend.reporting.application.StaffView
 import com.onemind.backend.reporting.application.TodayGapsView
 import com.onemind.backend.reporting.application.TodayView
 import com.onemind.backend.reporting.domain.BarKind
@@ -56,6 +61,7 @@ class DashboardController(
     private val getSales: GetSales,
     private val getLosses: GetLosses,
     private val getProducts: GetProducts,
+    private val getStaff: GetStaff,
     private val eTags: ETagResponses,
 ) : DashboardApi {
     override fun getToday(
@@ -154,6 +160,44 @@ class DashboardController(
                         hourly = product.hourly.map { ProductQuantity(it.hour, it.quantity.decimalString()) },
                         peakHour = product.peakHour,
                         categoryId = product.categoryId,
+                    )
+                },
+        )
+    }
+
+    override fun getStaff(
+        venueIds: List<UUID>,
+        date: LocalDate?,
+        ifNoneMatch: String?,
+    ): ResponseEntity<StaffSummary> = eTags.ok(getStaff.get(CurrentUser.id(), venueIds, date).toDto(), ifNoneMatch)
+
+    private fun StaffView.toDto(): StaffSummary {
+        val code = currency.currencyCode
+        val figures = figures
+        return StaffSummary(
+            status = if (figures != null) DataStatus.READY else DataStatus.NO_DATA_YET,
+            currency = code,
+            businessDay = businessDay,
+            venues =
+                venues.map {
+                    it.toDto(today, timeZone).copy(status = if (it.venueId in coveredVenueIds) DataStatus.READY else DataStatus.NO_DATA_YET)
+                },
+            pendingVenueIds = venues.filterNot { it.venueId in coveredVenueIds }.map { it.venueId },
+            dataGaps = gaps.toDto(),
+            totals =
+                figures?.totals?.let {
+                    StaffTotals(Money(it.salesMinor, code), Money(it.tipsMinor, code), it.guests, it.bills)
+                },
+            staff =
+                figures?.staff?.map {
+                    StaffSales(
+                        staffId = it.staffId,
+                        sales = Money(it.salesMinor, code),
+                        tips = Money(it.tipsMinor, code),
+                        guests = it.guests,
+                        billCount = it.bills,
+                        deletedBillCount = it.deletedBills,
+                        name = it.name,
                     )
                 },
         )
