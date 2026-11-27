@@ -20,7 +20,7 @@ properties:
   sales:
     allOf:
       - $ref: ./Money.yaml
-    description: Paid revenue (payments without tips) of the bills this person opened, refunded bills included.
+    description: Paid revenue (payments without tips) of the bills this person opened; deleted and refunded bills not counted.
   tips:
     allOf:
       - $ref: ./Money.yaml

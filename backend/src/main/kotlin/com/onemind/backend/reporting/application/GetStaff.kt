@@ -1,6 +1,7 @@
 package com.onemind.backend.reporting.application
 
 import com.onemind.backend.pos.api.PosReadModel
+import com.onemind.backend.reporting.domain.RollupVersion
 import com.onemind.backend.reporting.domain.StaffCalculator
 import com.onemind.backend.reporting.domain.StaffFigures
 import com.onemind.backend.reporting.domain.VenueStaff
@@ -48,8 +49,13 @@ class GetStaff(
         val day = date ?: today
         if (day.isAfter(today)) throw SalesDateInFutureException()
 
-        // A day before a venue's data starts is no data for it (rule 2), not a day without bills.
-        val covered = scope.ready.filter { venue -> rollups.firstDay(venue.venueId)?.let { !it.isAfter(day) } == true }
+        // A day before a venue's data starts is no data for it (rule 2), not a day without bills; so is a day
+        // still stored by an older calculation (its staff sales may include refunds) until it is rebuilt.
+        val covered =
+            scope.ready.filter { venue ->
+                rollups.firstDay(venue.venueId)?.let { !it.isAfter(day) } == true &&
+                    rollups.outdatedDays(venue.venueId, listOf(day), RollupVersion.CURRENT).isEmpty()
+            }
         val inputs =
             covered.map { venue ->
                 val rows = rollups.staffDaily(venue.venueId, day)

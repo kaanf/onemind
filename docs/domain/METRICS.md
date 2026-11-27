@@ -168,7 +168,8 @@ payment split) are hidden while **any** day of the period is stored by an older 
 First release (`GET /dashboard/staff`, screen 03): Storyous has no sign-ins, so *Hours*, shifts and
 roles are not shown; the team totals are *Sales*, *Tips*, *Guests* and the list is the business day's
 staff from `reporting.staff_daily_sales` (one row per person over the requested venues, staff being
-per POS account), sorted by sales. Team totals are the sums of the listed staff; a bill without
+per POS account), sorted by sales. Staff sales are `paidRevenue`: refunded bills are left out (rollup
+version 4); a day still stored by an older version shows as no data until it is rebuilt. Team totals are the sums of the listed staff; a bill without
 `createdBy` (tips without `paidBy`) is in no one's figures. Guests follow the rollup rule (a bill
 without `personCount` counts 1 guest).
 

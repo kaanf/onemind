@@ -93,6 +93,14 @@ class StaffApiTests {
             staff["totals"]["tips"]["amountMinor"].asLong(),
         )
         assertEquals(rows.sumOf { it["sales"]["amountMinor"].asLong() }, staff["totals"]["sales"]["amountMinor"].asLong())
+        // Sales are paidRevenue: payments without tips of bills that aren't deleted or refunded; a bill whose
+        // payments don't add up (tips above them, or a total without any) is left out.
+        val payments = "(select coalesce(sum(p.amount_minor), 0) from pos.payment p where p.bill_id = b.id)"
+        val paid =
+            "select coalesce(sum($payments - b.tips_minor), 0) from pos.bill b where $day and not b.deleted and not b.refunded " +
+                "and b.created_by_staff_id is not null and b.tips_minor <= $payments " +
+                "and not (b.total_minor > 0 and not exists (select 1 from pos.payment p where p.bill_id = b.id))"
+        assertEquals(long(paid), staff["totals"]["sales"]["amountMinor"].asLong())
         // Largest sales first.
         val sales = rows.map { it["sales"]["amountMinor"].asLong() }
         assertEquals(sales.sortedDescending(), sales)
