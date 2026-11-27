@@ -1,11 +1,11 @@
 package com.onemind.sales.data.products
 
 import com.onemind.core.data.network.ApiJson
+import com.onemind.core.data.network.EtagGet
+import com.onemind.core.data.network.NoVenueError
+import com.onemind.core.data.network.venueSet
 import com.onemind.core.domain.util.DataError
 import com.onemind.core.domain.util.Result
-import com.onemind.sales.data.http.EtagGet
-import com.onemind.sales.data.http.NoVenueError
-import com.onemind.sales.data.http.venueSet
 import com.onemind.sales.domain.products.ProductsRepository
 import com.onemind.sales.domain.products.ProductsSummary
 import io.ktor.client.HttpClient

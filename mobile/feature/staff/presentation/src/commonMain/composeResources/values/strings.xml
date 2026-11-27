@@ -1,5 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="staff_title">Staff</string>
-    <string name="staff_placeholder_message">Coming soon.</string>
+    <string name="staff_subtitle">Today · from POS bills</string>
+    <string name="staff_loading">Loading staff</string>
+    <string name="staff_no_venue">Add a venue to see its staff.</string>
+    <string name="staff_retry">Try again</string>
+    <string name="staff_sales">Sales</string>
+    <string name="staff_tips">Tips</string>
+    <string name="staff_guests">Guests</string>
+    <string name="staff_list_title">Today</string>
+    <string name="staff_list_columns">Sales · Tips</string>
+    <string name="staff_unnamed">Unnamed staff</string>
+    <plurals name="staff_meta_guests">
+        <item quantity="one">%1$d guest</item>
+        <item quantity="other">%1$d guests</item>
+    </plurals>
+    <plurals name="staff_meta_bills">
+        <item quantity="one">%1$d bill</item>
+        <item quantity="other">%1$d bills</item>
+    </plurals>
+    <plurals name="staff_meta_deleted">
+        <item quantity="one">%1$d deleted</item>
+        <item quantity="other">%1$d deleted</item>
+    </plurals>
+    <string name="staff_empty_day">No bills yet today.</string>
+    <string name="staff_waiting_first_sync">Waiting for the first sync with your POS. Figures appear after it.</string>
+    <plurals name="staff_venues_syncing">
+        <item quantity="one">%1$d venue still syncing</item>
+        <item quantity="other">%1$d venues still syncing</item>
+    </plurals>
+    <string name="staff_data_gaps">Some bills are missing from these figures.</string>
+    <string name="staff_error_venues_differ">These venues can\'t be shown together. Choose one venue.</string>
+    <string name="staff_error_venue_not_found">This venue isn\'t available any more.</string>
 </resources>

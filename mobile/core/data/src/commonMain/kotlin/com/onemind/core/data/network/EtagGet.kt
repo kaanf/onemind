@@ -1,6 +1,5 @@
-package com.onemind.sales.data.http
+package com.onemind.core.data.network
 
-import com.onemind.core.data.network.safeCall
 import com.onemind.core.domain.util.DataError
 import com.onemind.core.domain.util.Result
 import io.ktor.client.HttpClient
@@ -13,12 +12,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * A `GET` with ETag revalidation (ADR 0005) for the Sales detail screens: the last parsed answer and its
+ * A `GET` with ETag revalidation (ADR 0005) for the dashboard screens: the last parsed answer and its
  * `ETag` are kept in memory for the latest query and sent as `If-None-Match`; a `304` returns that
  * answer again. A `304` with nothing to return is fetched again without `If-None-Match`, never turned
  * into an empty screen. Only answers that [parse] accepts are remembered.
  */
-internal class EtagGet<T>(
+class EtagGet<T>(
     private val client: HttpClient,
     private val path: String,
     private val parse: (String) -> Result<T, DataError>,
@@ -107,7 +106,7 @@ internal class EtagGet<T>(
 }
 
 /** The server answers 400 VALIDATION_FAILED without a venue; say so without the round trip. */
-internal val NoVenueError = DataError.Api(HttpStatusCode.BadRequest.value, "VALIDATION_FAILED")
+val NoVenueError = DataError.Api(HttpStatusCode.BadRequest.value, "VALIDATION_FAILED")
 
 /** Sorted, so the same venue set is the same request (and the same ETag key) in any order. */
-internal fun venueSet(venueIds: List<String>): String = venueIds.distinct().sorted().joinToString(",")
+fun venueSet(venueIds: List<String>): String = venueIds.distinct().sorted().joinToString(",")
