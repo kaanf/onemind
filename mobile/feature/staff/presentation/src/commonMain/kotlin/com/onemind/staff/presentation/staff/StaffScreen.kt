@@ -183,14 +183,14 @@ private fun ReadyContent(content: StaffContent.Ready) {
     }
 }
 
-/** SALES · TIPS · GUESTS; `null` draws skeleton values. */
+/** SALES · TIPS · GUESTS; `null` draws skeleton values. Tile-size values, so a five-figure total fits a third. */
 @Composable
 private fun Totals(totals: StaffTotalsUi?) {
     OneMindCard(contentPadding = PaddingValues(OneMindTheme.spacing.cardPaddingCompact)) {
         Row(horizontalArrangement = Arrangement.spacedBy(OneMindTheme.spacing.tileGap), modifier = Modifier.fillMaxWidth()) {
-            StatTile(stringResource(Res.string.staff_sales), totals?.sales, Modifier.weight(1f), StatTileStyle.Overline)
-            StatTile(stringResource(Res.string.staff_tips), totals?.tips, Modifier.weight(1f), StatTileStyle.Overline)
-            StatTile(stringResource(Res.string.staff_guests), totals?.guests, Modifier.weight(1f), StatTileStyle.Overline)
+            StatTile(stringResource(Res.string.staff_sales).uppercase(), totals?.sales, Modifier.weight(1f), StatTileStyle.Tile)
+            StatTile(stringResource(Res.string.staff_tips).uppercase(), totals?.tips, Modifier.weight(1f), StatTileStyle.Tile)
+            StatTile(stringResource(Res.string.staff_guests).uppercase(), totals?.guests, Modifier.weight(1f), StatTileStyle.Tile)
         }
     }
 }
