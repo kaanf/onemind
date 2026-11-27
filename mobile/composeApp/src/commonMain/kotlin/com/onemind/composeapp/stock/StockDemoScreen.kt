@@ -1,6 +1,7 @@
 package com.onemind.composeapp.stock
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -63,7 +66,6 @@ import com.onemind.core.designsystem.components.DeltaBadge
 import com.onemind.core.designsystem.components.ListRow
 import com.onemind.core.designsystem.components.OneMindCard
 import com.onemind.core.designsystem.components.OneMindListCard
-import com.onemind.core.designsystem.components.OutlineButton
 import com.onemind.core.designsystem.icons.OneMindIcons
 import com.onemind.core.designsystem.theme.OneMindTheme
 import com.onemind.core.presentation.format.formatMoney
@@ -248,7 +250,7 @@ private fun AttentionRow(
                     },
                 leading = { Dot(if (ordered) colors.iconMuted else colors.negative) },
                 trailingContent = {
-                    OutlineButton(
+                    ActionLabel(
                         text =
                             if (ordered) {
                                 stringResource(Res.string.stock_attention_ordered)
@@ -256,7 +258,6 @@ private fun AttentionRow(
                                 stringResource(Res.string.stock_attention_mark_ordered)
                             },
                         onClick = { ordered = !ordered },
-                        height = OneMindTheme.spacing.minTouchTarget,
                     )
                 },
                 showDivider = showDivider,
@@ -272,8 +273,20 @@ private fun Dot(color: Color) {
 }
 
 @Composable
-private fun ActionLabel(text: String) {
-    Text(text = text, style = OneMindTheme.typography.label, color = OneMindTheme.colors.accent)
+private fun ActionLabel(
+    text: String,
+    onClick: (() -> Unit)? = null,
+) {
+    val modifier =
+        if (onClick == null) {
+            Modifier
+        } else {
+            Modifier
+                .heightIn(min = OneMindTheme.spacing.minTouchTarget)
+                .clickable(role = Role.Button, onClick = onClick)
+                .wrapContentHeight()
+        }
+    Text(text = text, style = OneMindTheme.typography.label, color = OneMindTheme.colors.accent, modifier = modifier)
 }
 
 @Composable
