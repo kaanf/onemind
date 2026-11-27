@@ -6,6 +6,7 @@ import com.onemind.backend.pos.domain.StoredCategory
 import com.onemind.backend.pos.domain.StoredDiscount
 import com.onemind.backend.pos.domain.StoredPayment
 import com.onemind.backend.pos.domain.StoredProduct
+import com.onemind.backend.pos.domain.StoredStaff
 import com.onemind.db.pos.tables.references.BILL
 import com.onemind.db.pos.tables.references.BILL_ITEM
 import com.onemind.db.pos.tables.references.BILL_ITEM_DISCOUNT
@@ -13,6 +14,7 @@ import com.onemind.db.pos.tables.references.BILL_QUARANTINE
 import com.onemind.db.pos.tables.references.CATEGORY
 import com.onemind.db.pos.tables.references.PAYMENT
 import com.onemind.db.pos.tables.references.PRODUCT
+import com.onemind.db.pos.tables.references.STAFF_MEMBER
 import com.onemind.db.pos.tables.references.SYNC_CURSOR
 import com.onemind.db.pos.tables.references.VENUE_LINK
 import org.jooq.DSLContext
@@ -164,6 +166,21 @@ class PosReadRepository(
             .fetch()
             .toList()
             .map { r -> StoredProduct(requireNotNull(r.get(PRODUCT.ID)), requireNotNull(r.get(PRODUCT.NAME)), r.get(PRODUCT.CATEGORY_ID)) }
+
+    /** The staff among [staffIds] of the POS account the venue is linked to (staff are per account, not per venue). */
+    fun staff(
+        venueId: UUID,
+        staffIds: Collection<UUID>,
+    ): List<StoredStaff> =
+        dsl
+            .select(STAFF_MEMBER.ID, STAFF_MEMBER.FULL_NAME, STAFF_MEMBER.USER_NAME)
+            .from(STAFF_MEMBER)
+            .join(VENUE_LINK)
+            .on(VENUE_LINK.CONNECTION_ID.eq(STAFF_MEMBER.CONNECTION_ID))
+            .where(VENUE_LINK.VENUE_ID.eq(venueId), STAFF_MEMBER.ID.`in`(staffIds))
+            .fetch()
+            .toList()
+            .map { r -> StoredStaff(requireNotNull(r.get(STAFF_MEMBER.ID)), r.get(STAFF_MEMBER.FULL_NAME), r.get(STAFF_MEMBER.USER_NAME)) }
 
     /** Every category of the venue's menu (a small list). */
     fun categories(venueId: UUID): List<StoredCategory> =

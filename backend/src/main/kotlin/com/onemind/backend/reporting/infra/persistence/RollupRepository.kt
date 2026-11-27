@@ -4,6 +4,7 @@ import com.onemind.backend.common.lock.infra.persistence.advisoryXactLock
 import com.onemind.backend.reporting.domain.DayRollups
 import com.onemind.backend.reporting.domain.HourTotals
 import com.onemind.backend.reporting.domain.ProductHour
+import com.onemind.backend.reporting.domain.StaffDailyRow
 import com.onemind.backend.reporting.domain.TypedDiscountDay
 import com.onemind.db.reporting.tables.references.DESK_DAILY_SALES
 import com.onemind.db.reporting.tables.references.DISCOUNT_DAILY
@@ -247,6 +248,31 @@ class RollupRepository(
                     hour = requireNotNull(r.hour).toInt(),
                     quantity = requireNotNull(r.quantity),
                     grossMinor = requireNotNull(r.grossMinor),
+                )
+            }
+    }
+
+    /** The stored staff rows of [venueId] on [day]. */
+    fun staffDaily(
+        venueId: UUID,
+        day: LocalDate,
+    ): List<StaffDailyRow> {
+        val t = STAFF_DAILY_SALES
+        return dsl
+            .selectFrom(t)
+            .where(t.VENUE_ID.eq(venueId), t.BUSINESS_DAY.eq(day))
+            .fetch()
+            // Kotlin's inline map, not jOOQ's RecordMapper: records stay inside this method (R4).
+            .toList()
+            .map { r ->
+                StaffDailyRow(
+                    staffId = requireNotNull(r.staffId),
+                    bills = requireNotNull(r.bills),
+                    revenueMinor = requireNotNull(r.revenueMinor),
+                    guests = requireNotNull(r.guests),
+                    discountMinor = requireNotNull(r.discountMinor),
+                    deletedBills = requireNotNull(r.deletedBills),
+                    tipsMinor = requireNotNull(r.tipsMinor),
                 )
             }
     }

@@ -221,7 +221,7 @@ RFC 9457 Problem Details with extension members:
 | GET | `/dashboard/products?date=…` | 02a (built: one business day, per-venue products, hours by bill opening, categories for chips) |
 | GET | `/dashboard/hourly-patterns?weeks=8` | 02b |
 | GET | `/dashboard/losses?period=…&date=…` | 02c (built: `DAY`/`WEEK`/`MONTH`, by type with `UNTYPED`, share + points, `unavailableComponents`) |
-| GET | `/dashboard/staff?day=…` | 03 |
+| GET | `/dashboard/staff?date=…` | 03 (built: one business day, sales/guests/bills by opener, tips by closer, no hours (MVP)) |
 | GET | `/dashboard/staff/{staffId}?day=…` | 03a |
 
 ### Stock (`/venues/{venueId}/…`)

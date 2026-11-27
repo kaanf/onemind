@@ -259,6 +259,9 @@ First release: only *This week*; the *Now* tab is not shown (`MVP_SCOPE.md`).
 - **On shift now** list (header *Sales · Tips*): initials avatar, name (*Tomáš N.*), meta
   (*Bar lead · since 16:00 · 82 guests*), sales, tips. Row → 03a.
 - **Earlier today**: staff who signed out (*Jan V. · Day shift · 10:00 to 16:00 · 6 h · 8 940 Kč*).
+- **First release** (no sign-ins in the POS API, `product/MVP_SCOPE.md`): subtitle *"Today · from POS
+  bills"*; totals *SALES*, *TIPS*, *GUESTS*; one list of the day's staff (initials, name, *"N guests ·
+  N bills"*, sales, tips) instead of *On shift now* / *Earlier today*. Data: `GET /dashboard/staff`.
 
 ## 03a · Waiter detail — `AltStaffDetail`
 

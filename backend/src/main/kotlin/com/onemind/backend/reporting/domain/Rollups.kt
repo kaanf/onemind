@@ -14,8 +14,11 @@ import java.util.UUID
  * job then recomputes every stored day (`rollup_state.rollup_version`).
  */
 object RollupVersion {
-    /** 2: `paidBills` and the refunded card/cash/other split (V013). 3: `refundedBills` (V014). */
-    const val CURRENT = 3
+    /**
+     * 2: `paidBills` and the refunded card/cash/other split (V013). 3: `refundedBills` (V014). 4: staff
+     * revenue is `paidRevenue` (refunded bills left out).
+     */
+    const val CURRENT = 4
 }
 
 // Inputs: the POS facts of one venue and business day (pos/api/PosReadModel), amounts in minor units.
@@ -211,7 +214,8 @@ object BillRevenue {
  * - Guests: the POS count, else 1 per bill (M5).
  * - Products and opened-bill activity use the hour the bill was opened (session start, else paid time):
  *   Storyous has no per-item time (MVP_SCOPE). Deleted bills count only as deleted.
- * - Staff: sales, guests, discounts and deleted bills by who opened the bill, tips by who closed it (M6).
+ * - Staff: sales (`paidRevenue`, refunded bills left out), guests, discounts and deleted bills by who opened
+ *   the bill, tips by who closed it (M6).
  */
 object RollupCalculator {
     fun compute(
@@ -313,7 +317,7 @@ object RollupCalculator {
                 StaffDailyRow(
                     staffId = staffId,
                     bills = ownKept.size,
-                    revenueMinor = ownKept.sumOf { BillRevenue.revenue(it) },
+                    revenueMinor = BillRevenue.paid(ownKept),
                     guests = ownKept.sumOf { it.guests() },
                     discountMinor = ownKept.sumOf { it.discountMinor },
                     deletedBills = own.count { it.deleted },

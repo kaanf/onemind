@@ -56,6 +56,13 @@ data class StoredProduct(
     val categoryId: UUID?,
 )
 
+/** A staff member of the venue's POS account as stored from bills; the POS may send neither name. */
+data class StoredStaff(
+    val staffId: UUID,
+    val fullName: String?,
+    val userName: String?,
+)
+
 /** A category of the venue's POS menu as stored. */
 data class StoredCategory(
     val categoryId: UUID,

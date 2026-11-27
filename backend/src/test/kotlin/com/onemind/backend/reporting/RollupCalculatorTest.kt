@@ -146,6 +146,18 @@ class RollupCalculatorTest {
     }
 
     @Test
+    fun `a refunded bill is not in its opener's sales (paidRevenue), but still a bill with guests`() {
+        val kept = bill("2026-11-20T19:00:00Z", total = 10_000)
+        val refunded = bill("2026-11-20T20:00:00Z", total = 50_000, refunded = true)
+
+        val staff = RollupCalculator.compute(listOf(kept, refunded), emptyList(), day("2026-11-20"), zone).staffDaily.single()
+
+        assertEquals(10_000, staff.revenueMinor)
+        assertEquals(2, staff.bills)
+        assertEquals(4, staff.guests)
+    }
+
+    @Test
     fun `table time runs from opened to paid, clipped to the business day`() {
         // Opened 03:00 local on the previous date (before this day's 05:00 start), paid 05:30 local.
         val early = bill("2026-11-20T04:30:00Z", opened = "2026-11-20T02:00:00Z")
