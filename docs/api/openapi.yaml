@@ -47,6 +47,8 @@ paths:
     $ref: ./paths/dashboard/losses.yaml
   /dashboard/products:
     $ref: ./paths/dashboard/products.yaml
+  /dashboard/staff:
+    $ref: ./paths/dashboard/staff.yaml
 components:
   securitySchemes:
     bearerAuth:

@@ -1,0 +1,42 @@
+get:
+  tags:
+    - Dashboard
+  operationId: getStaff
+  summary: Staff (03)
+  description: |
+    Sales, tips, guests and bills per staff member on one business day (screen 03;
+    `docs/domain/METRICS.md`, staff). Sales, guests and bills go to the person who opened the bill (POS
+    `createdBy`), tips to the person who closed it (`paidBy`). Storyous has no sign-ins, so there are no
+    hours, shifts or roles (`product/MVP_SCOPE.md`). Venues are resolved as on Today. Polling: `ETag` /
+    `If-None-Match` → `304`.
+
+    Errors: `400 VALIDATION_FAILED` without a venue; `400 SALES_DATE_IN_FUTURE`; `404 VENUE_NOT_FOUND`;
+    `422 CURRENCIES_DIFFER`; `422 BUSINESS_DAYS_DIFFER`.
+  parameters:
+    - $ref: ../../components/parameters/VenueIds.yaml
+    - $ref: ../../components/parameters/BusinessDay.yaml
+    - $ref: ../../components/parameters/IfNoneMatch.yaml
+  responses:
+    '200':
+      description: The day's staff figures.
+      headers:
+        ETag:
+          description: Version of this answer, for `If-None-Match`.
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/StaffSummary.yaml
+    '304':
+      description: Unchanged since the `If-None-Match` version.
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '422':
+      $ref: ../../components/responses/UnprocessableEntity.yaml
+    '426':
+      $ref: ../../components/responses/UpgradeRequired.yaml

@@ -217,7 +217,7 @@ data behind `PosProvider`. Mock data is dev/demo only: never shown as a real ven
 - [ ] Backend endpoint: Hourly patterns (02b)
 - [ ] Mobile screens: Sales (02), Products by hour (02a), Hourly patterns (02b), Discounts & losses
       (02c)
-- [ ] Staff (03), Waiter detail (03a)
+- [ ] Staff (03), Waiter detail (03a): 03 endpoint `GET /dashboard/staff` (this PR); 03 screen, 03a next
 - [ ] Rule-based hint cards (codes + params), venue switcher / all-venues view
 - [ ] Polling + ETag, offline read cache (DataStore): done for Today (#80, #86); each new screen
       adopts `ScreenCache` with its PR

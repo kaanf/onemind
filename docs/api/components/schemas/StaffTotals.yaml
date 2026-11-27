@@ -1,0 +1,18 @@
+type: object
+description: The team's figures for the day, summed over the listed staff.
+required:
+  - sales
+  - tips
+  - guests
+  - billCount
+properties:
+  sales:
+    $ref: ./Money.yaml
+  tips:
+    $ref: ./Money.yaml
+  guests:
+    type: integer
+    minimum: 0
+  billCount:
+    type: integer
+    minimum: 0

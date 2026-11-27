@@ -71,6 +71,12 @@ data class CategoryFact(
     val parentId: UUID?,
 )
 
+/** A staff member's name for screens: the POS full name, else the user name; null when the POS sent neither. */
+data class StaffFact(
+    val staffId: UUID,
+    val name: String?,
+)
+
 /** Names for screens: the products asked for (also ones off the menu now) and the venue's categories. */
 data class MenuFacts(
     val products: List<ProductFact>,
@@ -166,6 +172,15 @@ class PosReadModel(
             products = facts.products(venueId, productIds).map { ProductFact(it.productId, it.name, it.categoryId) },
             categories = facts.categories(venueId).map { CategoryFact(it.categoryId, it.name, it.parentId) },
         )
+
+    /** The names of [staffIds] in the POS account of [venueId]; ids the account doesn't know are left out. */
+    fun staff(
+        venueId: UUID,
+        staffIds: Collection<UUID>,
+    ): List<StaffFact> =
+        facts.staff(venueId, staffIds).map { s ->
+            StaffFact(s.staffId, s.fullName?.takeIf { it.isNotBlank() } ?: s.userName?.takeIf { it.isNotBlank() })
+        }
 
     /** Every venue the POS sync has linked, also ones it no longer syncs (their history stays). */
     fun syncedVenueIds(): List<UUID> = facts.syncedVenueIds()

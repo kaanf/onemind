@@ -1,0 +1,39 @@
+type: object
+description: |
+  One staff member over the requested venues (POS staff are per merchant, so a person who worked in two
+  venues of the same POS account is one row).
+required:
+  - staffId
+  - sales
+  - tips
+  - guests
+  - billCount
+  - deletedBillCount
+properties:
+  staffId:
+    type: string
+    format: uuid
+  name:
+    type: string
+    nullable: true
+    description: The POS full name, else the POS user name; null when the POS sent neither.
+  sales:
+    allOf:
+      - $ref: ./Money.yaml
+    description: Paid revenue (payments without tips) of the bills this person opened; deleted and refunded bills not counted.
+  tips:
+    allOf:
+      - $ref: ./Money.yaml
+    description: Tips on the bills this person closed.
+  guests:
+    type: integer
+    minimum: 0
+    description: Guests on the bills this person opened.
+  billCount:
+    type: integer
+    minimum: 0
+    description: Bills this person opened, deleted bills not counted.
+  deletedBillCount:
+    type: integer
+    minimum: 0
+    description: Whole bills this person opened that were deleted (item-level voids are not in the POS API).
